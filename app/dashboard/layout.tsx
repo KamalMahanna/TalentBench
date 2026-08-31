@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { DashboardSidebar } from '@/components/dashboard/sidebar';
@@ -10,12 +10,29 @@ import { motion } from 'framer-motion';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const hasHydrated = useAuthStore((s) => s.hasHydrated);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) router.push('/auth/login');
-  }, [isAuthenticated, router]);
+    setMounted(true);
+  }, []);
 
-  if (!isAuthenticated) return null;
+  useEffect(() => {
+    if (mounted && hasHydrated && !isAuthenticated) {
+      router.push('/auth/login');
+    }
+  }, [mounted, hasHydrated, isAuthenticated, router]);
+
+  // If not yet mounted or not authenticated, render placeholder
+  if (!mounted) {
+    return (
+      <div className="mesh-bg-subtle min-h-screen flex items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (hasHydrated && !isAuthenticated) return null;
 
   return (
     <div className="mesh-bg-subtle relative min-h-screen">

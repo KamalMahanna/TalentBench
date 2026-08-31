@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -24,6 +25,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import type { Role } from '@/lib/types';
 
 export default function RolesPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ['roles'],
@@ -88,7 +90,7 @@ export default function RolesPage() {
       });
       toast.success('Role and AI screening pipeline created');
       setCreateOpen(false);
-      window.location.href = `/dashboard/roles/${res.data.id}`;
+      router.push(`/dashboard/roles/${res.data.id}`);
     } catch {
       toast.error('Failed to create role');
     } finally {
