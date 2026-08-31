@@ -6,7 +6,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
     )
 
     # App
@@ -20,7 +22,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
-        "*",
+        "*"
     ]
 
     @field_validator("DEBUG", mode="before")
@@ -33,9 +35,7 @@ class Settings(BaseSettings):
         return bool(v)
 
     # Security & Auth
-    SECRET_KEY: str = (
-        "talentbench-super-secret-key-change-in-production-min-32-chars-long"
-    )
+    SECRET_KEY: str = "talentbench-super-secret-key-change-in-production-min-32-chars-long"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     AUTH_STRATEGY: Literal["bearer", "cookie"] = "bearer"
@@ -98,11 +98,21 @@ class Settings(BaseSettings):
     S3_USE_SSL: bool = False
 
     # LLM Configuration
-    LLM_PROVIDER: str = "mock"
+    LLM_PROVIDER: str = "groq"  # "groq", "mock", "openai", "anthropic", "gemini"
+    GROQ_API_KEY: str | None = None
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
+    GROQ_RPM_LIMIT: int = 30           # 30 requests / minute
+    GROQ_RPD_LIMIT: int = 1000         # 1K requests / day
+    GROQ_TPM_LIMIT: int = 8000         # 8K tokens / minute
+    GROQ_TPD_LIMIT: int = 200000       # 200K tokens / day
+    GROQ_MAX_RETRIES: int = 5
+    GROQ_RETRY_BASE_DELAY: float = 2.0
+    GROQ_RETRY_MAX_DELAY: float = 60.0
+
     OPENAI_API_KEY: str | None = None
     ANTHROPIC_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
-    LLM_MODEL: str = "gpt-4o"
+    LLM_MODEL: str = "qwen/qwen3.8-27b"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIMENSION: int = 1536
     LLM_CACHE_ENABLED: bool = True
