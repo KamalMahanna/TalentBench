@@ -95,12 +95,19 @@ class GroqRateLimiter:
                         if tpm + estimated_tokens >= self.tpm_limit:
                             wait_seconds = max(wait_seconds, 60.0 - (now % 60) + 0.1)
                         if rpd >= self.rpd_limit:
-                            wait_seconds = max(wait_seconds, 86400.0 - (now % 86400) + 1.0)
+                            wait_seconds = max(
+                                wait_seconds, 86400.0 - (now % 86400) + 1.0
+                            )
                         if tpd + estimated_tokens >= self.tpd_limit:
-                            wait_seconds = max(wait_seconds, 86400.0 - (now % 86400) + 1.0)
+                            wait_seconds = max(
+                                wait_seconds, 86400.0 - (now % 86400) + 1.0
+                            )
 
                         if wait_seconds > 0:
-                            logger.info("groq_rate_limit_throttle_wait", wait_seconds=round(wait_seconds, 2))
+                            logger.info(
+                                "groq_rate_limit_throttle_wait",
+                                wait_seconds=round(wait_seconds, 2),
+                            )
                             await asyncio.sleep(min(wait_seconds, 5.0))
                             continue
 
@@ -121,9 +128,15 @@ class GroqRateLimiter:
 
                 # In-memory sliding window fallback
                 # Clean entries older than 60s and 86400s
-                while self._request_timestamps_min and now - self._request_timestamps_min[0] > 60.0:
+                while (
+                    self._request_timestamps_min
+                    and now - self._request_timestamps_min[0] > 60.0
+                ):
                     self._request_timestamps_min.popleft()
-                while self._request_timestamps_day and now - self._request_timestamps_day[0] > 86400.0:
+                while (
+                    self._request_timestamps_day
+                    and now - self._request_timestamps_day[0] > 86400.0
+                ):
                     self._request_timestamps_day.popleft()
                 while self._token_log_min and now - self._token_log_min[0][0] > 60.0:
                     self._token_log_min.popleft()
@@ -137,12 +150,17 @@ class GroqRateLimiter:
                 if len(self._request_timestamps_min) >= self.rpm_limit:
                     oldest = self._request_timestamps_min[0]
                     wait_sec = max(wait_sec, 60.0 - (now - oldest) + 0.05)
-                if curr_tpm + estimated_tokens >= self.tpm_limit and self._token_log_min:
+                if (
+                    curr_tpm + estimated_tokens >= self.tpm_limit
+                    and self._token_log_min
+                ):
                     oldest = self._token_log_min[0][0]
                     wait_sec = max(wait_sec, 60.0 - (now - oldest) + 0.05)
 
                 if wait_sec > 0:
-                    logger.info("groq_in_memory_throttle_wait", wait_seconds=round(wait_sec, 2))
+                    logger.info(
+                        "groq_in_memory_throttle_wait", wait_seconds=round(wait_sec, 2)
+                    )
                     await asyncio.sleep(wait_sec)
                     continue
 
@@ -153,7 +171,9 @@ class GroqRateLimiter:
                 self._token_log_day.append((now, estimated_tokens))
                 break
 
-    async def record_actual_tokens(self, total_tokens: int, estimated_tokens: int = 400) -> None:
+    async def record_actual_tokens(
+        self, total_tokens: int, estimated_tokens: int = 400
+    ) -> None:
         """Adjust token count with actual tokens reported by Groq response."""
         diff = total_tokens - estimated_tokens
         if diff == 0:
@@ -201,7 +221,10 @@ class GroqRateLimiter:
         if parsed_wait is not None:
             delay = min(self.max_delay, parsed_wait + random.uniform(0.1, 0.5))
         else:
-            delay = min(self.max_delay, (self.base_delay * (2 ** attempt)) + random.uniform(0.2, 0.8))
+            delay = min(
+                self.max_delay,
+                (self.base_delay * (2**attempt)) + random.uniform(0.2, 0.8),
+            )
 
         logger.warning(
             "groq_rate_limit_backoff",

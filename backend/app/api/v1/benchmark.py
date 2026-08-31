@@ -9,7 +9,9 @@ from app.workers.benchmark_tasks import build_benchmark_profile_from_source
 router = APIRouter(tags=["Benchmark"])
 
 
-@router.get("/roles/{role_id}/benchmark", response_model=ApiResponse[BenchmarkProfileSchema])
+@router.get(
+    "/roles/{role_id}/benchmark", response_model=ApiResponse[BenchmarkProfileSchema]
+)
 async def get_benchmark_profile(role_id: str, db: AsyncSession = Depends(get_db)):
     stmt = select(BenchmarkProfile).where(BenchmarkProfile.role_id == role_id)
     res = await db.execute(stmt)
@@ -20,7 +22,9 @@ async def get_benchmark_profile(role_id: str, db: AsyncSession = Depends(get_db)
         r_res = await db.execute(role_stmt)
         role = r_res.scalars().first()
         if not role:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
+            )
 
         profile = BenchmarkProfile(
             role_id=role.id,
@@ -50,15 +54,21 @@ async def get_benchmark_profile(role_id: str, db: AsyncSession = Depends(get_db)
 
 
 @router.post("/roles/{role_id}/benchmark/generate", response_model=ApiResponse[dict])
-async def trigger_benchmark_generation(role_id: str, db: AsyncSession = Depends(get_db)):
+async def trigger_benchmark_generation(
+    role_id: str, db: AsyncSession = Depends(get_db)
+):
     stmt = select(Role).where(Role.id == role_id)
     res = await db.execute(stmt)
     role = res.scalars().first()
     if not role:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
+        )
 
     try:
-        build_benchmark_profile_from_source.delay(role_id=role_id, source_type="jd_derived")
+        build_benchmark_profile_from_source.delay(
+            role_id=role_id, source_type="jd_derived"
+        )
     except Exception:
         pass
 

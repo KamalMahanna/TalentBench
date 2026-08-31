@@ -11,10 +11,14 @@ router = APIRouter(tags=["Attention Needed (DLQ)"])
 
 @router.get("/roles/{role_id}/attention-needed", response_model=ApiResponse[list[dict]])
 async def get_attention_needed_jobs(role_id: str, db: AsyncSession = Depends(get_db)):
-    stmt = select(JobStatus).where(
-        JobStatus.role_id == role_id,
-        JobStatus.status.in_(["failed", "dead_letter"])
-    ).order_by(JobStatus.updated_at.desc())
+    stmt = (
+        select(JobStatus)
+        .where(
+            JobStatus.role_id == role_id,
+            JobStatus.status.in_(["failed", "dead_letter"]),
+        )
+        .order_by(JobStatus.updated_at.desc())
+    )
     res = await db.execute(stmt)
     jobs = res.scalars().all()
 
@@ -23,23 +27,29 @@ async def get_attention_needed_jobs(role_id: str, db: AsyncSession = Depends(get
         cand_name = "Unknown Candidate"
         cand_email = ""
         if j.candidate_id:
-            c_res = await db.execute(select(Candidate).where(Candidate.id == j.candidate_id))
+            c_res = await db.execute(
+                select(Candidate).where(Candidate.id == j.candidate_id)
+            )
             cand = c_res.scalars().first()
             if cand:
                 cand_name = cand.name
                 cand_email = cand.email
 
-        items.append({
-            "job_id": j.id,
-            "candidate_id": j.candidate_id,
-            "candidate_name": cand_name,
-            "candidate_email": cand_email,
-            "step": j.step,
-            "status": j.status,
-            "attempts": j.attempts,
-            "error_detail": j.error_detail,
-            "created_at": j.created_at.isoformat() if hasattr(j.created_at, "isoformat") else str(j.created_at),
-        })
+        items.append(
+            {
+                "job_id": j.id,
+                "candidate_id": j.candidate_id,
+                "candidate_name": cand_name,
+                "candidate_email": cand_email,
+                "step": j.step,
+                "status": j.status,
+                "attempts": j.attempts,
+                "error_detail": j.error_detail,
+                "created_at": j.created_at.isoformat()
+                if hasattr(j.created_at, "isoformat")
+                else str(j.created_at),
+            }
+        )
 
     return ApiResponse(data=items)
 
@@ -50,7 +60,9 @@ async def retry_failed_job(job_id: str, db: AsyncSession = Depends(get_db)):
     res = await db.execute(stmt)
     job = res.scalars().first()
     if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Job not found"
+        )
 
     job.status = "pending"
     job.attempts = 0

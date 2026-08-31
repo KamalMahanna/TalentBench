@@ -15,6 +15,7 @@ async def subscribe_role_events(role_id: str, request: Request):
     """
     Server-Sent Events endpoint streaming real-time live events for a role.
     """
+
     async def event_generator() -> AsyncGenerator[dict, None]:
         r = None
         pubsub = None
@@ -34,13 +35,15 @@ async def subscribe_role_events(role_id: str, request: Request):
 
         yield {
             "event": "message",
-            "data": json.dumps({
-                "type": "candidate_status",
-                "payload": {
-                    "role_id": role_id,
-                    "message": "Connected to real-time screening stream",
-                },
-            }),
+            "data": json.dumps(
+                {
+                    "type": "candidate_status",
+                    "payload": {
+                        "role_id": role_id,
+                        "message": "Connected to real-time screening stream",
+                    },
+                }
+            ),
         }
 
         try:
@@ -50,7 +53,9 @@ async def subscribe_role_events(role_id: str, request: Request):
 
                 if pubsub:
                     try:
-                        message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                        message = await pubsub.get_message(
+                            ignore_subscribe_messages=True, timeout=1.0
+                        )
                         if message and message["type"] == "message":
                             yield {
                                 "event": "message",

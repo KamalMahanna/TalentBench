@@ -9,7 +9,9 @@ router = APIRouter(tags=["Dashboard"])
 
 
 @router.get("/dashboard/stats", response_model=ApiResponse[DashboardStats])
-@router.get("/stats", response_model=ApiResponse[DashboardStats], include_in_schema=False)
+@router.get(
+    "/stats", response_model=ApiResponse[DashboardStats], include_in_schema=False
+)
 async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     roles_stmt = select(Role)
     roles_res = await db.execute(roles_stmt)

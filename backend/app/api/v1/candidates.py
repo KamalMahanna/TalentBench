@@ -4,7 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models import Candidate, RoundResult
-from app.schemas import ApiResponse, Candidate as CandidateSchema, PaginatedResponse, RoundResult as RoundResultSchema
+from app.schemas import (
+    ApiResponse,
+    Candidate as CandidateSchema,
+    PaginatedResponse,
+    RoundResult as RoundResultSchema,
+)
 
 router = APIRouter(tags=["Candidates"])
 
@@ -21,7 +26,9 @@ def to_candidate_schema(c: Candidate) -> CandidateSchema:
         status=c.status,
         current_round=c.current_round,
         overall_score=c.overall_score,
-        applied_at=c.applied_at.isoformat() if hasattr(c.applied_at, "isoformat") else str(c.applied_at),
+        applied_at=c.applied_at.isoformat()
+        if hasattr(c.applied_at, "isoformat")
+        else str(c.applied_at),
         experience_years=c.experience_years,
         current_company=c.current_company,
         skills=c.skills or [],
@@ -40,18 +47,24 @@ def to_candidate_schema(c: Candidate) -> CandidateSchema:
                 score=r.score,
                 ai_verdict=r.ai_verdict,
                 ai_summary=r.ai_summary,
-                evaluated_at=r.evaluated_at.isoformat() if hasattr(r.evaluated_at, "isoformat") else str(r.evaluated_at),
+                evaluated_at=r.evaluated_at.isoformat()
+                if hasattr(r.evaluated_at, "isoformat")
+                else str(r.evaluated_at),
                 overridden=r.overridden,
                 override_reason=r.override_reason,
                 overridden_by=r.overridden_by,
-                overridden_at=r.overridden_at.isoformat() if r.overridden_at and hasattr(r.overridden_at, "isoformat") else (str(r.overridden_at) if r.overridden_at else None),
+                overridden_at=r.overridden_at.isoformat()
+                if r.overridden_at and hasattr(r.overridden_at, "isoformat")
+                else (str(r.overridden_at) if r.overridden_at else None),
             )
             for r in c.round_results
         ],
     )
 
 
-@router.get("/roles/{role_id}/candidates", response_model=PaginatedResponse[CandidateSchema])
+@router.get(
+    "/roles/{role_id}/candidates", response_model=PaginatedResponse[CandidateSchema]
+)
 @router.get("/candidates", response_model=PaginatedResponse[CandidateSchema])
 async def get_candidates(
     role_id: str | None = None,
@@ -110,10 +123,16 @@ async def get_candidates(
 
 @router.get("/candidates/{candidate_id}", response_model=ApiResponse[CandidateSchema])
 async def get_candidate(candidate_id: str, db: AsyncSession = Depends(get_db)):
-    stmt = select(Candidate).where(Candidate.id == candidate_id).options(selectinload(Candidate.round_results))
+    stmt = (
+        select(Candidate)
+        .where(Candidate.id == candidate_id)
+        .options(selectinload(Candidate.round_results))
+    )
     res = await db.execute(stmt)
     candidate = res.scalars().first()
     if not candidate:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found"
+        )
 
     return ApiResponse(data=to_candidate_schema(candidate))

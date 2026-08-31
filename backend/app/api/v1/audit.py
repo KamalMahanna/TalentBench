@@ -8,16 +8,31 @@ from app.schemas import ApiResponse, AuditLog as AuditLogSchema
 router = APIRouter(tags=["Audit"])
 
 
-@router.get("/candidates/{candidate_id}/audit-log", response_model=ApiResponse[list[AuditLogSchema]])
-@router.get("/candidates/{candidate_id}/audit", response_model=ApiResponse[list[AuditLogSchema]], include_in_schema=False)
-async def get_candidate_audit_log(candidate_id: str, db: AsyncSession = Depends(get_db)):
+@router.get(
+    "/candidates/{candidate_id}/audit-log",
+    response_model=ApiResponse[list[AuditLogSchema]],
+)
+@router.get(
+    "/candidates/{candidate_id}/audit",
+    response_model=ApiResponse[list[AuditLogSchema]],
+    include_in_schema=False,
+)
+async def get_candidate_audit_log(
+    candidate_id: str, db: AsyncSession = Depends(get_db)
+):
     stmt = select(Candidate).where(Candidate.id == candidate_id)
     res = await db.execute(stmt)
     candidate = res.scalars().first()
     if not candidate:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found"
+        )
 
-    audit_stmt = select(AuditLog).where(AuditLog.candidate_id == candidate_id).order_by(AuditLog.timestamp.desc())
+    audit_stmt = (
+        select(AuditLog)
+        .where(AuditLog.candidate_id == candidate_id)
+        .order_by(AuditLog.timestamp.desc())
+    )
     audit_res = await db.execute(audit_stmt)
     logs = audit_res.scalars().all()
 
@@ -43,7 +58,9 @@ async def get_candidate_audit_log(candidate_id: str, db: AsyncSession = Depends(
                 actor=l.actor,
                 actor_type=l.actor_type,
                 detail=l.detail,
-                timestamp=l.timestamp.isoformat() if hasattr(l.timestamp, "isoformat") else str(l.timestamp),
+                timestamp=l.timestamp.isoformat()
+                if hasattr(l.timestamp, "isoformat")
+                else str(l.timestamp),
             )
             for l in logs
         ]

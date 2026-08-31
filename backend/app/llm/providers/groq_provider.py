@@ -66,13 +66,26 @@ class LangChainGroqProvider(LLMGateway):
                 return result
             except Exception as exc:
                 err_msg = str(exc).lower()
-                is_rate_limit = "429" in err_msg or "rate limit" in err_msg or "too many requests" in err_msg
-                is_transient = is_rate_limit or "503" in err_msg or "timeout" in err_msg or "connection" in err_msg
+                is_rate_limit = (
+                    "429" in err_msg
+                    or "rate limit" in err_msg
+                    or "too many requests" in err_msg
+                )
+                is_transient = (
+                    is_rate_limit
+                    or "503" in err_msg
+                    or "timeout" in err_msg
+                    or "connection" in err_msg
+                )
 
                 if is_transient and attempt < self.rate_limiter.max_retries - 1:
                     await self.rate_limiter.handle_backoff(attempt, exc)
                 else:
-                    logger.error("groq_request_failed_permanently", attempt=attempt, error=str(exc))
+                    logger.error(
+                        "groq_request_failed_permanently",
+                        attempt=attempt,
+                        error=str(exc),
+                    )
                     raise exc
 
     async def complete(
@@ -90,8 +103,8 @@ class LangChainGroqProvider(LLMGateway):
                 text = (
                     "While your background in software engineering is solid, we identified a minor gap in "
                     "distributed concurrency trade-offs for this position."
-                    if "gap" in prompt.lower() else
-                    "Your practical experience in backend engineering strongly aligns with our technical bar."
+                    if "gap" in prompt.lower()
+                    else "Your practical experience in backend engineering strongly aligns with our technical bar."
                 )
                 return LLMResponse(
                     text=text,
@@ -160,10 +173,23 @@ class LangChainGroqProvider(LLMGateway):
                     score=score,
                     verdict=f"Candidate demonstrated {'strong' if passed else 'adequate'} competency with score {score}/100.",
                     summary=f"Evaluation against {round_type} criteria completed.",
-                    strengths=["Strong technical fundamentals", "Structured architecture articulation"],
-                    improvement_areas=["Deepen quantitative performance profiling in high-concurrency systems"],
-                    category_scores={"Core Skills": score, "Problem Solving": score + 2, "Architecture": score - 2},
-                    radar_scores={"Resume Match": score, "Project Depth": score + 1, "Aptitude": score - 3},
+                    strengths=[
+                        "Strong technical fundamentals",
+                        "Structured architecture articulation",
+                    ],
+                    improvement_areas=[
+                        "Deepen quantitative performance profiling in high-concurrency systems"
+                    ],
+                    category_scores={
+                        "Core Skills": score,
+                        "Problem Solving": score + 2,
+                        "Architecture": score - 2,
+                    },
+                    radar_scores={
+                        "Resume Match": score,
+                        "Project Depth": score + 1,
+                        "Aptitude": score - 3,
+                    },
                     model_name=self.model_name,
                     raw_output=json.dumps({"score": score, "passed": passed}),
                     prompt_snapshot=f"Round: {round_type} | Candidate: {cand_name}",
@@ -171,7 +197,10 @@ class LangChainGroqProvider(LLMGateway):
 
             client = self._get_client(temperature=0.1, max_tokens=1500)
             client = client.bind(response_format={"type": "json_object"})
-            messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=prompt),
+            ]
             res = await client.ainvoke(messages)
             raw = str(res.content)
 
@@ -182,7 +211,9 @@ class LangChainGroqProvider(LLMGateway):
                 verdict=parsed.get("verdict", f"Evaluated with score {score}/100"),
                 summary=parsed.get("summary", "Evaluation completed."),
                 strengths=parsed.get("strengths", ["Solid foundational knowledge"]),
-                improvement_areas=parsed.get("improvement_areas", ["Continue refining practical trade-offs"]),
+                improvement_areas=parsed.get(
+                    "improvement_areas", ["Continue refining practical trade-offs"]
+                ),
                 category_scores=parsed.get("category_scores", {}),
                 radar_scores=parsed.get("radar_scores", {}),
                 model_name=self.model_name,
@@ -210,7 +241,9 @@ class LangChainGroqProvider(LLMGateway):
         await self.rate_limiter.acquire(estimated_tokens=estimated_tokens)
 
         if not self.api_key or self.api_key == "mock-groq-key":
-            sample_words = "Assessment generated via Qwen model on Groq hardware with low latency and high accuracy.".split(" ")
+            sample_words = "Assessment generated via Qwen model on Groq hardware with low latency and high accuracy.".split(
+                " "
+            )
             for w in sample_words:
                 yield w + " "
                 await asyncio.sleep(0.02)
@@ -238,8 +271,18 @@ class LangChainGroqProvider(LLMGateway):
                     "name": f"Candidate {seed % 1000}",
                     "email": f"applicant{seed % 1000}@example.com",
                     "phone": f"+1 (555) {100 + (seed % 900):03d}-{1000 + (seed % 9000):04d}",
-                    "skills": ["Python", "FastAPI", "PostgreSQL", "Docker", "AWS", "Redis"],
-                    "projects": ["Distributed Cache Engine", "Real-Time Collaboration Service"],
+                    "skills": [
+                        "Python",
+                        "FastAPI",
+                        "PostgreSQL",
+                        "Docker",
+                        "AWS",
+                        "Redis",
+                    ],
+                    "projects": [
+                        "Distributed Cache Engine",
+                        "Real-Time Collaboration Service",
+                    ],
                     "experience_years": 4,
                     "current_company": "Tech Corp",
                     "education": "B.S. in Computer Science",
@@ -249,7 +292,9 @@ class LangChainGroqProvider(LLMGateway):
 
             client = self._get_client(temperature=0.1, max_tokens=1000)
             client = client.bind(response_format={"type": "json_object"})
-            res = await client.ainvoke([SystemMessage(content=system_prompt), HumanMessage(content=prompt)])
+            res = await client.ainvoke(
+                [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
+            )
             return json.loads(str(res.content))
 
         return await self._execute_with_retry(_call, estimated_tokens=estimated_tokens)
@@ -282,7 +327,9 @@ class LangChainGroqProvider(LLMGateway):
 
             client = self._get_client(temperature=0.1, max_tokens=600)
             client = client.bind(response_format={"type": "json_object"})
-            res = await client.ainvoke([SystemMessage(content=system_prompt), HumanMessage(content=prompt)])
+            res = await client.ainvoke(
+                [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
+            )
             parsed = json.loads(str(res.content))
             return parsed.get("top_projects", projects[:target_count])
 

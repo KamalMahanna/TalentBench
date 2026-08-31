@@ -22,7 +22,9 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
         org_res = await db.execute(org_stmt)
         org = org_res.scalars().first()
         if not org:
-            org = Organization(name="TalentBench Demo Co.", plan="pro", seats_used=1, seats_total=15)
+            org = Organization(
+                name="TalentBench Demo Co.", plan="pro", seats_used=1, seats_total=15
+            )
             db.add(org)
             await db.flush()
 
@@ -38,7 +40,9 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
         await db.commit()
         await db.refresh(user)
 
-    token = create_access_token({"sub": user.id, "email": user.email, "org_id": user.org_id})
+    token = create_access_token(
+        {"sub": user.id, "email": user.email, "org_id": user.org_id}
+    )
     auth_user = AuthUser(
         id=user.id,
         email=user.email,
@@ -59,7 +63,9 @@ async def signup(req: SignupRequest, db: AsyncSession = Depends(get_db)):
     existing = res.scalars().first()
 
     if existing:
-        token = create_access_token({"sub": existing.id, "email": existing.email, "org_id": existing.org_id})
+        token = create_access_token(
+            {"sub": existing.id, "email": existing.email, "org_id": existing.org_id}
+        )
         return ApiResponse(
             data=AuthUser(
                 id=existing.id,
@@ -102,7 +108,9 @@ async def signup(req: SignupRequest, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(user)
 
-    token = create_access_token({"sub": user.id, "email": user.email, "org_id": user.org_id})
+    token = create_access_token(
+        {"sub": user.id, "email": user.email, "org_id": user.org_id}
+    )
     return ApiResponse(
         data=AuthUser(
             id=user.id,
