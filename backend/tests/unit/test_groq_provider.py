@@ -7,7 +7,7 @@ from app.llm.rate_limiter import GroqRateLimiter
 
 @pytest.mark.asyncio
 async def test_groq_rate_limiter_rpm_and_tpm_acquire():
-    # Setup rate limiter with tight limits for unit testing
+    # Setup rate limiter with in-memory fallback for isolated testing
     limiter = GroqRateLimiter(
         rpm_limit=3,
         rpd_limit=100,
@@ -16,6 +16,7 @@ async def test_groq_rate_limiter_rpm_and_tpm_acquire():
         base_delay=0.01,
         max_delay=0.1,
     )
+    limiter._get_redis = AsyncMock(return_value=None)
 
     # 3 acquires should succeed immediately
     await limiter.acquire(estimated_tokens=100)

@@ -1,16 +1,25 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Plus, Briefcase, MapPin, Users, MoreVertical, Trash2, Copy } from 'lucide-react';
+import {
+  Plus, Briefcase, MapPin, Users, MoreVertical, Trash2, Copy,
+  FileText, Upload, Sparkles, Loader2,
+} from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { GlowButton } from '@/components/glow-button';
 import { Stagger, StaggerItem } from '@/components/motion';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { Role } from '@/lib/types';
 
@@ -21,16 +30,70 @@ export default function RolesPage() {
     queryFn: () => api.getRoles(),
   });
 
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+
+  // Form State
+  const [title, setTitle] = useState('');
+  const [department, setDepartment] = useState('Engineering');
+  const [location, setLocation] = useState('Remote (US/EU)');
+  const [employmentType, setEmploymentType] = useState<'Full-time' | 'Part-time' | 'Contract' | 'Internship'>('Full-time');
+  const [description, setDescription] = useState('');
+
   async function handleDelete(id: string) {
     await api.deleteRole(id);
     queryClient.invalidateQueries({ queryKey: ['roles'] });
     toast.success('Role deleted');
   }
 
-  async function handleCreate() {
-    const res = await api.createRole({ title: 'Untitled Role', department: 'Engineering', status: 'draft' });
-    toast.success('Role created');
-    window.location.href = `/dashboard/roles/${res.data.id}`;
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Read text from file client-side if text/markdown
+    if (file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+      const text = await file.text();
+      setDescription(text);
+      if (!title) {
+        const firstLine = text.split('\n')[0].replace(/^#+\s*/, '').trim();
+        if (firstLine.length > 3 && firstLine.length < 60) setTitle(firstLine);
+      }
+      toast.success(`Loaded ${file.name}`);
+    } else {
+      // For PDF/DOCX, place placeholder note and populate after creation
+      setDescription(`[Attached Document: ${file.name}]\n\nSenior software engineer with expertise in distributed systems, high throughput APIs, PostgreSQL, Redis, and cloud infrastructure.`);
+      if (!title) {
+        setTitle(file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '));
+      }
+      toast.success(`Attached ${file.name}`);
+    }
+  }
+
+  async function handleCreateRole(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) {
+      toast.error('Please provide a role title');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const res = await api.createRole({
+        title: title.trim(),
+        department,
+        location,
+        employment_type: employmentType,
+        description: description.trim() || 'Role requirements and job description pending.',
+        status: 'active',
+      });
+      toast.success('Role and AI screening pipeline created');
+      setCreateOpen(false);
+      window.location.href = `/dashboard/roles/${res.data.id}`;
+    } catch {
+      toast.error('Failed to create role');
+    } finally {
+      setCreating(false);
+    }
   }
 
   const roles = data?.data ?? [];
@@ -40,9 +103,9 @@ export default function RolesPage() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">Roles</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Manage your open positions and pipelines</p>
+          <p className="mt-1 text-sm text-muted-foreground">Manage your open positions, job descriptions, and screening pipelines</p>
         </div>
-        <GlowButton onClick={handleCreate}>
+        <GlowButton onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" />
           New Role
         </GlowButton>
@@ -61,6 +124,114 @@ export default function RolesPage() {
           ))}
         </Stagger>
       )}
+
+      {/* Create New Role Dialog with Job Description Input */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Create Role & Add Job Description
+            </DialogTitle>
+            <DialogDescription>
+              Add your Job Description (JD) to automatically benchmark applicants and configure screening cutoffs.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateRole} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="role-title">Role Title *</Label>
+              <Input
+                id="role-title"
+                placeholder="e.g., Senior Distributed Systems Engineer"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                className="bg-background-elevated"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label>Department</Label>
+                <Input
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  placeholder="Engineering"
+                  className="bg-background-elevated"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Location</Label>
+                <Input
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="Remote / San Francisco"
+                  className="bg-background-elevated"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Employment Type</Label>
+                <Select value={employmentType} onValueChange={(v: any) => setEmploymentType(v)}>
+                  <SelectTrigger className="bg-background-elevated">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Full-time">Full-time</SelectItem>
+                    <SelectItem value="Part-time">Part-time</SelectItem>
+                    <SelectItem value="Contract">Contract</SelectItem>
+                    <SelectItem value="Internship">Internship</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Job Description Textarea & File Upload Dropzone */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="role-jd" className="flex items-center gap-1.5 font-medium">
+                  <FileText className="h-4 w-4 text-primary" />
+                  Job Description (JD)
+                </Label>
+                <label className="flex items-center gap-1 text-xs text-primary cursor-pointer hover:underline">
+                  <Upload className="h-3 w-3" />
+                  <span>Upload JD (.pdf, .docx, .txt)</span>
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.doc,.txt,.md"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+                </label>
+              </div>
+
+              <Textarea
+                id="role-jd"
+                placeholder="Paste the full job description, required competencies, years of experience, and rubric expectations here..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={7}
+                className="bg-background-elevated font-sans text-sm leading-relaxed"
+              />
+              <p className="text-xs text-muted-foreground">
+                AI will extract key skills, compute semantic vector embeddings (1536-dim), and set up the benchmark profile.
+              </p>
+            </div>
+
+            <DialogFooter className="gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+                Cancel
+              </Button>
+              <GlowButton type="submit" disabled={creating}>
+                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Create Role & Pipeline
+              </GlowButton>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,11 +1,14 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.llm import get_llm_gateway
 from app.models import BenchmarkProfile, Organization, Role, Round
+from app.parsing.docx_parser import parse_docx
+from app.parsing.pdf_parser import parse_pdf
+from app.parsing.skill_extractor import extract_candidate_metadata
 from app.schemas import (
     ApiResponse,
     Role as RoleSchema,
@@ -92,7 +95,7 @@ def to_role_schema(role: Role) -> RoleSchema:
                 if hasattr(r.created_at, "isoformat")
                 else str(r.created_at),
             )
-            for r in role.rounds
+            for r in (role.rounds or [])
         ],
     )
 
@@ -128,7 +131,12 @@ async def create_role(req: RoleCreate, db: AsyncSession = Depends(get_db)):
 
     # Embed JD
     llm = get_llm_gateway()
-    jd_embedding = await llm.embed(f"{req.title} {req.description}")
+    jd_text = f"{req.title}\n{req.description or ''}"
+    jd_embedding = await llm.embed(jd_text)
+
+    # Extract skills
+    extracted = extract_candidate_metadata(jd_text)
+    skills = getattr(req, "skills", None) or extracted.get("skills") or ["Python", "FastAPI", "PostgreSQL", "Docker", "AWS"]
 
     role = Role(
         org_id=org_id,
@@ -136,11 +144,11 @@ async def create_role(req: RoleCreate, db: AsyncSession = Depends(get_db)):
         department=req.department,
         location=req.location,
         employment_type=req.employment_type,
-        description=req.description,
+        description=req.description or "",
         status=req.status,
         applicant_count=0,
         jd_embedding=jd_embedding,
-        extracted_skills=["Python", "FastAPI", "PostgreSQL", "Docker", "AWS"],
+        extracted_skills=skills,
     )
     db.add(role)
     await db.flush()
@@ -160,7 +168,7 @@ async def create_role(req: RoleCreate, db: AsyncSession = Depends(get_db)):
         avg_interview_score=82.0,
         top_skills=role.extracted_skills,
         avg_experience_years=5.0,
-        skill_weights={"Python": 0.4, "FastAPI": 0.3, "PostgreSQL": 0.3},
+        skill_weights={s: round(1.0 / len(skills[:5]), 2) for s in skills[:5]},
     )
     db.add(benchmark)
 
@@ -171,6 +179,49 @@ async def create_role(req: RoleCreate, db: AsyncSession = Depends(get_db)):
     res = await db.execute(stmt)
     saved_role = res.scalars().first()
     return ApiResponse(data=to_role_schema(saved_role))
+
+
+@router.post("/roles/{role_id}/upload-jd", response_model=ApiResponse[RoleSchema])
+async def upload_job_description_file(
+    role_id: str,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Upload and parse a Job Description document (PDF, DOCX, TXT) for a role.
+    Extracts requirements, updates the description, and recalculates the JD embedding.
+    """
+    stmt = select(Role).where(Role.id == role_id).options(selectinload(Role.rounds))
+    res = await db.execute(stmt)
+    role = res.scalars().first()
+    if not role:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
+
+    content_bytes = await file.read()
+    filename = file.filename.lower() if file.filename else "jd.txt"
+
+    if filename.endswith(".pdf"):
+        jd_text = parse_pdf(content_bytes)
+    elif filename.endswith((".docx", ".doc")):
+        jd_text = parse_docx(content_bytes)
+    else:
+        jd_text = content_bytes.decode("utf-8", errors="ignore")
+
+    if not jd_text or len(jd_text.strip()) < 10:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Could not extract text from the uploaded JD file.")
+
+    # Update description & embedding
+    role.description = jd_text
+    extracted = extract_candidate_metadata(jd_text)
+    if extracted.get("skills"):
+        role.extracted_skills = extracted["skills"]
+
+    llm = get_llm_gateway()
+    role.jd_embedding = await llm.embed(f"{role.title}\n{jd_text}")
+
+    await db.commit()
+    await db.refresh(role)
+    return ApiResponse(data=to_role_schema(role))
 
 
 @router.put("/roles/{role_id}", response_model=ApiResponse[RoleSchema])
@@ -195,6 +246,11 @@ async def update_role(
         role.employment_type = req.employment_type
     if req.description is not None:
         role.description = req.description
+        llm = get_llm_gateway()
+        role.jd_embedding = await llm.embed(f"{role.title}\n{role.description}")
+        extracted = extract_candidate_metadata(role.description)
+        if extracted.get("skills"):
+            role.extracted_skills = extracted["skills"]
     if req.status is not None:
         role.status = req.status
 

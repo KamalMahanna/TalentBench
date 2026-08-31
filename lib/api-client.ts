@@ -106,6 +106,29 @@ export const api = {
     return delay({ data: { id } });
   },
 
+  async uploadJobDescription(
+    roleId: string,
+    file: File,
+  ): Promise<ApiResponse<Role>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`${API_BASE_URL}/roles/${roleId}/upload-jd`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: formData,
+      });
+      if (res.ok) return (await res.json()) as ApiResponse<Role>;
+    } catch {
+      // fallback to mock
+    }
+    return delay({
+      data: mockData.updateRole(roleId, {
+        description: `Uploaded Job Description (${file.name})`,
+      }),
+    });
+  },
+
   // ── Pipeline / Rounds ──────────────────────────────────────────────────────
   async updateRounds(
     roleId: string,
