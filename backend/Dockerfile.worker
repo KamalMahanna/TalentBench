@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS builder
+FROM python:3.13-slim AS builder
 
 WORKDIR /build
 
@@ -8,14 +8,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Install uv for ultra-fast dependency resolution and installation
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 COPY pyproject.toml README.md ./
 COPY app ./app
 
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir .
+# Install dependencies into system python using uv
+RUN uv pip install --system --no-cache .
 
 # Runtime Stage
-FROM python:3.12-slim AS runner
+FROM python:3.13-slim AS runner
 
 WORKDIR /app
 
@@ -24,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY . /app
@@ -36,4 +39,3 @@ RUN addgroup --system appgroup && adduser --system --group appuser && \
 USER appuser
 
 CMD ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "-Q", "resume_queue,scoring_queue,mail_queue,benchmark_queue,dlq_queue", "-c", "8"]
-

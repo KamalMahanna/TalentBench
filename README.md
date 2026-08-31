@@ -1,6 +1,6 @@
 # TalentBench — AI-Powered Recruiter Screening & Benchmarking Platform
 
-[![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-13+-black.svg)](https://nextjs.org)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%20+%20pgvector-336791.svg)](https://github.com/pgvector/pgvector)
@@ -161,7 +161,7 @@ If you prefer running services directly on your host machine:
 
 #### Prerequisites
 - Node.js 18+ & npm
-- Python 3.12+ with `uv` or `venv`
+- Python 3.13+ with `uv` (or `venv`)
 - PostgreSQL 16 (with `pgvector` extension)
 - Redis 7
 
@@ -175,9 +175,11 @@ npm run dev
 #### 2. Start Backend API
 ```bash
 cd backend
-python3 -m venv .venv
+
+# Create virtual environment and install with uv
+uv venv --python 3.13
 source .venv/bin/activate
-pip install -e .
+uv pip install -e .
 
 # Run migrations & seed data
 alembic upgrade head
@@ -382,3 +384,4 @@ All endpoints strictly adhere to the frontend TypeScript interfaces in [`lib/typ
 ## 📄 License
 
 This project is licensed under the MIT License.
+

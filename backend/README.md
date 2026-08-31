@@ -65,7 +65,7 @@ Production-ready, horizontally scalable backend for **TalentBench**, an AI-power
 ## ⚡ Quickstart
 
 ### Prerequisites
-- Docker & Docker Compose (or Python 3.12+, PostgreSQL 16 with pgvector, Redis 7)
+- Docker & Docker Compose (or Python 3.13+ with `uv`, PostgreSQL 16 with pgvector, Redis 7)
 
 ### 1. Launch with Docker Compose
 ```bash
