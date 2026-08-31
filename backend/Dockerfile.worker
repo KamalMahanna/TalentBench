@@ -1,0 +1,39 @@
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml README.md ./
+COPY app ./app
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir .
+
+# Runtime Stage
+FROM python:3.12-slim AS runner
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+COPY . /app
+
+# Create non-root user
+RUN addgroup --system appgroup && adduser --system --group appuser && \
+    chown -R appuser:appgroup /app
+
+USER appuser
+
+CMD ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "-Q", "resume_queue,scoring_queue,mail_queue,benchmark_queue,dlq_queue", "-c", "8"]
+
