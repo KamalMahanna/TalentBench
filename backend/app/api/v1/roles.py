@@ -136,7 +136,11 @@ async def create_role(req: RoleCreate, db: AsyncSession = Depends(get_db)):
 
     # Extract skills
     extracted = extract_candidate_metadata(jd_text)
-    skills = getattr(req, "skills", None) or extracted.get("skills") or ["Python", "FastAPI", "PostgreSQL", "Docker", "AWS"]
+    skills = (
+        getattr(req, "skills", None)
+        or extracted.get("skills")
+        or ["Python", "FastAPI", "PostgreSQL", "Docker", "AWS"]
+    )
 
     role = Role(
         org_id=org_id,
@@ -195,7 +199,9 @@ async def upload_job_description_file(
     res = await db.execute(stmt)
     role = res.scalars().first()
     if not role:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
+        )
 
     content_bytes = await file.read()
     filename = file.filename.lower() if file.filename else "jd.txt"
@@ -208,7 +214,10 @@ async def upload_job_description_file(
         jd_text = content_bytes.decode("utf-8", errors="ignore")
 
     if not jd_text or len(jd_text.strip()) < 10:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Could not extract text from the uploaded JD file.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not extract text from the uploaded JD file.",
+        )
 
     # Update description & embedding
     role.description = jd_text
