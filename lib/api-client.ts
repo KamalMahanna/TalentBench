@@ -180,7 +180,10 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE_URL}/roles/polish-jd`, {
         method: 'POST',
-        headers: authHeaders(),
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders(),
+        },
         body: JSON.stringify({ text }),
       });
       if (res.ok) {
@@ -191,8 +194,10 @@ export const api = {
           tokens_saved_estimate: number;
         }>;
       }
-    } catch {
-      // fallback
+      const errData = await res.json().catch(() => null);
+      throw new Error(errData?.detail || 'Failed to polish job description');
+    } catch (err) {
+      console.warn('Backend polish-jd request error:', err);
     }
 
     const lines = text.split('\n').filter((l) => {

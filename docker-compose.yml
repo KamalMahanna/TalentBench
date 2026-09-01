@@ -38,7 +38,14 @@ services:
       - S3_ENDPOINT_URL=http://minio:9000
       - S3_ACCESS_KEY=minioadmin
       - S3_SECRET_KEY=minioadmin
-      - LLM_PROVIDER=mock
+      - LLM_PROVIDER=${LLM_PROVIDER:-omniroute}
+      - OMNIROUTE_BASE_URL=${OMNIROUTE_DOCKER_BASE_URL:-http://172.17.0.1:20128/v1}
+      - OMNIROUTE_API_KEY=${OMNIROUTE_API_KEY:-sk-5162736b8c3f7ea9-d3b76c-5764c483}
+      - OMNIROUTE_MODEL=${OMNIROUTE_MODEL_NAME:-tune_model}
+      - OMNIROUTE_MODEL_NAME=${OMNIROUTE_MODEL_NAME:-tune_model}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,7 +74,14 @@ services:
       - S3_ENDPOINT_URL=http://minio:9000
       - S3_ACCESS_KEY=minioadmin
       - S3_SECRET_KEY=minioadmin
-      - LLM_PROVIDER=mock
+      - LLM_PROVIDER=${LLM_PROVIDER:-omniroute}
+      - OMNIROUTE_BASE_URL=${OMNIROUTE_DOCKER_BASE_URL:-http://172.17.0.1:20128/v1}
+      - OMNIROUTE_API_KEY=${OMNIROUTE_API_KEY:-sk-5162736b8c3f7ea9-d3b76c-5764c483}
+      - OMNIROUTE_MODEL=${OMNIROUTE_MODEL_NAME:-tune_model}
+      - OMNIROUTE_MODEL_NAME=${OMNIROUTE_MODEL_NAME:-tune_model}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -96,7 +110,14 @@ services:
       - S3_ENDPOINT_URL=http://minio:9000
       - S3_ACCESS_KEY=minioadmin
       - S3_SECRET_KEY=minioadmin
-      - LLM_PROVIDER=mock
+      - LLM_PROVIDER=${LLM_PROVIDER:-omniroute}
+      - OMNIROUTE_BASE_URL=${OMNIROUTE_DOCKER_BASE_URL:-http://172.17.0.1:20128/v1}
+      - OMNIROUTE_API_KEY=${OMNIROUTE_API_KEY:-sk-5162736b8c3f7ea9-d3b76c-5764c483}
+      - OMNIROUTE_MODEL=${OMNIROUTE_MODEL_NAME:-tune_model}
+      - OMNIROUTE_MODEL_NAME=${OMNIROUTE_MODEL_NAME:-tune_model}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
