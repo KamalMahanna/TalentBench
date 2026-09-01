@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, Plus, GripVertical, FileStack, Brain, Code2, MessageSquare,
   Settings2, Save, Loader2, Upload, Link2, PencilLine, Zap, X, ChevronRight, Trash2,
-  FileText, Sparkles, Edit3, Check, CheckCircle2, Sliders, Percent, Users,
+  FileText, Sparkles, Edit3, Check, CheckCircle2, Sliders, Percent, Users, Info,
 } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { GlowButton } from '@/components/glow-button';
@@ -22,6 +22,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import type { Round, RoundType, InputSource, Role } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -161,6 +162,14 @@ export default function RoleDetailPage() {
 
   function addRound(type: RoundType) {
     const template = ROUND_TYPES.find((t) => t.value === type)!;
+    let defaultMailTemplate = `Hi {{name}},\n\nCongratulations on clearing the initial screening for {{role}} at {{company_name}}!\n\nYou are invited to take the ${template.label}.\nPlease complete the assessment within 48 hours using your registered email.\n\nBest regards,\nHiring Team`;
+
+    if (type === 'resume_screen') {
+      defaultMailTemplate = `Hi {{name}},\n\nThank you for applying for the {{role}} position at {{company_name}}. We have received your application and resume for initial screening.\n\nBest regards,\nRecruitment Team`;
+    } else if (type === 'interview') {
+      defaultMailTemplate = `Hi {{name}},\n\nWe are pleased to invite you to the ${template.label} for the {{role}} position.\nPlease check your calendar invite for the meeting link and schedule.\n\nBest regards,\n{{company_name}} Recruitment Team`;
+    }
+
     const newRound: Round = {
       id: crypto.randomUUID(),
       role_id: roleId,
@@ -170,7 +179,7 @@ export default function RoleDetailPage() {
       input_source: type === 'resume_screen' ? 'excel_upload' : 'ai_generated_link',
       ai_scored: true,
       cutoff_threshold: 65,
-      mail_template: `Hi {{name}}, your ${template.label} for {{role}} is ready.`,
+      mail_template: defaultMailTemplate,
       created_at: new Date().toISOString(),
     };
     setRounds((prev) => [...prev, newRound]);
@@ -738,15 +747,101 @@ export default function RoleDetailPage() {
 
                 {/* Mail template */}
                 <div className="space-y-2">
-                  <Label htmlFor="round-mail-template">Mail template</Label>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Label htmlFor="round-mail-template" className="font-medium text-sm">
+                        Mail template
+                      </Label>
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded-full hover:bg-muted/50 cursor-pointer"
+                              aria-label="About Mail Template"
+                            >
+                              <Info className="h-3.5 w-3.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" align="start" className="max-w-xs p-3 text-xs leading-relaxed space-y-1.5 z-50">
+                            <p className="font-semibold text-foreground">What is Mail Template?</p>
+                            <p className="text-muted-foreground">
+                              This automated email is sent to candidates when they advance to, get invited to, or receive status updates for this specific round.
+                            </p>
+                            <p className="text-muted-foreground">
+                              Dynamic variables like <code className="text-primary font-mono text-[11px]">{`{{name}}`}</code>, <code className="text-primary font-mono text-[11px]">{`{{role}}`}</code>, and <code className="text-primary font-mono text-[11px]">{`{{round_name}}`}</code> automatically populate with each candidate&apos;s real information.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+
+                    {/* Example template quick pickers */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-[11px] text-muted-foreground">Load example:</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateRound(editingRound.id, {
+                            mail_template: `Hi {{name}},\n\nCongratulations on clearing the initial screening for {{role}} at {{company_name}}!\n\nYou are invited to take the {{round_name}}.\nPlease complete the assessment within 48 hours using your registered email.\n\nBest regards,\nHiring Team`,
+                          })
+                        }
+                        className="text-[11px] font-medium text-primary hover:text-primary/80 hover:bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20 transition-colors"
+                      >
+                        Assessment
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateRound(editingRound.id, {
+                            mail_template: `Hi {{name}},\n\nWe are pleased to invite you to the {{round_name}} for the {{role}} position.\nPlease check your calendar invite for the meeting link and schedule.\n\nBest regards,\n{{company_name}} Recruitment Team`,
+                          })
+                        }
+                        className="text-[11px] font-medium text-primary hover:text-primary/80 hover:bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20 transition-colors"
+                      >
+                        Interview
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateRound(editingRound.id, {
+                            mail_template: `Hi {{name}},\n\nThank you for taking the time to complete {{round_name}} for the {{role}} position at {{company_name}}.\n\nConstructive Feedback:\n{{gap_summary}}\n\nBest regards,\n{{company_name}} Team`,
+                          })
+                        }
+                        className="text-[11px] font-medium text-primary hover:text-primary/80 hover:bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20 transition-colors"
+                      >
+                        Feedback
+                      </button>
+                    </div>
+                  </div>
+
                   <Textarea
                     id="round-mail-template"
                     value={editingRound.mail_template}
                     onChange={(e) => updateRound(editingRound.id, { mail_template: e.target.value })}
-                    className="bg-background-elevated min-h-[90px] font-sans text-sm leading-relaxed resize-none"
+                    className="bg-background-elevated min-h-[120px] font-sans text-sm leading-relaxed resize-y"
                     placeholder="Hi {{name}}, your {{role}} evaluation is ready."
                   />
-                  <p className="text-xs text-muted-foreground">Variables: {'{{name}}'}, {'{{role}}'}, {'{{round_name}}'}, {'{{gap_summary}}'}</p>
+
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[11px] text-muted-foreground">Click to insert:</span>
+                    {['{{name}}', '{{role}}', '{{round_name}}', '{{company_name}}', '{{gap_summary}}'].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          const current = editingRound.mail_template || '';
+                          const spacer = current && !current.endsWith(' ') && !current.endsWith('\n') ? ' ' : '';
+                          updateRound(editingRound.id, {
+                            mail_template: current + spacer + tag,
+                          });
+                        }}
+                        className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50"
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 

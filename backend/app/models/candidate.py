@@ -20,9 +20,7 @@ from app.models.base import Base, TimestampMixin, utc_now
 class Candidate(Base, TimestampMixin):
     __tablename__ = "candidates"
 
-    id: Mapped[str] = mapped_column(
-        String(255), primary_key=True, index=True
-    )
+    id: Mapped[str] = mapped_column(String(255), primary_key=True, index=True)
     role_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("roles.id", ondelete="CASCADE"),
@@ -41,6 +39,7 @@ class Candidate(Base, TimestampMixin):
         elif "id" not in kwargs or not kwargs["id"]:
             kwargs["id"] = str(uuid.uuid4())
         super().__init__(**kwargs)
+
     phone: Mapped[str] = mapped_column(String(50), default="", nullable=False)
     avatar_url: Mapped[str] = mapped_column(String(1024), default="", nullable=False)
     resume_url: Mapped[str] = mapped_column(String(1024), default="", nullable=False)

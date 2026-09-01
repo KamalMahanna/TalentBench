@@ -53,7 +53,7 @@ class MailService:
         round_name: str,
         candidate_skills: list[str],
         company_name: str = "TalentBench Demo Co.",
-        custom_instructions: str = "Please access the link sent to your registered email.",
+        custom_template: str | None = None,
     ) -> dict[str, str]:
         # Generate personalized note only via LLM (cost efficient)
         prompt = (
@@ -63,9 +63,15 @@ class MailService:
         llm_res = await self.llm.complete(prompt, max_tokens=100)
         personalized_note = llm_res.text.strip()
 
-        template = Template(INVITATION_MAIL_TEMPLATE)
+        tpl_str = (
+            custom_template
+            if (custom_template and len(custom_template.strip()) > 5)
+            else INVITATION_MAIL_TEMPLATE
+        )
+        template = Template(tpl_str)
         body = template.render(
             name=candidate_name,
+            role=role_title,
             role_title=role_title,
             company_name=company_name,
             round_name=round_name,
