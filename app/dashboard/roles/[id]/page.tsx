@@ -263,7 +263,7 @@ export default function RoleDetailPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 rows={8}
                 placeholder="Paste the full job description here..."
-                className="bg-background-elevated font-sans text-sm leading-relaxed"
+                className="bg-background-elevated font-sans text-sm leading-relaxed resize-none"
               />
             </div>
           </div>
@@ -554,7 +554,7 @@ export default function RoleDetailPage() {
                     id="round-mail-template"
                     value={editingRound.mail_template}
                     onChange={(e) => updateRound(editingRound.id, { mail_template: e.target.value })}
-                    className="bg-background-elevated min-h-[90px] font-sans text-sm leading-relaxed"
+                    className="bg-background-elevated min-h-[90px] font-sans text-sm leading-relaxed resize-none"
                     placeholder="Hi {{name}}, your {{role}} evaluation is ready."
                   />
                   <p className="text-xs text-muted-foreground">Variables: {'{{name}}'}, {'{{role}}'}, {'{{round_name}}'}, {'{{gap_summary}}'}</p>

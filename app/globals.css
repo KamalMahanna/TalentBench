@@ -142,6 +142,10 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  textarea {
+    resize: none !important;
+  }
+
   ::selection {
     background: hsl(var(--primary) / 0.25);
     color: hsl(var(--foreground));

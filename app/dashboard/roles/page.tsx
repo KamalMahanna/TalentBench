@@ -222,7 +222,7 @@ export default function RolesPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={7}
-                className="bg-background-elevated font-sans text-sm leading-relaxed"
+                className="bg-background-elevated font-sans text-sm leading-relaxed resize-none"
               />
               <p className="text-xs text-muted-foreground">
                 AI will extract key skills, assess requirements, and establish the benchmark profile.
