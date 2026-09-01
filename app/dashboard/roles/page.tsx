@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  Plus, Briefcase, MapPin, Users, MoreVertical, Trash2, Copy,
+  Plus, Briefcase, Users, MoreVertical, Trash2, Copy,
   FileText, Upload, Sparkles, Loader2,
 } from 'lucide-react';
 import { api } from '@/lib/api-client';
@@ -37,10 +37,9 @@ export default function RolesPage() {
 
   // Form State
   const [title, setTitle] = useState('');
-  const [department, setDepartment] = useState('Engineering');
-  const [location, setLocation] = useState('Remote (US/EU)');
   const [employmentType, setEmploymentType] = useState<'Full-time' | 'Part-time' | 'Contract' | 'Internship'>('Full-time');
   const [description, setDescription] = useState('');
+  const [parsingFile, setParsingFile] = useState(false);
 
   async function handleDelete(id: string) {
     await api.deleteRole(id);
@@ -52,22 +51,36 @@ export default function RolesPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Read text from file client-side if text/markdown
-    if (file.name.endsWith('.txt') || file.name.endsWith('.md')) {
-      const text = await file.text();
-      setDescription(text);
-      if (!title) {
-        const firstLine = text.split('\n')[0].replace(/^#+\s*/, '').trim();
-        if (firstLine.length > 3 && firstLine.length < 60) setTitle(firstLine);
+    setParsingFile(true);
+    try {
+      // Plain text or markdown can be read directly client-side
+      if (file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+        const text = await file.text();
+        setDescription(text.trim());
+        if (!title) {
+          const firstLine = text.split('\n')[0].replace(/^#+\s*/, '').trim();
+          if (firstLine.length > 3 && firstLine.length < 60) setTitle(firstLine);
+        }
+        toast.success(`Extracted text from ${file.name}`);
+        return;
       }
-      toast.success(`Loaded ${file.name}`);
-    } else {
-      // For PDF/DOCX, place placeholder note and populate after creation
-      setDescription(`[Attached Document: ${file.name}]\n\nSenior software engineer with expertise in distributed systems, high throughput APIs, PostgreSQL, Redis, and cloud infrastructure.`);
-      if (!title) {
-        setTitle(file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '));
+
+      // For PDF, DOCX, DOC: parse through backend document extraction
+      const res = await api.parseJobDescription(file);
+      if (res?.data?.text && res.data.text.trim().length > 0) {
+        setDescription(res.data.text.trim());
+        if (!title && res.data.suggested_title) {
+          setTitle(res.data.suggested_title);
+        }
+        toast.success(`Extracted text from ${file.name}`);
+      } else {
+        toast.error(`Could not extract readable text from ${file.name}`);
       }
-      toast.success(`Attached ${file.name}`);
+    } catch {
+      toast.error(`Failed to parse ${file.name}`);
+    } finally {
+      setParsingFile(false);
+      e.target.value = '';
     }
   }
 
@@ -82,8 +95,8 @@ export default function RolesPage() {
     try {
       const res = await api.createRole({
         title: title.trim(),
-        department,
-        location,
+        department: 'General',
+        location: 'Remote',
         employment_type: employmentType,
         description: description.trim() || 'Role requirements and job description pending.',
         status: 'active',
@@ -141,35 +154,15 @@ export default function RolesPage() {
           </DialogHeader>
 
           <form onSubmit={handleCreateRole} className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="role-title">Role Title *</Label>
-              <Input
-                id="role-title"
-                placeholder="e.g., Senior Distributed Systems Engineer"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                className="bg-background-elevated"
-              />
-            </div>
-
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label>Department</Label>
+              <div className="sm:col-span-2 space-y-1.5">
+                <Label htmlFor="role-title">Role Title *</Label>
                 <Input
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  placeholder="Engineering"
-                  className="bg-background-elevated"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Location</Label>
-                <Input
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Remote / San Francisco"
+                  id="role-title"
+                  placeholder="e.g., Senior Distributed Systems Engineer"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
                   className="bg-background-elevated"
                 />
               </div>
@@ -197,13 +190,27 @@ export default function RolesPage() {
                   <FileText className="h-4 w-4 text-primary" />
                   Job Description (JD)
                 </Label>
-                <label className="flex items-center gap-1 text-xs text-primary cursor-pointer hover:underline">
-                  <Upload className="h-3 w-3" />
-                  <span>Upload JD (.pdf, .docx, .txt)</span>
+                <label
+                  className={`flex items-center gap-1.5 text-xs text-primary ${
+                    parsingFile ? 'opacity-70 cursor-wait' : 'cursor-pointer hover:underline'
+                  }`}
+                >
+                  {parsingFile ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Extracting text...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-3 w-3" />
+                      <span>Upload JD (.pdf, .docx, .txt)</span>
+                    </>
+                  )}
                   <input
                     type="file"
                     accept=".pdf,.docx,.doc,.txt,.md"
                     className="hidden"
+                    disabled={parsingFile}
                     onChange={handleFileUpload}
                   />
                 </label>
@@ -218,7 +225,7 @@ export default function RolesPage() {
                 className="bg-background-elevated font-sans text-sm leading-relaxed"
               />
               <p className="text-xs text-muted-foreground">
-                AI will extract key skills, compute semantic vector embeddings (1536-dim), and set up the benchmark profile.
+                AI will extract key skills, assess requirements, and establish the benchmark profile.
               </p>
             </div>
 
@@ -251,7 +258,7 @@ function RoleListCard({ role, onDelete }: { role: Role; onDelete: (id: string) =
             </div>
             <h3 className="font-display text-lg font-bold leading-tight">{role.title}</h3>
             <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {role.location}</span>
+              <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" /> {role.employment_type || 'Full-time'}</span>
               <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {role.applicant_count.toLocaleString()}</span>
             </div>
           </Link>

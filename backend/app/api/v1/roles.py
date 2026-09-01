@@ -11,6 +11,7 @@ from app.parsing.pdf_parser import parse_pdf
 from app.parsing.skill_extractor import extract_candidate_metadata
 from app.schemas import (
     ApiResponse,
+    ParseJobDescriptionResponse,
     Role as RoleSchema,
     RoleCreate,
     RoleUpdate,
@@ -231,6 +232,60 @@ async def upload_job_description_file(
     await db.commit()
     await db.refresh(role)
     return ApiResponse(data=to_role_schema(role))
+
+
+@router.post("/roles/parse-jd", response_model=ApiResponse[ParseJobDescriptionResponse])
+async def parse_job_description_file(
+    file: UploadFile = File(...),
+):
+    """
+    Parse an uploaded Job Description file (PDF, DOCX, DOC, TXT, MD) and return the extracted raw text
+    and an optional suggested title. Used during role creation so recruiters can review and edit
+    the extracted text before creating the role.
+    """
+    content_bytes = await file.read()
+    filename = file.filename.lower() if file.filename else "jd.txt"
+
+    if filename.endswith(".pdf"):
+        jd_text = parse_pdf(content_bytes)
+    elif filename.endswith((".docx", ".doc")):
+        jd_text = parse_docx(content_bytes)
+    else:
+        jd_text = content_bytes.decode("utf-8", errors="ignore")
+
+    clean_text = jd_text.strip()
+    if (
+        not clean_text
+        or len(clean_text) < 5
+        or clean_text.startswith("Error extracting")
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not extract readable text from the uploaded JD file.",
+        )
+
+    # Suggest a title from the first non-empty heading/line or filename
+    suggested_title = None
+    for line in clean_text.splitlines():
+        cleaned_line = line.strip().lstrip("#").strip()
+        if 3 < len(cleaned_line) < 80 and not cleaned_line.lower().startswith(
+            ("http", "page ", "www.")
+        ):
+            suggested_title = cleaned_line
+            break
+
+    if not suggested_title and file.filename:
+        suggested_title = (
+            file.filename.rsplit(".", 1)[0].replace("-", " ").replace("_", " ").title()
+        )
+
+    return ApiResponse(
+        data=ParseJobDescriptionResponse(
+            filename=file.filename or "jd.txt",
+            text=clean_text,
+            suggested_title=suggested_title,
+        )
+    )
 
 
 @router.put("/roles/{role_id}", response_model=ApiResponse[RoleSchema])

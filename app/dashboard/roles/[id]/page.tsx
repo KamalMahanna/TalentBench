@@ -174,10 +174,6 @@ export default function RoleDetailPage() {
           <div>
             <h1 className="font-display text-3xl font-bold tracking-tight">{title || role.title}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              <span>{department || role.department}</span>
-              <span>·</span>
-              <span>{location || role.location}</span>
-              <span>·</span>
               <span>{employmentType || role.employment_type}</span>
               <span>·</span>
               <Badge variant={status === 'active' ? 'default' : 'secondary'}>{status}</Badge>
@@ -238,18 +234,24 @@ export default function RoleDetailPage() {
 
         {isEditingJD ? (
           <div className="space-y-4 pt-1">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Role Title</Label>
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} className="bg-background-elevated" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Department</Label>
-                <Input value={department} onChange={(e) => setDepartment(e.target.value)} className="bg-background-elevated" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Location</Label>
-                <Input value={location} onChange={(e) => setLocation(e.target.value)} className="bg-background-elevated" />
+                <Label className="text-xs">Employment Type</Label>
+                <Select value={employmentType} onValueChange={(v: any) => setEmploymentType(v)}>
+                  <SelectTrigger className="bg-background-elevated text-xs h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Full-time">Full-time</SelectItem>
+                    <SelectItem value="Part-time">Part-time</SelectItem>
+                    <SelectItem value="Contract">Contract</SelectItem>
+                    <SelectItem value="Internship">Internship</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -266,18 +268,15 @@ export default function RoleDetailPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="rounded-xl border border-border/40 bg-background-elevated/60 p-4 text-sm text-foreground/90 whitespace-pre-wrap max-h-48 overflow-y-auto font-sans leading-relaxed">
+            <div
+              data-lenis-prevent="true"
+              className="rounded-xl border border-border/40 bg-background-elevated/60 p-4 text-sm text-foreground/90 whitespace-pre-wrap max-h-48 overflow-y-auto font-sans leading-relaxed overscroll-contain"
+            >
               {description || (
                 <span className="italic text-muted-foreground">
                   No Job Description entered yet. Click &quot;Edit JD&quot; or upload a JD document to add requirements.
                 </span>
               )}
-            </div>
-            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1 font-medium text-primary">
-                <Sparkles className="h-3.5 w-3.5" /> Vector Embedding:
-              </span>
-              <span>1536-dimensional semantic alignment vector computed</span>
             </div>
           </div>
         )}

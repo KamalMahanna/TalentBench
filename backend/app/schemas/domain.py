@@ -359,3 +359,9 @@ class BulkUploadResponse(BaseModel):
     uploaded: int
     failed: int
     batch_id: str | None = None
+
+
+class ParseJobDescriptionResponse(BaseModel):
+    filename: str
+    text: str
+    suggested_title: str | None = None

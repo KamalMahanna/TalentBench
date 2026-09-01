@@ -13,6 +13,21 @@ export function SmoothScroll() {
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
       touchMultiplier: 1.5,
+      allowNestedScroll: true,
+      prevent: (node: any) => {
+        if (!node || typeof node.hasAttribute !== 'function') return false;
+        return (
+          node.tagName === 'TEXTAREA' ||
+          node.tagName === 'INPUT' ||
+          node.tagName === 'SELECT' ||
+          node.hasAttribute('data-lenis-prevent') ||
+          Boolean(node.closest?.('[data-lenis-prevent]')) ||
+          Boolean(node.closest?.('textarea')) ||
+          Boolean(node.closest?.('[role="dialog"]')) ||
+          Boolean(node.closest?.('.overflow-y-auto')) ||
+          Boolean(node.closest?.('.overflow-auto'))
+        );
+      },
     });
 
     let rafId: number;

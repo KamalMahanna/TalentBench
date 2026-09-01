@@ -123,7 +123,7 @@ function RoleCard({ role }: { role: Role }) {
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h3 className="font-display text-lg font-bold leading-tight">{role.title}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">{role.department} · {role.location}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{role.employment_type || 'Full-time'}</p>
           </div>
           <Badge variant={role.status === 'active' ? 'default' : 'secondary'} className="shrink-0">
             {role.status}

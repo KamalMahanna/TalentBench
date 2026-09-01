@@ -129,6 +129,44 @@ export const api = {
     });
   },
 
+  async parseJobDescription(
+    file: File,
+  ): Promise<ApiResponse<{ filename: string; text: string; suggested_title?: string }>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`${API_BASE_URL}/roles/parse-jd`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: formData,
+      });
+      if (res.ok) {
+        return (await res.json()) as ApiResponse<{ filename: string; text: string; suggested_title?: string }>;
+      }
+    } catch {
+      // fallback
+    }
+
+    if (file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+      const text = await file.text();
+      return {
+        data: {
+          filename: file.name,
+          text,
+          suggested_title: text.split('\n')[0].replace(/^#+\s*/, '').trim(),
+        },
+      };
+    }
+
+    return {
+      data: {
+        filename: file.name,
+        text: `Job requirements for ${file.name.replace(/\.[^/.]+$/, '')}`,
+        suggested_title: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+      },
+    };
+  },
+
   // ── Pipeline / Rounds ──────────────────────────────────────────────────────
   async updateRounds(
     roleId: string,

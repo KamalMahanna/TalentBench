@@ -1,14 +1,12 @@
 import os
 from typing import Any, Literal
-from pydantic import field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
+        env_file=(".env", "../.env"), env_file_encoding="utf-8", extra="ignore"
     )
 
     # App
@@ -22,7 +20,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
-        "*"
+        "*",
     ]
 
     @field_validator("DEBUG", mode="before")
@@ -35,7 +33,9 @@ class Settings(BaseSettings):
         return bool(v)
 
     # Security & Auth
-    SECRET_KEY: str = "talentbench-super-secret-key-change-in-production-min-32-chars-long"
+    SECRET_KEY: str = (
+        "talentbench-super-secret-key-change-in-production-min-32-chars-long"
+    )
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     AUTH_STRATEGY: Literal["bearer", "cookie"] = "bearer"
@@ -98,16 +98,36 @@ class Settings(BaseSettings):
     S3_USE_SSL: bool = False
 
     # LLM Configuration
-    LLM_PROVIDER: str = "groq"  # "groq", "mock", "openai", "anthropic", "gemini"
+    LLM_PROVIDER: str = (
+        "groq"  # "groq", "omniroute", "mock", "openai", "anthropic", "gemini"
+    )
+
+    # Groq Provider Configuration
     GROQ_API_KEY: str | None = None
     GROQ_MODEL: str = "qwen/qwen3.8-27b"
-    GROQ_RPM_LIMIT: int = 30           # 30 requests / minute
-    GROQ_RPD_LIMIT: int = 1000         # 1K requests / day
-    GROQ_TPM_LIMIT: int = 8000         # 8K tokens / minute
-    GROQ_TPD_LIMIT: int = 200000       # 200K tokens / day
+    GROQ_RPM_LIMIT: int = 30  # 30 requests / minute
+    GROQ_RPD_LIMIT: int = 1000  # 1K requests / day
+    GROQ_TPM_LIMIT: int = 8000  # 8K tokens / minute
+    GROQ_TPD_LIMIT: int = 200000  # 200K tokens / day
     GROQ_MAX_RETRIES: int = 5
     GROQ_RETRY_BASE_DELAY: float = 2.0
     GROQ_RETRY_MAX_DELAY: float = 60.0
+
+    # OmniRoute Gateway Configuration
+    OMNIROUTE_BASE_URL: str = "http://localhost:20128/v1"
+    OMNIROUTE_API_KEY: str = "sk-omniroute-key"
+    OMNIROUTE_MODEL: str = Field(
+        default="kamalai",
+        validation_alias=AliasChoices("OMNIROUTE_MODEL", "OMNIROUTE_MODEL_NAME"),
+    )
+    OMNIROUTE_MODEL_NAME: str | None = None
+    OMNIROUTE_FALLBACK_MODELS: list[str] = [
+        "gpt-4o",
+        "claude-3-5-sonnet-20241022",
+        "qwen-2.5-72b-instruct",
+    ]
+    OMNIROUTE_MAX_RETRIES: int = 3
+    OMNIROUTE_TIMEOUT: float = 60.0
 
     OPENAI_API_KEY: str | None = None
     ANTHROPIC_API_KEY: str | None = None

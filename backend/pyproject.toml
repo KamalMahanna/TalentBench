@@ -41,6 +41,8 @@ dependencies = [
     "scikit-learn>=1.4.1.post1",
     "langchain-groq>=1.1.0",
     "groq>=0.37.0",
+    "langchain-openai>=1.6.0",
+    "openai>=3.6.0",
 ]
 
 [project.optional-dependencies]
