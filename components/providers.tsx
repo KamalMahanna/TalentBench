@@ -3,7 +3,8 @@
 import { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Toaster } from 'sonner';
+import { ThemeProvider } from 'next-themes';
+import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { SmoothScroll } from '@/components/smooth-scroll';
 
@@ -22,21 +23,19 @@ export function Providers({ children }: { children: ReactNode }) {
   );
 
   return (
-    <QueryClientProvider client={client}>
-      <TooltipProvider delayDuration={200}>
-        <SmoothScroll />
-        {children}
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            classNames: {
-              toast:
-                'group toast bg-card/80 backdrop-blur-xl text-foreground border-border/50 shadow-2xl',
-              description: 'text-muted-foreground',
-            },
-          }}
-        />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="dark"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <QueryClientProvider client={client}>
+        <TooltipProvider delayDuration={200}>
+          <SmoothScroll />
+          {children}
+          <Toaster position="top-right" />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

@@ -6,8 +6,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   UserPlus, Trash2, Mail, Shield, Eye, Zap, Save, Loader2,
-  Building2, Users as UsersIcon,
+  Building2, Users as UsersIcon, Sun, Moon, Laptop, Palette,
 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { api } from '@/lib/api-client';
 import { GlowButton } from '@/components/glow-button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,7 @@ const ROLE_CONFIG = {
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
+  const { theme, setTheme } = useTheme();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<OrgMember['role']>('recruiter');
@@ -80,6 +82,7 @@ export default function SettingsPage() {
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="org">Organization</TabsTrigger>
           <TabsTrigger value="templates">Mail Templates</TabsTrigger>
+          <TabsTrigger value="appearance">Appearance</TabsTrigger>
         </TabsList>
 
         {/* Team tab */}
@@ -220,6 +223,86 @@ export default function SettingsPage() {
                   <Save className="h-4 w-4" /> Save template
                 </GlowButton>
               </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Appearance tab */}
+        <TabsContent value="appearance">
+          <div className="glass rounded-2xl p-6">
+            <div className="mb-6">
+              <h2 className="font-display text-lg font-semibold">Theme Preferences</h2>
+              <p className="text-sm text-muted-foreground">
+                Customize how TalentBench looks on your device
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              {/* Light theme option */}
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                className={cn(
+                  'flex flex-col items-start gap-3 rounded-2xl border p-5 text-left transition-all cursor-pointer',
+                  theme === 'light'
+                    ? 'border-primary bg-primary/10 ring-2 ring-primary/40'
+                    : 'border-border bg-background-elevated hover:border-primary/40',
+                )}
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-500">
+                  <Sun className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-medium text-foreground">Light Mode</div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Clean, high-contrast light theme for bright environments
+                  </p>
+                </div>
+              </button>
+
+              {/* Dark theme option */}
+              <button
+                type="button"
+                onClick={() => setTheme('dark')}
+                className={cn(
+                  'flex flex-col items-start gap-3 rounded-2xl border p-5 text-left transition-all cursor-pointer',
+                  theme === 'dark'
+                    ? 'border-primary bg-primary/10 ring-2 ring-primary/40'
+                    : 'border-border bg-background-elevated hover:border-primary/40',
+                )}
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                  <Moon className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-medium text-foreground">Dark Mode</div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Classic dark mesh aesthetic with neon accents
+                  </p>
+                </div>
+              </button>
+
+              {/* System theme option */}
+              <button
+                type="button"
+                onClick={() => setTheme('system')}
+                className={cn(
+                  'flex flex-col items-start gap-3 rounded-2xl border p-5 text-left transition-all cursor-pointer',
+                  theme === 'system'
+                    ? 'border-primary bg-primary/10 ring-2 ring-primary/40'
+                    : 'border-border bg-background-elevated hover:border-primary/40',
+                )}
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                  <Laptop className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-medium text-foreground">System Default</div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Automatically syncs with your OS light/dark setting
+                  </p>
+                </div>
+              </button>
             </div>
           </div>
         </TabsContent>

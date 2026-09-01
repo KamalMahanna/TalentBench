@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GlowButton } from '@/components/glow-button';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export function LandingNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -53,6 +54,7 @@ export function LandingNav() {
           </div>
 
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Link href="/auth/login" className="hidden sm:block">
               <span className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
                 Sign in
