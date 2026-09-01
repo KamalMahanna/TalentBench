@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, Search, Filter, Download, CheckCircle2, XCircle,
   Clock, AlertCircle, Wifi, WifiOff, Mail, ChevronLeft, ChevronRight,
+  FileSpreadsheet, Loader2, Sparkles,
 } from 'lucide-react';
 import { api, subscribeToLiveUpdates } from '@/lib/api-client';
 import { GlowButton } from '@/components/glow-button';
@@ -22,11 +23,11 @@ import { cn } from '@/lib/utils';
 
 const STATUS_CONFIG: Record<CandidateStatus, { label: string; color: string; icon: typeof Clock }> = {
   applied: { label: 'Applied', color: 'bg-chart-4/20 text-chart-4 border-chart-4/30', icon: Clock },
-  screened: { label: 'Screened', color: 'bg-chart-1/20 text-chart-1 border-chart-1/30', icon: Filter },
+  screened: { label: 'Shortlisted', color: 'bg-success/20 text-success border-success/30', icon: CheckCircle2 },
   tested: { label: 'Tested', color: 'bg-chart-3/20 text-chart-3 border-chart-3/30', icon: AlertCircle },
   interviewed: { label: 'Interviewed', color: 'bg-accent/20 text-accent border-accent/30', icon: Mail },
-  hired: { label: 'Hired', color: 'bg-success/20 text-success border-success/30', icon: CheckCircle2 },
-  rejected: { label: 'Rejected', color: 'bg-destructive/20 text-destructive border-destructive/30', icon: XCircle },
+  hired: { label: 'Hired', color: 'bg-primary/20 text-primary border-primary/30', icon: CheckCircle2 },
+  rejected: { label: 'Rejected (Mailed)', color: 'bg-destructive/20 text-destructive border-destructive/30', icon: XCircle },
 };
 
 const PAGE_SIZE = 50;
@@ -45,11 +46,26 @@ export default function CandidateListPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [liveConnected, setLiveConnected] = useState(false);
   const [liveEvents, setLiveEvents] = useState<string[]>([]);
+  const [downloadingExcel, setDownloadingExcel] = useState(false);
 
   const { data: roleData } = useQuery({
     queryKey: ['role', roleId],
     queryFn: () => api.getRole(roleId),
   });
+
+  const role = roleData?.data;
+
+  async function handleDownloadExcel() {
+    setDownloadingExcel(true);
+    try {
+      await api.downloadResumesExcel(roleId, role?.title || 'Role');
+      toast.success('Excel spreadsheet downloaded successfully!');
+    } catch {
+      toast.error('Failed to download Excel file');
+    } finally {
+      setDownloadingExcel(false);
+    }
+  }
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['candidates', roleId, page, search, statusFilter, sort],
@@ -111,8 +127,6 @@ export default function CandidateListPage() {
     }
   }
 
-  const role = roleData?.data;
-
   return (
     <div className="mx-auto max-w-7xl">
       {/* Header */}
@@ -132,6 +146,20 @@ export default function CandidateListPage() {
               {liveConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
               {liveConnected ? 'Live' : 'Connecting...'}
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadExcel}
+              disabled={downloadingExcel}
+              className="gap-2 border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary transition-all cursor-pointer"
+            >
+              {downloadingExcel ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-4 w-4" />
+              )}
+              Download Resumes Excel
+            </Button>
             <Link href={`/dashboard/upload?role=${roleId}`}>
               <GlowButton variant="outline">
                 <Download className="h-4 w-4" /> Bulk upload
@@ -159,6 +187,73 @@ export default function CandidateListPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Screening Summary & Cutoff Gate */}
+      {(() => {
+        const shortlistedCount = allCandidates.filter((c) => c.status === 'screened' || c.status === 'hired').length;
+        const rejectedCount = allCandidates.filter((c) => c.status === 'rejected').length;
+        const resumeRound = role?.rounds?.find((r) => r.type === 'resume_screen');
+        const thresholdCount =
+          resumeRound?.cutoff_type === 'count'
+            ? resumeRound.cutoff_count || 300
+            : (resumeRound?.cutoff_threshold || 300);
+        const isUnderThreshold = shortlistedCount <= thresholdCount;
+
+        return (
+          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-4">
+            <div className="glass rounded-xl p-3.5">
+              <div className="text-xs text-muted-foreground font-medium">Total Extracted Resumes</div>
+              <div className="mt-1 text-2xl font-bold">{total.toLocaleString()}</div>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Parsed into Excel spreadsheet</p>
+            </div>
+            <div className="glass rounded-xl p-3.5 border border-success/30 bg-success/5">
+              <div className="text-xs text-success font-medium flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Shortlisted (Round 1 Passed)
+              </div>
+              <div className="mt-1 text-2xl font-bold text-success">{shortlistedCount}</div>
+              <p className="mt-0.5 text-[11px] text-success/80">Matched JD skills & experience</p>
+            </div>
+            <div className="glass rounded-xl p-3.5 border border-destructive/30 bg-destructive/5">
+              <div className="text-xs text-destructive font-medium flex items-center gap-1.5">
+                <Mail className="h-3.5 w-3.5" /> Disqualified (Mailed Gaps)
+              </div>
+              <div className="mt-1 text-2xl font-bold text-destructive">{rejectedCount}</div>
+              <p className="mt-0.5 text-[11px] text-destructive/80">Personalized rejection email sent</p>
+            </div>
+            <div
+              className={cn(
+                'glass rounded-xl p-3.5 border transition-colors',
+                isUnderThreshold
+                  ? 'border-primary/40 bg-primary/5'
+                  : 'border-amber-500/40 bg-amber-500/5',
+              )}
+            >
+              <div className="text-xs text-muted-foreground flex items-center justify-between">
+                <span>Cutoff Threshold:</span>
+                <span className="font-semibold text-foreground">{thresholdCount} resumes</span>
+              </div>
+              <div className="mt-1 text-xs font-semibold leading-snug">
+                {isUnderThreshold ? (
+                  <span className="text-primary flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                    Auto-advanced to Round 2 ({shortlistedCount}/{thresholdCount})
+                  </span>
+                ) : (
+                  <span className="text-amber-500 flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                    Exceeds cutoff ({shortlistedCount}/{thresholdCount}) · Comparative Matching Ready
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {isUnderThreshold
+                  ? 'Candidate count is within cutoff quota'
+                  : 'More shortlisted candidates than cutoff limit'}
+              </p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Filters */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">

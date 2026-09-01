@@ -42,7 +42,7 @@ const ROUND_TYPES: { value: RoundType; label: string; icon: typeof FileStack; de
 ];
 
 const INPUT_SOURCES: { value: InputSource; label: string; icon: typeof Upload }[] = [
-  { value: 'excel_upload', label: 'Excel Upload', icon: Upload },
+  { value: 'excel_upload', label: 'Bulk Add Resume', icon: Upload },
   { value: 'manual_entry', label: 'Manual Entry', icon: PencilLine },
   { value: 'ai_generated_link', label: 'AI-Generated Link', icon: Link2 },
 ];
@@ -496,25 +496,43 @@ export default function RoleDetailPage() {
 
                 {/* Input source */}
                 <div className="space-y-2">
-                  <Label>Input source</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {INPUT_SOURCES.map((src) => (
-                      <button
-                        key={src.value}
-                        type="button"
-                        onClick={() => updateRound(editingRound.id, { input_source: src.value })}
-                        className={cn(
-                          'flex flex-col items-center gap-2 rounded-xl border p-3 text-xs font-medium transition-all cursor-pointer',
-                          editingRound.input_source === src.value
-                            ? 'border-primary bg-primary/15 text-primary ring-1 ring-primary/40'
-                            : 'border-border bg-background-elevated text-muted-foreground hover:border-primary/40 hover:text-foreground',
-                        )}
-                      >
-                        <src.icon className="h-4 w-4" />
-                        {src.label}
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between">
+                    <Label>Input source</Label>
+                    {editingRound.type === 'resume_screen' && (
+                      <span className="text-[11px] font-medium text-primary">
+                        Locked to Bulk Add Resume
+                      </span>
+                    )}
                   </div>
+                  {editingRound.type === 'resume_screen' ? (
+                    <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+                        <Upload className="h-4 w-4" /> Bulk Add Resume
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Extracts candidate names, email IDs, and resume text automatically and stores them in an Excel file for HR download.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      {INPUT_SOURCES.map((src) => (
+                        <button
+                          key={src.value}
+                          type="button"
+                          onClick={() => updateRound(editingRound.id, { input_source: src.value })}
+                          className={cn(
+                            'flex flex-col items-center gap-2 rounded-xl border p-3 text-xs font-medium transition-all cursor-pointer',
+                            editingRound.input_source === src.value
+                              ? 'border-primary bg-primary/15 text-primary ring-1 ring-primary/40'
+                              : 'border-border bg-background-elevated text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                          )}
+                        >
+                          <src.icon className="h-4 w-4" />
+                          {src.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* AI scoring */}
@@ -522,16 +540,24 @@ export default function RoleDetailPage() {
                   <div>
                     <div className="flex items-center gap-2 font-medium">
                       <Zap className="h-4 w-4 text-primary" /> AI scoring
+                      {editingRound.type === 'resume_screen' && (
+                        <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                          Mandatory
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {editingRound.ai_scored
+                      {editingRound.type === 'resume_screen'
+                        ? 'Mandatory: Matches candidate skills & experience against the JD and generates personalized rejection emails for missing requirements.'
+                        : editingRound.ai_scored
                         ? 'Let AI evaluate, benchmark, and score this round'
                         : 'Manual recruiter evaluation (automated AI scoring turned off)'}
                     </p>
                   </div>
                   <Switch
                     id="round-ai-scored-switch"
-                    checked={editingRound.ai_scored}
+                    checked={editingRound.type === 'resume_screen' ? true : editingRound.ai_scored}
+                    disabled={editingRound.type === 'resume_screen'}
                     onCheckedChange={(checked) => updateRound(editingRound.id, { ai_scored: checked })}
                   />
                 </div>

@@ -212,7 +212,25 @@ def process_single_candidate_resume(
         candidate.status = "screened" if passed else "rejected"
         candidate.overall_score = match_score
         if passed:
-            candidate.current_round = 1
+            # Check how many candidates are currently shortlisted for this role
+            shortlisted_count = (
+                db.query(Candidate)
+                .filter(Candidate.role_id == role_id, Candidate.status == "screened")
+                .count()
+            )
+            threshold_limit = None
+            if resume_round:
+                if getattr(resume_round, "cutoff_type", None) == "count" and getattr(resume_round, "cutoff_count", None):
+                    threshold_limit = resume_round.cutoff_count
+                elif getattr(resume_round, "cutoff_threshold", 0) > 0:
+                    threshold_limit = resume_round.cutoff_threshold
+
+            # If shortlisted count is <= threshold, auto-advance to Round 2 (current_round = 1)
+            # Otherwise, keep at current_round = 0 for comparative resume matching
+            if threshold_limit is None or shortlisted_count <= threshold_limit:
+                candidate.current_round = 1
+            else:
+                candidate.current_round = 0
 
         # Mark job completed
         job.status = "completed"

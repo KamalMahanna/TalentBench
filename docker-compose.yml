@@ -51,6 +51,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./backend/app:/app/app
     networks:
       - talentbench-net
 
@@ -87,6 +89,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./backend/app:/app/app
     networks:
       - talentbench-net
 
@@ -123,6 +127,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./backend/app:/app/app
     networks:
       - talentbench-net
 
@@ -152,6 +158,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./backend/app:/app/app
     networks:
       - talentbench-net
 

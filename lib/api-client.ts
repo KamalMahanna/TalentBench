@@ -242,6 +242,49 @@ export const api = {
     return delay({ data: mockData.updateRounds(roleId, rounds) }, 400);
   },
 
+  async downloadResumesExcel(roleId: string, roleTitle = 'Role'): Promise<void> {
+    try {
+      const url = `${API_BASE_URL}/roles/${roleId}/export-resumes-excel`;
+      const res = await fetch(url, { headers: authHeaders() });
+      if (res.ok) {
+        const blob = await res.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `${roleTitle.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')}_resumes_extracted.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+        return;
+      }
+    } catch (err) {
+      console.warn('Backend excel export error:', err);
+    }
+    // Fallback: create CSV from mock data if running offline
+    const candidates = mockData.getCandidates(roleId).data;
+    const header = ['Candidate ID', 'Name', 'Email ID', 'Status', 'Score', 'Skills', 'Extracted Resume Text'];
+    const rows = candidates.map((c) => [
+      c.id,
+      `"${c.name}"`,
+      `"${c.email}"`,
+      c.status === 'screened' ? 'Shortlisted' : c.status === 'rejected' ? 'Rejected' : c.status,
+      c.overall_score,
+      `"${(c.skills || []).join(', ')}"`,
+      `"${(c.resume_text || '').replace(/"/g, '""')}"`,
+    ]);
+    const csvContent = [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `${roleTitle.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')}_resumes_extracted.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  },
+
   // ── Candidates ─────────────────────────────────────────────────────────────
   async getCandidates(
     roleId: string,

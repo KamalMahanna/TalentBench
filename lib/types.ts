@@ -111,6 +111,7 @@ export interface Candidate {
   education: string;
   location: string;
   ai_match_score: number; // vs JD
+  resume_text?: string;
   round_results: RoundResult[];
 }
 

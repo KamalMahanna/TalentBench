@@ -1,5 +1,8 @@
+import io
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import StreamingResponse
+import pandas as pd
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,7 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.llm import get_llm_gateway
 from app.llm.gateway import ScreenResult
-from app.models import BenchmarkProfile, Organization, Role, Round
+from app.models import BenchmarkProfile, Candidate, Organization, Role, Round, RoundResult
 from app.parsing.docx_parser import parse_docx
 from app.parsing.pdf_parser import parse_pdf
 from app.parsing.skill_extractor import extract_candidate_metadata
@@ -473,3 +476,76 @@ async def polish_job_description_endpoint(req: PolishJobDescriptionRequest):
             tokens_saved_estimate=tokens_saved,
         )
     )
+
+
+@router.get("/roles/{role_id}/export-resumes-excel")
+async def export_resumes_excel(role_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Export all candidates for this role into an Excel spreadsheet containing:
+    Candidate ID, Name, Email ID, Screening Status (Shortlisted/Rejected),
+    Match Score, AI Verdict / Missing Gaps Reason, Extracted Skills,
+    Experience Years, Extracted Resume Text, and Timestamp.
+    """
+    role = await db.get(Role, role_id)
+    if not role:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Role not found"
+        )
+
+    stmt = (
+        select(Candidate)
+        .where(Candidate.role_id == role_id)
+        .options(selectinload(Candidate.round_results))
+        .order_by(Candidate.overall_score.desc(), Candidate.created_at.desc())
+    )
+    res = await db.execute(stmt)
+    candidates = res.scalars().all()
+
+    data_rows = []
+    for cand in candidates:
+        rr = next(
+            (r for r in (cand.round_results or []) if r.round_type == "resume_screen"),
+            None,
+        )
+        verdict = rr.ai_verdict if rr else ("yes" if cand.status in ("screened", "tested", "interviewed", "hired") else "")
+        is_shortlisted = cand.status in ("screened", "tested", "interviewed", "hired") or (rr and rr.status == "passed")
+
+        skills_str = ", ".join(cand.skills) if isinstance(cand.skills, list) else str(cand.skills or "")
+
+        data_rows.append({
+            "Candidate ID": cand.id,
+            "Name": cand.name,
+            "Email ID": cand.email,
+            "Status": "Shortlisted" if is_shortlisted else "Rejected",
+            "Score": cand.overall_score or (rr.score if rr else 0),
+            "AI Verdict / Missing Gaps": verdict,
+            "Skills": skills_str,
+            "Experience (Years)": cand.experience_years,
+            "Current Company": cand.current_company or "",
+            "Extracted Resume Text": cand.resume_text or "",
+            "Screening Date": cand.created_at.strftime("%Y-%m-%d %H:%M:%S") if hasattr(cand.created_at, "strftime") else str(cand.created_at),
+        })
+
+    if not data_rows:
+        df = pd.DataFrame(columns=[
+            "Candidate ID", "Name", "Email ID", "Status", "Score",
+            "AI Verdict / Missing Gaps", "Skills", "Experience (Years)",
+            "Current Company", "Extracted Resume Text", "Screening Date"
+        ])
+    else:
+        df = pd.DataFrame(data_rows)
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Resume Screening")
+
+    output.seek(0)
+    safe_title = "".join(c for c in role.title if c.isalnum() or c in (" ", "-", "_")).strip().replace(" ", "_")
+    filename = f"{safe_title}_resumes_extracted.xlsx"
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
