@@ -424,3 +424,36 @@ class LangChainGroqProvider(LLMGateway):
             reason="Candidate does not satisfy role experience or skill requirements.",
             model_name=self.model_name,
         )
+
+    async def polish_job_description(self, jd_text: str) -> str:
+        system_prompt = (
+            "You are an expert AI recruiting assistant specializing in distilling and polishing job descriptions. "
+            "Your objective is to remove all unnecessary company fluff, marketing backstory, office perks/amenities, "
+            "and boilerplate legal/EEO disclosures to reduce token usage and improve AI screening accuracy. "
+            "Extract and structure ONLY the essential role requirements:\n"
+            "1. Role Overview (1-2 sentences summarizing the role scope and seniority)\n"
+            "2. Key Responsibilities (bulleted actionable duties)\n"
+            "3. Required Qualifications & Experience (strict years of professional experience, non-negotiable tech stack, tools, degree/background)\n"
+            "4. Preferred Qualifications (nice-to-have skills, certifications, domain experience)\n\n"
+            "STRICT RULES:\n"
+            "- Strip out all company background stories ('About Us', 'Our Story', 'Why Join Us'), office perks (free lunch, snacks, gym), benefits/insurance details, and boilerplate legal/EEO statements.\n"
+            "- Retain all technical keywords, programming languages, libraries, databases, architectures, and required experience levels.\n"
+            "- Return ONLY the clean, structured markdown job description text. No introductory remarks, conversational replies, or meta-comments."
+        )
+
+        prompt = f"RAW JOB DESCRIPTION:\n{jd_text}\n\nPolish this job description according to the rules:"
+        estimated_tokens = len(prompt.split()) + 400
+
+        async def _call():
+            client = self._get_client(temperature=0.1, max_tokens=1500)
+            res = await client.ainvoke(
+                [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
+            )
+            return str(res.content).strip()
+
+        raw_output = await self._execute_with_retry(
+            _call, estimated_tokens=estimated_tokens
+        )
+        cleaned = raw_output.strip() if raw_output else ""
+        return cleaned if cleaned else jd_text.strip()
+

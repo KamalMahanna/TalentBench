@@ -104,3 +104,12 @@ class LLMGateway(ABC):
         If some skills match, candidate is not rejected on skills.
         """
         pass
+
+    @abstractmethod
+    async def polish_job_description(self, jd_text: str) -> str:
+        """
+        Clean and polish raw job description text by eliminating company background fluff,
+        benefits/perks, and legal boilerplate, retaining only the high-signal role overview,
+        key responsibilities, required qualifications, and core technical requirements.
+        """
+        pass

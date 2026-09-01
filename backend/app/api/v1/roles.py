@@ -422,3 +422,47 @@ async def screen_text_endpoint(req: ScreenTextRequest):
         candidate_name=req.candidate_name,
     )
     return ApiResponse(data=result)
+
+
+class PolishJobDescriptionRequest(BaseModel):
+    text: str
+
+
+class PolishJobDescriptionResponse(BaseModel):
+    polished_text: str
+    original_char_count: int
+    polished_char_count: int
+    tokens_saved_estimate: int
+
+
+@router.post("/roles/polish-jd", response_model=ApiResponse[PolishJobDescriptionResponse])
+async def polish_job_description_endpoint(req: PolishJobDescriptionRequest):
+    """
+    Remove fluff (company overview, perks, benefits, boilerplate legal disclaimers) from a Job Description
+    using the LLM, leaving only core duties, qualifications, and technical competencies to minimize token
+    usage and maximize screening accuracy.
+    """
+    raw_text = req.text.strip()
+    if not raw_text or len(raw_text) < 10:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job description text is too short to polish.",
+        )
+
+    llm = get_llm_gateway()
+    polished = await llm.polish_job_description(raw_text)
+
+    orig_len = len(raw_text)
+    pol_len = len(polished)
+    chars_saved = max(0, orig_len - pol_len)
+    tokens_saved = int(chars_saved / 4)
+
+    return ApiResponse(
+        data=PolishJobDescriptionResponse(
+            polished_text=polished,
+            original_char_count=orig_len,
+            polished_char_count=pol_len,
+            tokens_saved_estimate=tokens_saved,
+        )
+    )
+

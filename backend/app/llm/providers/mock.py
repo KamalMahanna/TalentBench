@@ -300,3 +300,31 @@ class MockLLMProvider(LLMGateway):
             reason="Candidate matched required experience and relevant skills.",
             model_name="mock-gpt-4o",
         )
+
+    async def polish_job_description(self, jd_text: str) -> str:
+        lines = [line.strip() for line in jd_text.splitlines() if line.strip()]
+        fluff_keywords = [
+            "about us", "our story", "why join", "perks", "benefits", "health insurance",
+            "equal opportunity", "we offer", "company overview", "culture", "eeo",
+            "free lunch", "snacks", "401k", "unlimited pto", "flexible vacation"
+        ]
+        cleaned_lines = []
+        skip_section = False
+        for line in lines:
+            lower = line.lower()
+            if any(k in lower for k in fluff_keywords):
+                skip_section = True
+                continue
+            if lower.startswith(("#", "requirements", "responsibilities", "qualifications", "role", "what you'll do", "skills", "experience")):
+                skip_section = False
+            if not skip_section:
+                cleaned_lines.append(line)
+
+        filtered = "\n\n".join(cleaned_lines) if cleaned_lines else jd_text
+        return (
+            f"### Role Overview\n"
+            f"Core technical position focusing on high-impact engineering deliverables.\n\n"
+            f"### Responsibilities & Qualifications\n"
+            f"{filtered}"
+        )
+

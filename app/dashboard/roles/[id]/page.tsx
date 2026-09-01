@@ -131,6 +131,34 @@ export default function RoleDetailPage() {
     }
   }
 
+  const [polishingJD, setPolishingJD] = useState(false);
+
+  async function handlePolishJD() {
+    if (!description.trim() || description.trim().length < 15) {
+      toast.error('Please enter or upload a job description first');
+      return;
+    }
+
+    setPolishingJD(true);
+    try {
+      const res = await api.polishJobDescription(description);
+      if (res?.data?.polished_text) {
+        setDescription(res.data.polished_text);
+        if (res.data.tokens_saved_estimate > 0) {
+          toast.success(
+            `Job description polished! Removed unnecessary company fluff (~${res.data.tokens_saved_estimate} tokens saved)`,
+          );
+        } else {
+          toast.success('Job description polished with AI');
+        }
+      }
+    } catch {
+      toast.error('Failed to polish job description');
+    } finally {
+      setPolishingJD(false);
+    }
+  }
+
   function addRound(type: RoundType) {
     const template = ROUND_TYPES.find((t) => t.value === type)!;
     const newRound: Round = {
@@ -257,7 +285,20 @@ export default function RoleDetailPage() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Job Description Text & Requirements</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Job Description Text & Requirements</Label>
+                {description.trim().length > 20 && (
+                  <button
+                    type="button"
+                    onClick={handlePolishJD}
+                    disabled={polishingJD}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline cursor-pointer disabled:opacity-50"
+                  >
+                    {polishingJD ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                    <span>{polishingJD ? 'Polishing...' : 'Polish with AI'}</span>
+                  </button>
+                )}
+              </div>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}

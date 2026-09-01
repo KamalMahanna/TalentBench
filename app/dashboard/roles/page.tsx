@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   Plus, Briefcase, Users, MoreVertical, Trash2, Copy,
-  FileText, Upload, Sparkles, Loader2,
+  FileText, Upload, Sparkles, Loader2, RotateCcw,
 } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { GlowButton } from '@/components/glow-button';
@@ -40,6 +40,43 @@ export default function RolesPage() {
   const [employmentType, setEmploymentType] = useState<'Full-time' | 'Part-time' | 'Contract' | 'Internship'>('Full-time');
   const [description, setDescription] = useState('');
   const [parsingFile, setParsingFile] = useState(false);
+  const [polishingJD, setPolishingJD] = useState(false);
+  const [rawDescriptionBackup, setRawDescriptionBackup] = useState<string | null>(null);
+
+  async function handlePolishJD() {
+    if (!description.trim() || description.trim().length < 15) {
+      toast.error('Please enter or upload a job description first');
+      return;
+    }
+
+    setPolishingJD(true);
+    try {
+      const res = await api.polishJobDescription(description);
+      if (res?.data?.polished_text) {
+        setRawDescriptionBackup(description);
+        setDescription(res.data.polished_text);
+        if (res.data.tokens_saved_estimate > 0) {
+          toast.success(
+            `Job description polished! Removed unnecessary company fluff (~${res.data.tokens_saved_estimate} tokens saved)`,
+          );
+        } else {
+          toast.success('Job description polished with AI');
+        }
+      }
+    } catch {
+      toast.error('Failed to polish job description');
+    } finally {
+      setPolishingJD(false);
+    }
+  }
+
+  function handleUndoPolish() {
+    if (rawDescriptionBackup) {
+      setDescription(rawDescriptionBackup);
+      setRawDescriptionBackup(null);
+      toast.info('Reverted to original job description');
+    }
+  }
 
   async function handleDelete(id: string) {
     await api.deleteRole(id);
@@ -190,43 +227,91 @@ export default function RolesPage() {
                   <FileText className="h-4 w-4 text-primary" />
                   Job Description (JD)
                 </Label>
-                <label
-                  className={`flex items-center gap-1.5 text-xs text-primary ${
-                    parsingFile ? 'opacity-70 cursor-wait' : 'cursor-pointer hover:underline'
-                  }`}
-                >
-                  {parsingFile ? (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      <span>Extracting text...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-3 w-3" />
-                      <span>Upload JD (.pdf, .docx, .txt)</span>
-                    </>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {rawDescriptionBackup && (
+                    <button
+                      type="button"
+                      onClick={handleUndoPolish}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      title="Revert to raw job description before polish"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      <span>Undo polish</span>
+                    </button>
                   )}
-                  <input
-                    type="file"
-                    accept=".pdf,.docx,.doc,.txt,.md"
-                    className="hidden"
-                    disabled={parsingFile}
-                    onChange={handleFileUpload}
-                  />
-                </label>
+                  {description.trim().length > 20 && (
+                    <button
+                      type="button"
+                      onClick={handlePolishJD}
+                      disabled={polishingJD || parsingFile}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/30 px-2.5 py-1 text-xs font-medium text-primary transition-all disabled:opacity-50 cursor-pointer"
+                      title="Remove company backstory, perks, and legal fluff to save tokens"
+                    >
+                      {polishingJD ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>Polishing with AI...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-3 w-3 text-primary" />
+                          <span>Polish with AI</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                  <label
+                    className={`flex items-center gap-1.5 text-xs text-primary ${
+                      parsingFile ? 'opacity-70 cursor-wait' : 'cursor-pointer hover:underline'
+                    }`}
+                  >
+                    {parsingFile ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span>Extracting text...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-3 w-3" />
+                        <span>Upload JD (.pdf, .docx, .txt)</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept=".pdf,.docx,.doc,.txt,.md"
+                      className="hidden"
+                      disabled={parsingFile}
+                      onChange={handleFileUpload}
+                    />
+                  </label>
+                </div>
               </div>
 
               <Textarea
                 id="role-jd"
                 placeholder="Paste the full job description, required competencies, years of experience, and rubric expectations here..."
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  if (rawDescriptionBackup) setRawDescriptionBackup(null);
+                }}
                 rows={7}
                 className="bg-background-elevated font-sans text-sm leading-relaxed resize-none"
               />
-              <p className="text-xs text-muted-foreground">
-                AI will extract key skills, assess requirements, and establish the benchmark profile.
-              </p>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <p>
+                  AI will extract key skills, assess requirements, and establish the benchmark profile.
+                </p>
+                {description.trim().length > 20 && !polishingJD && !rawDescriptionBackup && (
+                  <button
+                    type="button"
+                    onClick={handlePolishJD}
+                    className="text-primary hover:underline inline-flex items-center gap-1 shrink-0 ml-2 cursor-pointer"
+                  >
+                    <Sparkles className="h-3 w-3" /> Remove company fluff & polish
+                  </button>
+                )}
+              </div>
             </div>
 
             <DialogFooter className="gap-2 pt-4">

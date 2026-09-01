@@ -167,6 +167,54 @@ export const api = {
     };
   },
 
+  async polishJobDescription(
+    text: string,
+  ): Promise<
+    ApiResponse<{
+      polished_text: string;
+      original_char_count: number;
+      polished_char_count: number;
+      tokens_saved_estimate: number;
+    }>
+  > {
+    try {
+      const res = await fetch(`${API_BASE_URL}/roles/polish-jd`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ text }),
+      });
+      if (res.ok) {
+        return (await res.json()) as ApiResponse<{
+          polished_text: string;
+          original_char_count: number;
+          polished_char_count: number;
+          tokens_saved_estimate: number;
+        }>;
+      }
+    } catch {
+      // fallback
+    }
+
+    const lines = text.split('\n').filter((l) => {
+      const lower = l.toLowerCase();
+      return (
+        !lower.includes('about us') &&
+        !lower.includes('benefits') &&
+        !lower.includes('perks') &&
+        !lower.includes('equal opportunity')
+      );
+    });
+    const polished = lines.join('\n').trim() || text;
+    return {
+      data: {
+        polished_text: polished,
+        original_char_count: text.length,
+        polished_char_count: polished.length,
+        tokens_saved_estimate: Math.max(0, Math.floor((text.length - polished.length) / 4)),
+      },
+    };
+  },
+
   // ── Pipeline / Rounds ──────────────────────────────────────────────────────
   async updateRounds(
     roleId: string,
