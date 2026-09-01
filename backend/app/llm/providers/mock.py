@@ -304,9 +304,22 @@ class MockLLMProvider(LLMGateway):
     async def polish_job_description(self, jd_text: str) -> str:
         lines = [line.strip() for line in jd_text.splitlines() if line.strip()]
         fluff_keywords = [
-            "about us", "our story", "why join", "perks", "benefits", "health insurance",
-            "equal opportunity", "we offer", "company overview", "culture", "eeo",
-            "free lunch", "snacks", "401k", "unlimited pto", "flexible vacation"
+            "about us",
+            "our story",
+            "why join",
+            "perks",
+            "benefits",
+            "health insurance",
+            "equal opportunity",
+            "we offer",
+            "company overview",
+            "culture",
+            "eeo",
+            "free lunch",
+            "snacks",
+            "401k",
+            "unlimited pto",
+            "flexible vacation",
         ]
         cleaned_lines = []
         skip_section = False
@@ -315,7 +328,18 @@ class MockLLMProvider(LLMGateway):
             if any(k in lower for k in fluff_keywords):
                 skip_section = True
                 continue
-            if lower.startswith(("#", "requirements", "responsibilities", "qualifications", "role", "what you'll do", "skills", "experience")):
+            if lower.startswith(
+                (
+                    "#",
+                    "requirements",
+                    "responsibilities",
+                    "qualifications",
+                    "role",
+                    "what you'll do",
+                    "skills",
+                    "experience",
+                )
+            ):
                 skip_section = False
             if not skip_section:
                 cleaned_lines.append(line)
@@ -327,4 +351,3 @@ class MockLLMProvider(LLMGateway):
             f"### Responsibilities & Qualifications\n"
             f"{filtered}"
         )
-

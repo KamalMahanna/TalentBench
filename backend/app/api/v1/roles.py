@@ -435,7 +435,9 @@ class PolishJobDescriptionResponse(BaseModel):
     tokens_saved_estimate: int
 
 
-@router.post("/roles/polish-jd", response_model=ApiResponse[PolishJobDescriptionResponse])
+@router.post(
+    "/roles/polish-jd", response_model=ApiResponse[PolishJobDescriptionResponse]
+)
 async def polish_job_description_endpoint(req: PolishJobDescriptionRequest):
     """
     Remove fluff (company overview, perks, benefits, boilerplate legal disclaimers) from a Job Description
@@ -465,4 +467,3 @@ async def polish_job_description_endpoint(req: PolishJobDescriptionRequest):
             tokens_saved_estimate=tokens_saved,
         )
     )
-

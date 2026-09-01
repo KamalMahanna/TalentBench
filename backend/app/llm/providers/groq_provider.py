@@ -456,4 +456,3 @@ class LangChainGroqProvider(LLMGateway):
         )
         cleaned = raw_output.strip() if raw_output else ""
         return cleaned if cleaned else jd_text.strip()
-

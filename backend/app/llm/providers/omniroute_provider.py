@@ -525,4 +525,3 @@ class LangChainOmniRouteProvider(LLMGateway):
         raw_output = await self._execute_with_omniroute_fallback(_call)
         cleaned = raw_output.strip() if raw_output else ""
         return cleaned if cleaned else jd_text.strip()
-
