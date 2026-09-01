@@ -8,8 +8,8 @@ class AuditLog(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "audit_logs"
 
     candidate_id: Mapped[str] = mapped_column(
-        String(36),
-        ForeignKey("candidates.id", ondelete="CASCADE"),
+        String(255),
+        ForeignKey("candidates.id", ondelete="CASCADE", onupdate="CASCADE"),
         nullable=False,
         index=True,
     )

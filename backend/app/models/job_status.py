@@ -14,8 +14,8 @@ class JobStatus(Base, UUIDMixin, TimestampMixin):
         index=True,
     )
     candidate_id: Mapped[str | None] = mapped_column(
-        String(36),
-        ForeignKey("candidates.id", ondelete="CASCADE"),
+        String(255),
+        ForeignKey("candidates.id", ondelete="CASCADE", onupdate="CASCADE"),
         nullable=True,
         index=True,
     )

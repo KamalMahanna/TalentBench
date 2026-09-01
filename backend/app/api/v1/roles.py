@@ -620,9 +620,7 @@ async def trigger_comparative_matching(
 
 
 @router.get("/roles/{role_id}/comparative-benchmark")
-async def get_comparative_benchmark(
-    role_id: str, db: AsyncSession = Depends(get_db)
-):
+async def get_comparative_benchmark(role_id: str, db: AsyncSession = Depends(get_db)):
     """
     Get the synthesized Top 10 Benchmark Projects & Experience for this role.
     """
@@ -638,9 +636,8 @@ async def get_comparative_benchmark(
     res_round = await db.execute(stmt_round)
     rr = res_round.scalars().first()
 
-    cutoff_count = (
-        getattr(rr, "cutoff_count", None)
-        or getattr(rr, "cutoff_threshold", 300)
+    cutoff_count = getattr(rr, "cutoff_count", None) or getattr(
+        rr, "cutoff_threshold", 300
     )
 
     return ApiResponse(
@@ -651,4 +648,3 @@ async def get_comparative_benchmark(
             "has_benchmark": bool(top_projects),
         }
     )
-

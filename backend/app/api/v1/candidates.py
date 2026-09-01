@@ -123,11 +123,20 @@ async def get_candidates(
     )
 
 
-@router.get("/candidates/{candidate_id}", response_model=ApiResponse[CandidateSchema])
+@router.get("/candidates/{candidate_id:path}", response_model=ApiResponse[CandidateSchema])
 async def get_candidate(candidate_id: str, db: AsyncSession = Depends(get_db)):
+    import urllib.parse
+    decoded_id = urllib.parse.unquote(candidate_id).strip()
     stmt = (
         select(Candidate)
-        .where(Candidate.id == candidate_id)
+        .where(
+            or_(
+                Candidate.id == candidate_id,
+                Candidate.id == decoded_id,
+                func.lower(Candidate.id) == decoded_id.lower(),
+                func.lower(Candidate.email) == decoded_id.lower(),
+            )
+        )
         .options(selectinload(Candidate.round_results))
     )
     res = await db.execute(stmt)

@@ -376,6 +376,16 @@ export const api = {
   },
 
   async getCandidate(id: string): Promise<ApiResponse<Candidate>> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/candidates/${encodeURIComponent(id)}`, {
+        headers: authHeaders(),
+      });
+      if (res.ok) {
+        return (await res.json()) as ApiResponse<Candidate>;
+      }
+    } catch (err) {
+      console.warn('Backend getCandidate error:', err);
+    }
     return delay({ data: mockData.getCandidate(id) });
   },
 

@@ -44,7 +44,9 @@ class BenchmarkProject(BaseModel):
 
 class ComparativeScoreResult(BaseModel):
     comparative_score: int  # 0-100
-    relative_depth: str = "competitive"  # top_tier, competitive, developing, entry_level
+    relative_depth: str = (
+        "competitive"  # top_tier, competitive, developing, entry_level
+    )
     missing_areas: list[str] = []
     recommended_project_to_build: str = ""
     raw_output: str = ""

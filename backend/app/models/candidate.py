@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from sqlalchemy import (
     Boolean,
@@ -13,12 +14,15 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
-from app.models.base import Base, TimestampMixin, UUIDMixin, utc_now
+from app.models.base import Base, TimestampMixin, utc_now
 
 
-class Candidate(Base, UUIDMixin, TimestampMixin):
+class Candidate(Base, TimestampMixin):
     __tablename__ = "candidates"
 
+    id: Mapped[str] = mapped_column(
+        String(255), primary_key=True, index=True
+    )
     role_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("roles.id", ondelete="CASCADE"),
@@ -27,6 +31,16 @@ class Candidate(Base, UUIDMixin, TimestampMixin):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+
+    def __init__(self, **kwargs):
+        if "email" in kwargs and kwargs["email"]:
+            clean_email = str(kwargs["email"]).strip().lower()
+            kwargs["email"] = clean_email
+            if "id" not in kwargs or not kwargs["id"]:
+                kwargs["id"] = clean_email
+        elif "id" not in kwargs or not kwargs["id"]:
+            kwargs["id"] = str(uuid.uuid4())
+        super().__init__(**kwargs)
     phone: Mapped[str] = mapped_column(String(50), default="", nullable=False)
     avatar_url: Mapped[str] = mapped_column(String(1024), default="", nullable=False)
     resume_url: Mapped[str] = mapped_column(String(1024), default="", nullable=False)

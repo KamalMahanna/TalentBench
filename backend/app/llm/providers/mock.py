@@ -369,7 +369,13 @@ class MockLLMProvider(LLMGateway):
                 "id": "bench-1",
                 "title": "Distributed Multi-Region Event Ingestion Platform",
                 "description": "High-throughput Kafka and Go pipeline processing 500k events/sec with sub-50ms p99 latency and cross-region consensus.",
-                "technologies": ["Go", "Apache Kafka", "Kubernetes", "PostgreSQL", "Prometheus"],
+                "technologies": [
+                    "Go",
+                    "Apache Kafka",
+                    "Kubernetes",
+                    "PostgreSQL",
+                    "Prometheus",
+                ],
                 "complexity_score": 10,
             },
             {
@@ -397,7 +403,13 @@ class MockLLMProvider(LLMGateway):
                 "id": "bench-5",
                 "title": "Vector Search & Retrieval-Augmented Generation Engine",
                 "description": "Semantic search microservice leveraging pgvector and HNSW index indexing 10M embeddings with hybrid BM25 re-ranking.",
-                "technologies": ["Python", "pgvector", "LangChain", "FastAPI", "Docker"],
+                "technologies": [
+                    "Python",
+                    "pgvector",
+                    "LangChain",
+                    "FastAPI",
+                    "Docker",
+                ],
                 "complexity_score": 8,
             },
             {
@@ -411,7 +423,13 @@ class MockLLMProvider(LLMGateway):
                 "id": "bench-7",
                 "title": "Real-Time WebSocket Collaboration & Presence Gateway",
                 "description": "Stateful WebSocket gateway with horizontal autoscaling, Redis pub/sub presence tracking, and CRDT synchronization.",
-                "technologies": ["TypeScript", "Node.js", "Redis", "Docker", "Socket.io"],
+                "technologies": [
+                    "TypeScript",
+                    "Node.js",
+                    "Redis",
+                    "Docker",
+                    "Socket.io",
+                ],
                 "complexity_score": 8,
             },
             {
@@ -453,11 +471,17 @@ class MockLLMProvider(LLMGateway):
 
         if score >= 85:
             relative_depth = "top_tier"
-            missing = ["Advanced multi-region fault injection", "Chaos engineering validation"]
+            missing = [
+                "Advanced multi-region fault injection",
+                "Chaos engineering validation",
+            ]
             rec = "Projects match benchmark caliber. Deepen chaos engineering and multi-region disaster recovery demonstrations."
         elif score >= 70:
             relative_depth = "competitive"
-            missing = ["High-throughput stream processing", "Formal linearizability testing"]
+            missing = [
+                "High-throughput stream processing",
+                "Formal linearizability testing",
+            ]
             rec = "Transition from synchronous REST endpoints to asynchronous message streams (e.g. Kafka/RabbitMQ) with backpressure."
         else:
             relative_depth = "developing"
@@ -480,4 +504,3 @@ class MockLLMProvider(LLMGateway):
             raw_output=f"Mock score {score}",
             model_name="mock-gpt-4o",
         )
-

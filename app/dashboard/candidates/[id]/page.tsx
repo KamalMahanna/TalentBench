@@ -27,7 +27,8 @@ export default function CandidateDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const candidateId = params.id as string;
+  const rawId = Array.isArray(params.id) ? params.id[0] : (params.id as string);
+  const candidateId = decodeURIComponent(rawId || '');
 
   const { data: candidateData, isLoading } = useQuery({
     queryKey: ['candidate', candidateId],

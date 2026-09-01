@@ -126,10 +126,14 @@ class LangChainOmniRouteProvider(LLMGateway):
         }
         full_text: list[str] = []
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            async with client.stream("POST", url, headers=headers, json=payload) as response:
+            async with client.stream(
+                "POST", url, headers=headers, json=payload
+            ) as response:
                 if response.status_code != 200:
                     err_body = await response.aread()
-                    raise RuntimeError(f"OmniRoute HTTP {response.status_code}: {err_body.decode(errors='ignore')}")
+                    raise RuntimeError(
+                        f"OmniRoute HTTP {response.status_code}: {err_body.decode(errors='ignore')}"
+                    )
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         data_str = line[6:].strip()
@@ -596,13 +600,13 @@ class LangChainOmniRouteProvider(LLMGateway):
             "STRICT JSON OUTPUT FORMAT:\n"
             "Return ONLY valid JSON with key 'top_projects' containing an array of up to 10 objects:\n"
             "{\n"
-            "  \"top_projects\": [\n"
+            '  "top_projects": [\n'
             "    {\n"
-            "      \"id\": \"p1\",\n"
-            "      \"title\": \"Project Name / Title\",\n"
-            "      \"description\": \"Technical summary explaining architectural complexity, scale, and why it is a top benchmark.\",\n"
-            "      \"technologies\": [\"Python\", \"Kafka\", \"PostgreSQL\"],\n"
-            "      \"complexity_score\": 9\n"
+            '      "id": "p1",\n'
+            '      "title": "Project Name / Title",\n'
+            '      "description": "Technical summary explaining architectural complexity, scale, and why it is a top benchmark.",\n'
+            '      "technologies": ["Python", "Kafka", "PostgreSQL"],\n'
+            '      "complexity_score": 9\n'
             "    }\n"
             "  ]\n"
             "}"
@@ -625,7 +629,9 @@ class LangChainOmniRouteProvider(LLMGateway):
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ]
-                raw_text = await self._stream_chat_completion(messages, model=model_name, temperature=0.1, max_tokens=1500)
+                raw_text = await self._stream_chat_completion(
+                    messages, model=model_name, temperature=0.1, max_tokens=1500
+                )
                 clean = _clean_json_text(raw_text)
                 parsed = json.loads(clean)
                 return parsed.get("top_projects", [])
@@ -635,7 +641,11 @@ class LangChainOmniRouteProvider(LLMGateway):
                 if result and isinstance(result, list):
                     current_top_10 = result[:10]
             except Exception as e:
-                logger.warning("omniroute_tournament_batch_failed", batch_idx=batch_idx, error=str(e))
+                logger.warning(
+                    "omniroute_tournament_batch_failed",
+                    batch_idx=batch_idx,
+                    error=str(e),
+                )
                 if not current_top_10 and combined_pool:
                     current_top_10 = combined_pool[:10]
 
@@ -645,14 +655,26 @@ class LangChainOmniRouteProvider(LLMGateway):
                     "id": "bench-1",
                     "title": "Distributed Multi-Region Event Ingestion Platform",
                     "description": "High-throughput Kafka and Go pipeline processing 500k events/sec with sub-50ms p99 latency and cross-region consensus.",
-                    "technologies": ["Go", "Apache Kafka", "Kubernetes", "PostgreSQL", "Prometheus"],
+                    "technologies": [
+                        "Go",
+                        "Apache Kafka",
+                        "Kubernetes",
+                        "PostgreSQL",
+                        "Prometheus",
+                    ],
                     "complexity_score": 10,
                 },
                 {
                     "id": "bench-2",
                     "title": "Real-Time Transaction Ledger & Double-Entry Consensus",
                     "description": "Financial ledger utilizing Redis distributed locks and transactional outbox pattern to achieve strict linearizability and zero double-spends.",
-                    "technologies": ["Python", "FastAPI", "Redis", "PostgreSQL", "Docker"],
+                    "technologies": [
+                        "Python",
+                        "FastAPI",
+                        "Redis",
+                        "PostgreSQL",
+                        "Docker",
+                    ],
                     "complexity_score": 9,
                 },
                 {
@@ -673,7 +695,13 @@ class LangChainOmniRouteProvider(LLMGateway):
                     "id": "bench-5",
                     "title": "Vector Search & Retrieval-Augmented Generation Engine",
                     "description": "Semantic search microservice leveraging pgvector and HNSW index indexing 10M embeddings with hybrid BM25 re-ranking.",
-                    "technologies": ["Python", "pgvector", "LangChain", "FastAPI", "Docker"],
+                    "technologies": [
+                        "Python",
+                        "pgvector",
+                        "LangChain",
+                        "FastAPI",
+                        "Docker",
+                    ],
                     "complexity_score": 8,
                 },
                 {
@@ -687,14 +715,26 @@ class LangChainOmniRouteProvider(LLMGateway):
                     "id": "bench-7",
                     "title": "Real-Time WebSocket Collaboration & Presence Gateway",
                     "description": "Stateful WebSocket gateway with horizontal autoscaling, Redis pub/sub presence tracking, and CRDT synchronization.",
-                    "technologies": ["TypeScript", "Node.js", "Redis", "Docker", "Socket.io"],
+                    "technologies": [
+                        "TypeScript",
+                        "Node.js",
+                        "Redis",
+                        "Docker",
+                        "Socket.io",
+                    ],
                     "complexity_score": 8,
                 },
                 {
                     "id": "bench-8",
                     "title": "High-Throughput ETL & Analytics Data Warehouse Lakehouse",
                     "description": "Automated data pipeline ingesting 100GB/day of clickstream logs into Apache Iceberg with automated schema evolution.",
-                    "technologies": ["Python", "Apache Spark", "DuckDB", "S3", "Parquet"],
+                    "technologies": [
+                        "Python",
+                        "Apache Spark",
+                        "DuckDB",
+                        "S3",
+                        "Parquet",
+                    ],
                     "complexity_score": 8,
                 },
                 {
@@ -708,7 +748,12 @@ class LangChainOmniRouteProvider(LLMGateway):
                     "id": "bench-10",
                     "title": "Unified Telemetry & OpenTelemetry Observability Fabric",
                     "description": "Distributed tracing fabric auto-instrumenting 30+ services with OpenTelemetry, Tempo, Loki, and Prometheus alert rules.",
-                    "technologies": ["OpenTelemetry", "Prometheus", "Grafana", "Docker"],
+                    "technologies": [
+                        "OpenTelemetry",
+                        "Prometheus",
+                        "Grafana",
+                        "Docker",
+                    ],
                     "complexity_score": 8,
                 },
             ]
@@ -743,10 +788,10 @@ class LangChainOmniRouteProvider(LLMGateway):
             "STRICT JSON OUTPUT FORMAT:\n"
             "Return ONLY a JSON object with keys:\n"
             "{\n"
-            "  \"comparative_score\": 78,\n"
-            "  \"relative_depth\": \"competitive\",\n"
-            "  \"missing_areas\": [\"Distributed state management\", \"High-throughput stream processing\"],\n"
-            "  \"recommended_project_to_build\": \"Build an event-driven ledger service with Kafka and Redis distributed locks to demonstrate distributed consistency rather than CRUD APIs.\"\n"
+            '  "comparative_score": 78,\n'
+            '  "relative_depth": "competitive",\n'
+            '  "missing_areas": ["Distributed state management", "High-throughput stream processing"],\n'
+            '  "recommended_project_to_build": "Build an event-driven ledger service with Kafka and Redis distributed locks to demonstrate distributed consistency rather than CRUD APIs."\n'
             "}"
         )
 
@@ -765,7 +810,9 @@ class LangChainOmniRouteProvider(LLMGateway):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
             ]
-            raw_text = await self._stream_chat_completion(messages, model=model_name, temperature=0.1, max_tokens=1000)
+            raw_text = await self._stream_chat_completion(
+                messages, model=model_name, temperature=0.1, max_tokens=1000
+            )
             clean = _clean_json_text(raw_text)
             return json.loads(clean)
 
@@ -776,15 +823,21 @@ class LangChainOmniRouteProvider(LLMGateway):
                     comparative_score=int(res_dict.get("comparative_score", 70)),
                     relative_depth=str(res_dict.get("relative_depth", "competitive")),
                     missing_areas=res_dict.get("missing_areas", []),
-                    recommended_project_to_build=str(res_dict.get("recommended_project_to_build", "")),
+                    recommended_project_to_build=str(
+                        res_dict.get("recommended_project_to_build", "")
+                    ),
                     raw_output=json.dumps(res_dict),
                     model_name=_format_model_tag(self.model_name),
                 )
         except Exception as e:
-            logger.warning("comparative_score_candidate_failed", candidate=candidate_name, error=str(e))
+            logger.warning(
+                "comparative_score_candidate_failed",
+                candidate=candidate_name,
+                error=str(e),
+            )
 
         bench_techs = set()
-        for p in (top_benchmark_projects or []):
+        for p in top_benchmark_projects or []:
             for t in p.get("technologies", []):
                 bench_techs.add(t.lower())
 
@@ -804,10 +857,14 @@ class LangChainOmniRouteProvider(LLMGateway):
         else:
             depth = "entry_level"
 
-        top_ref = top_benchmark_projects[0] if top_benchmark_projects else {
-            "title": "Distributed Multi-Region Event Ingestion Platform",
-            "technologies": ["Go", "Kafka", "PostgreSQL"],
-        }
+        top_ref = (
+            top_benchmark_projects[0]
+            if top_benchmark_projects
+            else {
+                "title": "Distributed Multi-Region Event Ingestion Platform",
+                "technologies": ["Go", "Kafka", "PostgreSQL"],
+            }
+        )
         rec_text = (
             f"Build a project comparable to '{top_ref.get('title')}' utilizing {', '.join(missing[:2])} "
             f"focusing on sub-50ms latency, fault tolerance, and automated failover rather than basic CRUD APIs."
@@ -821,4 +878,3 @@ class LangChainOmniRouteProvider(LLMGateway):
             raw_output="",
             model_name=_format_model_tag(self.model_name),
         )
-

@@ -59,6 +59,7 @@ async def bulk_upload(
         projects = ["Distributed Cache Service", "Event Ingestion Engine"]
 
         candidate = Candidate(
+            id=cand_email,
             role_id=role.id,
             name=cand_name,
             email=cand_email,
@@ -164,7 +165,17 @@ async def upload_resume_files(
             )
             cand_name = cleaned_name.title() if len(cleaned_name) >= 2 else faker.name()
 
+            existing = await db.get(Candidate, cand_email)
+            if existing:
+                existing.role_id = role.id
+                existing.name = cand_name
+                existing.resume_text = resume_text
+                existing.resume_url = f"/resumes/{filename}"
+                created_candidate_ids.append(existing.id)
+                continue
+
             candidate = Candidate(
+                id=cand_email,
                 role_id=role.id,
                 name=cand_name,
                 email=cand_email,

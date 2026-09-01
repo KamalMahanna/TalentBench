@@ -37,11 +37,7 @@ def run_comparative_resume_matching(self, role_id: str):
         if not role:
             raise ValueError(f"Role {role_id} not found")
 
-        candidates = (
-            db.query(Candidate)
-            .filter(Candidate.role_id == role_id)
-            .all()
-        )
+        candidates = db.query(Candidate).filter(Candidate.role_id == role_id).all()
         if not candidates:
             logger.info("no_candidates_for_comparative_matching", role_id=role_id)
             return {"status": "completed", "candidates_processed": 0}
@@ -49,7 +45,9 @@ def run_comparative_resume_matching(self, role_id: str):
         publish_event(
             role_id=role_id,
             event_type="comparative_matching_started",
-            payload={"message": f"Starting Comparative Resume Matching across {len(candidates)} candidates..."},
+            payload={
+                "message": f"Starting Comparative Resume Matching across {len(candidates)} candidates..."
+            },
         )
 
         jd_text = role.description or role.title
@@ -59,7 +57,11 @@ def run_comparative_resume_matching(self, role_id: str):
         current_batch: list[dict] = []
         for cand in candidates:
             cand_projects = cand.projects if isinstance(cand.projects, list) else []
-            cand_proj_str = ", ".join(cand_projects[:2]) if cand_projects else (cand.resume_text[:200] if cand.resume_text else "")
+            cand_proj_str = (
+                ", ".join(cand_projects[:2])
+                if cand_projects
+                else (cand.resume_text[:200] if cand.resume_text else "")
+            )
 
             project_entry = {
                 "id": cand.id,
@@ -128,7 +130,9 @@ def run_comparative_resume_matching(self, role_id: str):
                         jd_text=jd_text,
                         top_benchmark_projects=top_10_projects,
                         candidate_resume=c.resume_text or "",
-                        candidate_projects=c.projects if isinstance(c.projects, list) else [],
+                        candidate_projects=c.projects
+                        if isinstance(c.projects, list)
+                        else [],
                         candidate_name=c.name,
                     )
                     return {
@@ -153,7 +157,9 @@ def run_comparative_resume_matching(self, role_id: str):
 
         cutoff_limit = 300
         if resume_round:
-            if getattr(resume_round, "cutoff_type", None) == "count" and getattr(resume_round, "cutoff_count", None):
+            if getattr(resume_round, "cutoff_type", None) == "count" and getattr(
+                resume_round, "cutoff_count", None
+            ):
                 cutoff_limit = resume_round.cutoff_count
             elif getattr(resume_round, "cutoff_threshold", 0) > 0:
                 cutoff_limit = resume_round.cutoff_threshold
@@ -172,11 +178,14 @@ def run_comparative_resume_matching(self, role_id: str):
             # Update or create RoundResult
             rr = (
                 db.query(RoundResult)
-                .filter(RoundResult.candidate_id == cand.id, RoundResult.round_type == "resume_screen")
+                .filter(
+                    RoundResult.candidate_id == cand.id,
+                    RoundResult.round_type == "resume_screen",
+                )
                 .first()
             )
             summary_text = (
-                f"Rank #{rank} (Top {round((rank/len(eval_results))*100)}%). "
+                f"Rank #{rank} (Top {round((rank / len(eval_results)) * 100)}%). "
                 f"Comparative Score: {score}/100. "
                 f"Level: {item['relative_depth'].replace('_', ' ').title()}."
             )
@@ -218,7 +227,11 @@ def run_comparative_resume_matching(self, role_id: str):
 
             # If rejected (outside cutoff), queue personalized email with project recommendation
             if not is_qualified and cand.email:
-                missing_str = ", ".join(item["missing_areas"]) if item["missing_areas"] else "depth in distributed systems architecture"
+                missing_str = (
+                    ", ".join(item["missing_areas"])
+                    if item["missing_areas"]
+                    else "depth in distributed systems architecture"
+                )
                 mail_body = (
                     f"Thank you for taking the time to apply for the {role.title} position at our company. "
                     f"While our team was genuinely impressed by your background, we experienced an exceptionally high volume of applications "
