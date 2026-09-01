@@ -1,10 +1,12 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.llm import get_llm_gateway
+from app.llm.gateway import ScreenResult
 from app.models import BenchmarkProfile, Organization, Role, Round
 from app.parsing.docx_parser import parse_docx
 from app.parsing.pdf_parser import parse_pdf
@@ -399,3 +401,24 @@ async def update_rounds(
             for r in saved_rounds
         ]
     )
+
+
+class ScreenTextRequest(BaseModel):
+    jd_text: str
+    resume_text: str
+    candidate_name: str = "Candidate"
+
+
+@router.post("/roles/screen-text", response_model=ApiResponse[ScreenResult])
+async def screen_text_endpoint(req: ScreenTextRequest):
+    """
+    Directly evaluate candidate resume text against Job Description text using the LLM gateway.
+    Returns 'yes' if matching, or a personalized rejection email body explaining what is missing.
+    """
+    llm = get_llm_gateway()
+    result = await llm.screen_candidate(
+        jd_text=req.jd_text,
+        resume_text=req.resume_text,
+        candidate_name=req.candidate_name,
+    )
+    return ApiResponse(data=result)

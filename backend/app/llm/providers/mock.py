@@ -4,7 +4,7 @@ import json
 import random
 from typing import Any, AsyncIterator
 import numpy as np
-from app.llm.gateway import EvalResponse, LLMGateway, LLMResponse
+from app.llm.gateway import EvalResponse, LLMGateway, LLMResponse, ScreenResult
 
 
 class MockLLMProvider(LLMGateway):
@@ -252,3 +252,51 @@ class MockLLMProvider(LLMGateway):
 
         # Select top N most relevant / impactful projects
         return projects[:target_count]
+
+    async def screen_candidate(
+        self,
+        jd_text: str,
+        resume_text: str,
+        candidate_name: str = "Candidate",
+    ) -> ScreenResult:
+        lower_resume = resume_text.lower()
+        lower_jd = jd_text.lower()
+
+        # Check if resume indicates internship only or lacks required experience
+        has_internship = "intern" in lower_resume
+        has_fulltime = "full-time" in lower_resume or "years" in lower_resume
+
+        # If only internships mentioned without full-time experience
+        if has_internship and not has_fulltime:
+            return ScreenResult(
+                matched=False,
+                verdict=(
+                    f"Thank you for taking the time to apply for the position. After reviewing your resume, "
+                    f"we noted that your background primarily reflects internship experience. "
+                    f"Please note that internship experience cannot be counted toward the required professional "
+                    f"full-time experience level specified in the Job Description, and we are unable to advance your application."
+                ),
+                reason="Internship does not count as professional full-time experience.",
+                model_name="mock-gpt-4o",
+            )
+
+        # Check if skills completely mismatch (e.g. Graphic designer vs backend)
+        if "graphic design" in lower_resume or "photoshop" in lower_resume:
+            return ScreenResult(
+                matched=False,
+                verdict=(
+                    f"Thank you for applying. After reviewing your qualifications against the Job Description, "
+                    f"we found that your experience does not demonstrate the core technical proficiencies "
+                    f"required for this engineering role."
+                ),
+                reason="Core skill mismatch against Job Description.",
+                model_name="mock-gpt-4o",
+            )
+
+        # Otherwise, matches if some skill / experience matches
+        return ScreenResult(
+            matched=True,
+            verdict="yes",
+            reason="Candidate matched required experience and relevant skills.",
+            model_name="mock-gpt-4o",
+        )

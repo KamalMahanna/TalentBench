@@ -1,6 +1,6 @@
 from app.config import settings
 from app.llm.cache import LLMCache
-from app.llm.gateway import EvalResponse, LLMGateway, LLMResponse
+from app.llm.gateway import EvalResponse, LLMGateway, LLMResponse, ScreenResult
 from app.llm.providers.groq_provider import LangChainGroqProvider
 from app.llm.providers.mock import MockLLMProvider
 from app.llm.providers.omniroute_provider import LangChainOmniRouteProvider
@@ -55,6 +55,7 @@ __all__ = [
     "LLMGateway",
     "LLMResponse",
     "EvalResponse",
+    "ScreenResult",
     "LLMCache",
     "GroqRateLimiter",
     "LangChainGroqProvider",

@@ -27,6 +27,13 @@ class EvalResponse(BaseModel):
     prompt_snapshot: str = ""
 
 
+class ScreenResult(BaseModel):
+    matched: bool
+    verdict: str  # "yes" or rejection email body
+    reason: str = ""
+    model_name: str = "default"
+
+
 class LLMGateway(ABC):
     """Abstract interface for all LLM interactions in TalentBench."""
 
@@ -80,4 +87,20 @@ class LLMGateway(ABC):
         role_context: str = "",
     ) -> list[str]:
         """Token-bounded map-reduce over candidate projects to derive top representative projects."""
+        pass
+
+    @abstractmethod
+    async def screen_candidate(
+        self,
+        jd_text: str,
+        resume_text: str,
+        candidate_name: str = "Candidate",
+    ) -> ScreenResult:
+        """
+        Screen candidate resume directly against the Job Description.
+        If matched, returns matched=True and verdict='yes'.
+        If not matched, returns matched=False and verdict=<personalized rejection email body explaining what is missing>.
+        Internship experience does not count as professional full-time experience.
+        If some skills match, candidate is not rejected on skills.
+        """
         pass

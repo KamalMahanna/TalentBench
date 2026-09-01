@@ -8,7 +8,7 @@ import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 from app.config import settings
-from app.llm.gateway import EvalResponse, LLMGateway, LLMResponse
+from app.llm.gateway import EvalResponse, LLMGateway, LLMResponse, ScreenResult
 from app.llm.rate_limiter import GroqRateLimiter
 
 logger = structlog.get_logger()
@@ -334,3 +334,93 @@ class LangChainGroqProvider(LLMGateway):
             return parsed.get("top_projects", projects[:target_count])
 
         return await self._execute_with_retry(_call, estimated_tokens=estimated_tokens)
+
+    async def screen_candidate(
+        self,
+        jd_text: str,
+        resume_text: str,
+        candidate_name: str = "Candidate",
+    ) -> ScreenResult:
+        """
+        Screen candidate resume directly against the Job Description.
+        If matched, returns matched=True and verdict='yes'.
+        If not matched, returns matched=False and verdict=<personalized rejection email body explaining what is missing>.
+        Internship experience does not count as professional full-time experience.
+        If some skills match, candidate is not rejected on skills.
+        """
+        if not self.api_key or self.api_key == "mock-groq-key":
+            return ScreenResult(
+                matched=True,
+                verdict="yes",
+                reason="Candidate matched required experience and relevant skills (mock Groq).",
+                model_name=self.model_name,
+            )
+
+        system_prompt = (
+            "You are an expert technical hiring manager conducting strict initial resume screening against a Job Description.\n\n"
+            "EVALUATION RULES:\n"
+            "1. EXPERIENCE LEVEL CHECK (STRICT):\n"
+            "   - Check the required professional experience level / years of experience required by the Job Description.\n"
+            "   - Calculate the candidate's actual professional full-time working experience.\n"
+            "   - CRITICAL: Internship experience does NOT count as professional full-time experience.\n"
+            "   - If the candidate does NOT possess the required professional full-time experience level, they FAIL the screening—even if their projects or skills match.\n\n"
+            "2. SKILL MATCHING (FLEXIBLE):\n"
+            "   - If the candidate meets the required full-time experience level, check their technical skills against the Job Description.\n"
+            "   - RULE: If some skills match, DO NOT reject the candidate. If they meet the experience requirement and have relevant matching skills, they PASS.\n"
+            "   - Only fail the candidate on skills if they completely lack the core technical qualifications required by the Job Description.\n\n"
+            "OUTPUT FORMAT REQUIREMENTS (STRICT):\n"
+            "- IF THE CANDIDATE MATCHES:\n"
+            "  Reply with ONLY the single word:\n"
+            "  yes\n\n"
+            "- IF THE CANDIDATE DOES NOT MATCH:\n"
+            "  Write ONLY the body text of a personalized email explaining constructively and specifically what qualifications the candidate is missing.\n"
+            "  * If rejected due to experience: Explain specifically that their professional full-time experience does not meet the minimum required experience level for this role, noting that internship experience cannot be counted toward the required professional full-time experience.\n"
+            "  * If rejected due to missing skills: Specifically identify the essential requirements from the Job Description that were absent from their resume.\n"
+            "  * Output ONLY the body paragraphs. Do NOT include a Subject line, greetings like 'Dear...', placeholders like [Candidate Name], or closing sign-offs like 'Sincerely' or 'Best regards'."
+        )
+
+        prompt = (
+            f"Candidate Name: {candidate_name}\n\n"
+            f"JOB DESCRIPTION:\n{jd_text}\n\n"
+            f"CANDIDATE RESUME:\n{resume_text}\n\n"
+            "Evaluate this candidate against the Job Description strictly adhering to the rules."
+        )
+
+        estimated_tokens = len(prompt.split()) + 400
+
+        async def _call():
+            client = self._get_client(temperature=0.1, max_tokens=1000)
+            res = await client.ainvoke(
+                [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
+            )
+            return str(res.content).strip()
+
+        raw_output = await self._execute_with_retry(
+            _call, estimated_tokens=estimated_tokens
+        )
+        cleaned = raw_output.strip() if raw_output else ""
+
+        lower_cleaned = cleaned.lower()
+        if lower_cleaned == "yes" or (
+            lower_cleaned.startswith("yes") and len(lower_cleaned) <= 10
+        ):
+            return ScreenResult(
+                matched=True,
+                verdict="yes",
+                reason="Candidate matched required experience and relevant skills.",
+                model_name=self.model_name,
+            )
+
+        if not cleaned:
+            cleaned = (
+                "After careful review of your application against the Job Description, "
+                "we determined that your qualifications do not meet the minimum experience requirements "
+                "or core competencies required for this role at this time."
+            )
+
+        return ScreenResult(
+            matched=False,
+            verdict=cleaned,
+            reason="Candidate does not satisfy role experience or skill requirements.",
+            model_name=self.model_name,
+        )

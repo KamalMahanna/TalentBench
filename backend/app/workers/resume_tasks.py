@@ -7,12 +7,13 @@ import redis
 import structlog
 from app.config import settings
 from app.database import get_sync_db
-from app.llm.providers.mock import MockLLMProvider
+from app.llm import get_llm_gateway
 from app.models import (
     AuditLog,
     BenchmarkProfile,
     Candidate,
     JobStatus,
+    MailQueue,
     Role,
     Round,
     RoundResult,
@@ -113,39 +114,42 @@ def process_single_candidate_resume(
             resume_text = parse_pdf(file_bytes)
             candidate.resume_text = resume_text
 
-        # LLM Metadata extraction & embedding
-        llm = MockLLMProvider()
+        # LLM Metadata extraction & Direct JD Screening
+        llm = get_llm_gateway()
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            extracted = loop.run_until_complete(
-                llm.extract_skills_and_projects(resume_text)
+            # 1. Direct LLM screening of candidate against Job Description
+            screen_res = loop.run_until_complete(
+                llm.screen_candidate(
+                    jd_text=role.description or role.title,
+                    resume_text=resume_text
+                    or f"Candidate: {candidate.name}\nSkills: {candidate.skills}\nExperience: {candidate.experience_years} years.",
+                    candidate_name=candidate.name,
+                )
             )
-            embedding = loop.run_until_complete(
-                llm.embed(resume_text or "Software Engineer")
+
+            # 2. Extract structured skills and projects for candidate profile
+            extracted = loop.run_until_complete(
+                llm.extract_skills_and_projects(resume_text or "")
             )
         finally:
             loop.close()
 
         # Update candidate extracted info if not present
         if not candidate.skills:
-            candidate.skills = extracted["skills"]
+            candidate.skills = extracted.get("skills", [])
         if not candidate.projects:
-            candidate.projects = extracted["projects"]
+            candidate.projects = extracted.get("projects", [])
         if candidate.experience_years == 0:
-            candidate.experience_years = extracted["experience_years"]
+            candidate.experience_years = extracted.get("experience_years", 0)
         if not candidate.current_company:
-            candidate.current_company = extracted["current_company"]
+            candidate.current_company = extracted.get("current_company", "")
         if not candidate.location:
-            candidate.location = extracted["location"]
+            candidate.location = extracted.get("location", "")
 
-        # Calculate match score vs JD
-        match_score = compute_jd_match_score(
-            resume_embedding=embedding,
-            jd_embedding=role.jd_embedding,
-            candidate_skills=candidate.skills or [],
-            required_skills=role.extracted_skills or [],
-        )
+        passed = screen_res.matched
+        match_score = 88 if passed else 40
         candidate.ai_match_score = match_score
 
         # Find the Resume Screen round
@@ -155,10 +159,7 @@ def process_single_candidate_resume(
             .first()
         )
 
-        cutoff = resume_round.cutoff_threshold if resume_round else 60
-        passed = match_score >= cutoff
-
-        # Create RoundResult
+        # Create RoundResult: if matches 'yes', if not rejection email body
         round_res = RoundResult(
             candidate_id=candidate.id,
             round_id=resume_round.id if resume_round else "resume_round",
@@ -166,12 +167,12 @@ def process_single_candidate_resume(
             round_type="resume_screen",
             status="passed" if passed else "failed",
             score=match_score,
-            ai_verdict=(
-                f"Candidate demonstrated {match_score}/100 alignment against role requirements."
+            ai_verdict=screen_res.verdict,
+            ai_summary=(
+                "Candidate matched experience level and core requirements against Job Description."
                 if passed
-                else f"Score {match_score}/100 fell short of the {cutoff} cutoff benchmark."
+                else screen_res.verdict
             ),
-            ai_summary=f"Resume screening evaluated key skills: {', '.join(candidate.skills[:4])}.",
             evaluated_at=datetime.now(timezone.utc),
         )
         db.add(round_res)
@@ -182,15 +183,30 @@ def process_single_candidate_resume(
             action=f"Round evaluated: {round_res.round_name}",
             actor="AI Evaluator",
             actor_type="ai",
-            detail=round_res.ai_verdict,
+            detail=screen_res.verdict,
             prompt_template_id="resume_screen_v1",
-            model_name="mock-gpt-4o",
-            model_input_snapshot=f"Candidate: {candidate.name}, Skills: {candidate.skills}",
-            model_output_raw=round_res.ai_verdict,
+            model_name=screen_res.model_name,
+            model_input_snapshot=f"Role: {role.title} | Candidate: {candidate.name}",
+            model_output_raw=screen_res.verdict,
             final_decision="passed" if passed else "failed",
             timestamp=datetime.now(timezone.utc),
         )
         db.add(audit)
+
+        # If candidate was rejected, queue personalized rejection email with body generated by LLM
+        if not passed and screen_res.verdict and candidate.email:
+            mail_entry = MailQueue(
+                candidate_id=candidate.id,
+                template_name="screening_rejection",
+                recipient_email=candidate.email,
+                recipient_name=candidate.name,
+                subject=f"Update regarding your application for {role.title}",
+                body_html=screen_res.verdict,
+                body_text=screen_res.verdict,
+                status="queued",
+                sent_at=None,
+            )
+            db.add(mail_entry)
 
         # Update candidate overall status & score
         candidate.status = "screened" if passed else "rejected"

@@ -3,7 +3,9 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.database import get_db
-from app.models import Candidate, RoundResult
+from app.llm import get_llm_gateway
+from app.llm.gateway import ScreenResult
+from app.models import Candidate, Role, RoundResult
 from app.schemas import (
     ApiResponse,
     Candidate as CandidateSchema,

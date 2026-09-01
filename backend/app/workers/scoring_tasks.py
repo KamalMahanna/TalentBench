@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, timezone
 import structlog
 from app.database import get_sync_db
-from app.llm.providers.mock import MockLLMProvider
+from app.llm import get_llm_gateway
 from app.models import AuditLog, Candidate, JobStatus, Role, Round, RoundResult
 from app.workers.celery_app import celery_app
 from app.workers.resume_tasks import publish_event
@@ -33,7 +33,7 @@ def evaluate_candidate_round(
         if not candidate or not round_obj:
             raise ValueError(f"Candidate {candidate_id} or Round {round_id} not found")
 
-        llm = MockLLMProvider()
+        llm = get_llm_gateway()
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
