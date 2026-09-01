@@ -42,6 +42,8 @@ class RoundBase(BaseModel):
     input_source: InputSource = "manual_entry"
     ai_scored: bool = True
     cutoff_threshold: int = Field(default=60, ge=0, le=100)
+    cutoff_type: str = "percentage"  # "percentage" or "count"
+    cutoff_count: int | None = None  # e.g. 300 resumes
     mail_template: str = ""
 
 
@@ -58,6 +60,8 @@ class RoundUpdate(BaseModel):
     input_source: InputSource | None = None
     ai_scored: bool | None = None
     cutoff_threshold: int | None = None
+    cutoff_type: str | None = None
+    cutoff_count: int | None = None
     mail_template: str | None = None
 
 

@@ -405,6 +405,8 @@ class MockDataStore {
       input_source: r.input_source ?? 'manual_entry',
       ai_scored: r.ai_scored ?? false,
       cutoff_threshold: r.cutoff_threshold ?? 60,
+      cutoff_type: r.cutoff_type ?? 'percentage',
+      cutoff_count: r.cutoff_count ?? null,
       mail_template: r.mail_template ?? '',
       created_at: r.created_at ?? new Date().toISOString(),
     }));

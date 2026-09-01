@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, Plus, GripVertical, FileStack, Brain, Code2, MessageSquare,
   Settings2, Save, Loader2, Upload, Link2, PencilLine, Zap, X, ChevronRight, Trash2,
-  FileText, Sparkles, Edit3, Check, CheckCircle2, Sliders,
+  FileText, Sparkles, Edit3, Check, CheckCircle2, Sliders, Percent, Users,
 } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { GlowButton } from '@/components/glow-button';
@@ -383,7 +383,13 @@ export default function RoleDetailPage() {
                             )}
                           </div>
                           <p className="truncate text-xs text-muted-foreground">
-                            Cutoff: {round.cutoff_threshold}% · {INPUT_SOURCES.find((s) => s.value === round.input_source)?.label}
+                            Cutoff:{' '}
+                            {round.cutoff_type === 'count'
+                              ? `Top ${round.cutoff_count || 300} resumes`
+                              : round.cutoff_threshold > 0
+                              ? `${round.cutoff_threshold}%`
+                              : 'No minimum'}{' '}
+                            · {INPUT_SOURCES.find((s) => s.value === round.input_source)?.label}
                           </p>
                         </div>
 
@@ -538,52 +544,168 @@ export default function RoleDetailPage() {
                         <Sliders className="h-4 w-4 text-primary" /> Cutoff Threshold
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {editingRound.cutoff_threshold > 0
-                          ? `Candidates scoring below ${editingRound.cutoff_threshold}% will fail this round`
+                        {editingRound.cutoff_threshold > 0 || (editingRound.cutoff_type === 'count' && (editingRound.cutoff_count || 0) > 0)
+                          ? editingRound.cutoff_type === 'count'
+                            ? `Filter down to top ${editingRound.cutoff_count || 300} resumes`
+                            : `Candidates scoring below ${editingRound.cutoff_threshold}% will fail this round`
                           : 'No cutoff threshold required (pass through)'}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Label htmlFor="cutoff-toggle" className="text-xs text-muted-foreground cursor-pointer">
-                        {editingRound.cutoff_threshold > 0 ? 'Enabled' : 'Disabled'}
+                        {editingRound.cutoff_threshold > 0 || (editingRound.cutoff_type === 'count' && (editingRound.cutoff_count || 0) > 0)
+                          ? 'Enabled'
+                          : 'Disabled'}
                       </Label>
                       <Switch
                         id="cutoff-toggle"
-                        checked={editingRound.cutoff_threshold > 0}
-                        onCheckedChange={(enabled) =>
-                          updateRound(editingRound.id, { cutoff_threshold: enabled ? 60 : 0 })
+                        checked={
+                          editingRound.cutoff_threshold > 0 ||
+                          (editingRound.cutoff_type === 'count' && (editingRound.cutoff_count || 0) > 0)
                         }
+                        onCheckedChange={(enabled) => {
+                          if (enabled) {
+                            if (editingRound.cutoff_type === 'count') {
+                              updateRound(editingRound.id, { cutoff_count: 300, cutoff_threshold: 0 });
+                            } else {
+                              updateRound(editingRound.id, { cutoff_threshold: 60, cutoff_count: null });
+                            }
+                          } else {
+                            updateRound(editingRound.id, { cutoff_threshold: 0, cutoff_count: null });
+                          }
+                        }}
                       />
                     </div>
                   </div>
 
-                  {editingRound.cutoff_threshold > 0 && (
-                    <div className="pt-2 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Minimum Pass Benchmark:</span>
-                        <span className="font-semibold text-primary">{editingRound.cutoff_threshold}%</span>
+                  {(editingRound.cutoff_threshold > 0 ||
+                    (editingRound.cutoff_type === 'count' && (editingRound.cutoff_count || 0) > 0)) && (
+                    <div className="pt-2 space-y-3 border-t border-border/40">
+                      {/* Metric Selector: Percentage (%) vs Number of Resumes */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Cutoff Filter Type</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateRound(editingRound.id, {
+                                cutoff_type: 'percentage',
+                                cutoff_threshold: editingRound.cutoff_threshold > 0 ? editingRound.cutoff_threshold : 60,
+                              })
+                            }
+                            className={cn(
+                              'flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-all cursor-pointer',
+                              editingRound.cutoff_type !== 'count'
+                                ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                                : 'border-border/60 bg-background hover:bg-muted text-muted-foreground',
+                            )}
+                          >
+                            <Percent className="h-3.5 w-3.5" />
+                            <span>Score Percentage (%)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateRound(editingRound.id, {
+                                cutoff_type: 'count',
+                                cutoff_count: editingRound.cutoff_count || 300,
+                              })
+                            }
+                            className={cn(
+                              'flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-all cursor-pointer',
+                              editingRound.cutoff_type === 'count'
+                                ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                                : 'border-border/60 bg-background hover:bg-muted text-muted-foreground',
+                            )}
+                          >
+                            <Users className="h-3.5 w-3.5" />
+                            <span>Number of Resumes</span>
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="range"
-                          min={1}
-                          max={100}
-                          value={editingRound.cutoff_threshold}
-                          onChange={(e) => updateRound(editingRound.id, { cutoff_threshold: Number(e.target.value) })}
-                          className="w-full accent-primary cursor-pointer"
-                        />
-                        <Input
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={editingRound.cutoff_threshold}
-                          onChange={(e) => {
-                            const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
-                            updateRound(editingRound.id, { cutoff_threshold: val });
-                          }}
-                          className="w-16 h-8 text-center text-xs"
-                        />
-                      </div>
+
+                      {/* Score Percentage (%) Controls */}
+                      {editingRound.cutoff_type !== 'count' ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Minimum Pass Benchmark:</span>
+                            <span className="font-semibold text-primary">{editingRound.cutoff_threshold}%</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="range"
+                              min={1}
+                              max={100}
+                              value={editingRound.cutoff_threshold}
+                              onChange={(e) =>
+                                updateRound(editingRound.id, { cutoff_threshold: Number(e.target.value) })
+                              }
+                              className="w-full accent-primary cursor-pointer"
+                            />
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={editingRound.cutoff_threshold}
+                              onChange={(e) => {
+                                const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                                updateRound(editingRound.id, { cutoff_threshold: val });
+                              }}
+                              className="w-16 h-8 text-center text-xs"
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            Candidates scoring below {editingRound.cutoff_threshold}% will fail this round.
+                          </p>
+                        </div>
+                      ) : (
+                        /* Number of Resumes (Count) Controls */
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Filter Target (Top Candidates):</span>
+                            <span className="font-semibold text-primary">
+                              {editingRound.cutoff_count || 300} resumes
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Input
+                              type="number"
+                              min={1}
+                              max={50000}
+                              placeholder="e.g. 300"
+                              value={editingRound.cutoff_count ?? 300}
+                              onChange={(e) => {
+                                const val = Math.max(1, Number(e.target.value) || 1);
+                                updateRound(editingRound.id, { cutoff_count: val });
+                              }}
+                              className="w-36 h-9 font-medium text-sm"
+                            />
+                            <span className="text-xs text-muted-foreground">resumes to filter / advance</span>
+                          </div>
+                          {/* Quick presets: 50, 100, 300, 500, 1000 */}
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                            <span className="text-[11px] text-muted-foreground mr-1">Quick presets:</span>
+                            {[50, 100, 300, 500, 1000].map((preset) => (
+                              <button
+                                key={preset}
+                                type="button"
+                                onClick={() => updateRound(editingRound.id, { cutoff_count: preset })}
+                                className={cn(
+                                  'px-2.5 py-0.5 rounded-md text-[11px] font-medium border transition-colors cursor-pointer',
+                                  (editingRound.cutoff_count ?? 300) === preset
+                                    ? 'border-primary bg-primary/20 text-primary font-semibold'
+                                    : 'border-border bg-background-elevated hover:bg-muted text-muted-foreground',
+                                )}
+                              >
+                                {preset}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            Filter down to the top {editingRound.cutoff_count || 300} resumes for this round.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

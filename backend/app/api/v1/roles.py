@@ -93,6 +93,8 @@ def to_role_schema(role: Role) -> RoleSchema:
                 input_source=r.input_source,
                 ai_scored=r.ai_scored,
                 cutoff_threshold=r.cutoff_threshold,
+                cutoff_type=getattr(r, "cutoff_type", "percentage") or "percentage",
+                cutoff_count=getattr(r, "cutoff_count", None),
                 mail_template=r.mail_template,
                 created_at=r.created_at.isoformat()
                 if hasattr(r.created_at, "isoformat")
@@ -370,6 +372,8 @@ async def update_rounds(
             cutoff_threshold=r.cutoff_threshold
             if r.cutoff_threshold is not None
             else 60,
+            cutoff_type=r.cutoff_type if r.cutoff_type is not None else "percentage",
+            cutoff_count=r.cutoff_count,
             mail_template=r.mail_template or "",
         )
         db.add(new_round)
@@ -393,6 +397,8 @@ async def update_rounds(
                 input_source=r.input_source,
                 ai_scored=r.ai_scored,
                 cutoff_threshold=r.cutoff_threshold,
+                cutoff_type=getattr(r, "cutoff_type", "percentage") or "percentage",
+                cutoff_count=getattr(r, "cutoff_count", None),
                 mail_template=r.mail_template,
                 created_at=r.created_at.isoformat()
                 if hasattr(r.created_at, "isoformat")

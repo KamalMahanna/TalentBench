@@ -22,6 +22,10 @@ class Round(Base, UUIDMixin, TimestampMixin):
     )  # excel_upload, manual_entry, ai_generated_link
     ai_scored: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     cutoff_threshold: Mapped[int] = mapped_column(Integer, default=60, nullable=False)
+    cutoff_type: Mapped[str] = mapped_column(
+        String(20), default="percentage", nullable=False
+    )  # "percentage" or "count"
+    cutoff_count: Mapped[int | None] = mapped_column(Integer, nullable=True)  # e.g. 300
     mail_template: Mapped[str] = mapped_column(Text, default="", nullable=False)
     prompt_template_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 

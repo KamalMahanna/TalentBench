@@ -28,7 +28,9 @@ export interface Round {
   order: number;
   input_source: InputSource;
   ai_scored: boolean;
-  cutoff_threshold: number; // 0–100
+  cutoff_threshold: number; // 0–100 score threshold
+  cutoff_type?: 'percentage' | 'count'; // 'percentage' or 'count' (number of resumes)
+  cutoff_count?: number | null; // e.g. 300 resumes
   mail_template: string;
   created_at: string;
 }
