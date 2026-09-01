@@ -9,16 +9,23 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, Search, Filter, Download, CheckCircle2, XCircle,
   Clock, AlertCircle, Wifi, WifiOff, Mail, ChevronLeft, ChevronRight,
-  FileSpreadsheet, Loader2, Sparkles,
+  FileSpreadsheet, Loader2, Sparkles, Trophy, Lightbulb,
 } from 'lucide-react';
 import { api, subscribeToLiveUpdates } from '@/lib/api-client';
 import { GlowButton } from '@/components/glow-button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Candidate, CandidateStatus, LiveUpdateEvent } from '@/lib/types';
+import type { BenchmarkProject, Candidate, CandidateStatus, LiveUpdateEvent } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 const STATUS_CONFIG: Record<CandidateStatus, { label: string; color: string; icon: typeof Clock }> = {
@@ -47,6 +54,13 @@ export default function CandidateListPage() {
   const [liveConnected, setLiveConnected] = useState(false);
   const [liveEvents, setLiveEvents] = useState<string[]>([]);
   const [downloadingExcel, setDownloadingExcel] = useState(false);
+  const [isRunningComparative, setIsRunningComparative] = useState(false);
+  const [benchmarkModalOpen, setBenchmarkModalOpen] = useState(false);
+  const [benchmarkData, setBenchmarkData] = useState<{
+    top_projects: BenchmarkProject[];
+    cutoff_count: number;
+    has_benchmark: boolean;
+  } | null>(null);
 
   const { data: roleData } = useQuery({
     queryKey: ['role', roleId],
@@ -65,6 +79,38 @@ export default function CandidateListPage() {
     } finally {
       setDownloadingExcel(false);
     }
+  }
+
+  async function handleRunComparativeMatching() {
+    setIsRunningComparative(true);
+    try {
+      await api.runComparativeMatching(roleId);
+      toast.success('Comparative matching initiated!', {
+        description: 'Synthesizing top 10 projects and calibrating candidate scores...',
+      });
+      setTimeout(async () => {
+        try {
+          const benchRes = await api.getComparativeBenchmark(roleId);
+          if (benchRes.data) {
+            setBenchmarkData(benchRes.data);
+          }
+        } catch {}
+      }, 2000);
+    } catch {
+      toast.error('Failed to run comparative matching');
+    } finally {
+      setIsRunningComparative(false);
+    }
+  }
+
+  async function handleOpenBenchmark() {
+    try {
+      const benchRes = await api.getComparativeBenchmark(roleId);
+      if (benchRes.data) {
+        setBenchmarkData(benchRes.data);
+      }
+    } catch {}
+    setBenchmarkModalOpen(true);
   }
 
   const { data, isLoading, isFetching } = useQuery({
@@ -222,34 +268,58 @@ export default function CandidateListPage() {
             </div>
             <div
               className={cn(
-                'glass rounded-xl p-3.5 border transition-colors',
+                'glass rounded-xl p-3.5 border transition-colors flex flex-col justify-between',
                 isUnderThreshold
                   ? 'border-primary/40 bg-primary/5'
                   : 'border-amber-500/40 bg-amber-500/5',
               )}
             >
-              <div className="text-xs text-muted-foreground flex items-center justify-between">
-                <span>Cutoff Threshold:</span>
-                <span className="font-semibold text-foreground">{thresholdCount} resumes</span>
+              <div>
+                <div className="text-xs text-muted-foreground flex items-center justify-between">
+                  <span>Cutoff Threshold:</span>
+                  <span className="font-semibold text-foreground">{thresholdCount} resumes</span>
+                </div>
+                <div className="mt-1 text-xs font-semibold leading-snug">
+                  {isUnderThreshold ? (
+                    <span className="text-primary flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                      Auto-advanced to Round 2 ({shortlistedCount}/{thresholdCount})
+                    </span>
+                  ) : (
+                    <span className="text-amber-500 flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                      Exceeds cutoff ({shortlistedCount}/{thresholdCount}) · Comparative Matching Ready
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="mt-1 text-xs font-semibold leading-snug">
-                {isUnderThreshold ? (
-                  <span className="text-primary flex items-center gap-1.5">
-                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                    Auto-advanced to Round 2 ({shortlistedCount}/{thresholdCount})
-                  </span>
-                ) : (
-                  <span className="text-amber-500 flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                    Exceeds cutoff ({shortlistedCount}/{thresholdCount}) · Comparative Matching Ready
-                  </span>
-                )}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={isUnderThreshold ? "outline" : "default"}
+                  onClick={handleRunComparativeMatching}
+                  disabled={isRunningComparative}
+                  className={cn(
+                    "h-7 text-xs gap-1.5 font-medium cursor-pointer shadow-sm",
+                    !isUnderThreshold && "bg-gradient-to-r from-primary to-accent hover:opacity-90 text-primary-foreground"
+                  )}
+                >
+                  {isRunningComparative ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                  )}
+                  Run Comparative Matching
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleOpenBenchmark}
+                  className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <Trophy className="h-3.5 w-3.5 text-amber-400" /> Top 10 Benchmark
+                </Button>
               </div>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                {isUnderThreshold
-                  ? 'Candidate count is within cutoff quota'
-                  : 'More shortlisted candidates than cutoff limit'}
-              </p>
             </div>
           </div>
         );
@@ -316,11 +386,12 @@ export default function CandidateListPage() {
         {/* Header row */}
         <div className="flex items-center gap-3 border-b border-border/50 px-4 py-3 text-xs font-medium text-muted-foreground">
           <Checkbox checked={selected.size === allCandidates.length && allCandidates.length > 0} onChange={toggleSelectAll} />
-          <span className="w-10">Score</span>
+          <span className="w-8 text-center">Rank</span>
+          <span className="w-10 text-center">Score</span>
           <span className="flex-1">Candidate</span>
           <span className="hidden w-32 md:block">Experience</span>
           <span className="hidden w-40 lg:block">Skills</span>
-          <span className="w-28 text-right">Status</span>
+          <span className="w-32 text-right">Status</span>
           <span className="w-8" />
         </div>
 
@@ -331,63 +402,99 @@ export default function CandidateListPage() {
           </div>
         ) : (
           <div className="space-y-0.5 p-2">
-            {allCandidates.map((candidate) => {
+            {allCandidates.map((candidate, idx) => {
               const config = STATUS_CONFIG[candidate.status];
+              const resumeRound = role?.rounds?.find((r) => r.type === 'resume_screen');
+              const thresholdCount =
+                resumeRound?.cutoff_type === 'count'
+                  ? resumeRound.cutoff_count || 300
+                  : (resumeRound?.cutoff_threshold || 300);
+
+              const isCutoffBoundary = idx === thresholdCount - 1 && allCandidates.length > thresholdCount;
+              const feedback = candidate.round_results?.[0]?.ai_verdict;
+
               return (
-                <Link key={candidate.id} href={`/dashboard/candidates/${candidate.id}`}>
-                  <motion.div
-                    layout
-                    className={cn(
-                      'flex cursor-pointer items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-accent/5',
-                      selected.has(candidate.id) && 'bg-primary/5',
-                    )}
-                    onClick={(e) => { if (e.target === e.currentTarget) {} }}
-                  >
-                    <div onClick={(e) => { e.preventDefault(); toggleSelect(candidate.id); }}>
-                      <Checkbox checked={selected.has(candidate.id)} onChange={() => toggleSelect(candidate.id)} />
-                    </div>
-                    {/* Score */}
-                    <div className="w-10">
-                      <div className={cn(
-                        'flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold',
-                        candidate.overall_score >= 75 ? 'bg-success/15 text-success' :
-                        candidate.overall_score >= 50 ? 'bg-accent/15 text-accent' :
-                        'bg-destructive/15 text-destructive',
-                      )}>
-                        {candidate.overall_score}
+                <div key={candidate.id}>
+                  <Link href={`/dashboard/candidates/${candidate.id}`}>
+                    <motion.div
+                      layout
+                      className={cn(
+                        'flex cursor-pointer items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-accent/5',
+                        selected.has(candidate.id) && 'bg-primary/5',
+                      )}
+                      onClick={(e) => { if (e.target === e.currentTarget) {} }}
+                    >
+                      <div onClick={(e) => { e.preventDefault(); toggleSelect(candidate.id); }}>
+                        <Checkbox checked={selected.has(candidate.id)} onChange={() => toggleSelect(candidate.id)} />
                       </div>
-                    </div>
-                    {/* Candidate */}
-                    <div className="flex flex-1 items-center gap-3 min-w-0">
-                      <img src={candidate.avatar_url} alt={candidate.name} className="h-9 w-9 shrink-0 rounded-full" />
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium">{candidate.name}</div>
-                        <div className="truncate text-xs text-muted-foreground">{candidate.email}</div>
+                      {/* Rank */}
+                      <div className="w-8 text-center text-xs font-bold text-muted-foreground">
+                        #{idx + 1}
                       </div>
+                      {/* Score */}
+                      <div className="w-10">
+                        <div className={cn(
+                          'flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold',
+                          candidate.overall_score >= 85 ? 'bg-success/20 text-success ring-1 ring-success/40' :
+                          candidate.overall_score >= 70 ? 'bg-primary/20 text-primary' :
+                          candidate.overall_score >= 50 ? 'bg-amber-500/20 text-amber-500' :
+                          'bg-destructive/15 text-destructive',
+                        )}>
+                          {candidate.overall_score}
+                        </div>
+                      </div>
+                      {/* Candidate */}
+                      <div className="flex flex-1 items-center gap-3 min-w-0">
+                        <img src={candidate.avatar_url} alt={candidate.name} className="h-9 w-9 shrink-0 rounded-full" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-sm font-medium">{candidate.name}</span>
+                            {candidate.overall_score >= 85 && (
+                              <span className="rounded bg-success/15 px-1.5 py-0.5 text-[10px] font-semibold text-success">
+                                Top Tier
+                              </span>
+                            )}
+                          </div>
+                          <div className="truncate text-xs text-muted-foreground">{candidate.email}</div>
+                          {feedback && feedback !== 'yes' && (
+                            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-amber-500/90 font-medium truncate max-w-xl">
+                              <Lightbulb className="h-3 w-3 shrink-0 text-amber-400" />
+                              <span className="truncate">Recommended project: {feedback}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {/* Experience */}
+                      <div className="hidden w-32 text-sm text-muted-foreground md:block">
+                        {candidate.experience_years}y · {candidate.current_company}
+                      </div>
+                      {/* Skills */}
+                      <div className="hidden w-40 items-center gap-1 lg:flex">
+                        {candidate.skills.slice(0, 2).map((s) => (
+                          <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
+                        ))}
+                        {candidate.skills.length > 2 && <span className="text-xs text-muted-foreground">+{candidate.skills.length - 2}</span>}
+                      </div>
+                      {/* Status */}
+                      <div className="flex w-32 justify-end">
+                        <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium', config.color)}>
+                          <config.icon className="h-3 w-3" />
+                          {config.label}
+                        </span>
+                      </div>
+                      <div className="w-8 text-right">
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </motion.div>
+                  </Link>
+                  {isCutoffBoundary && (
+                    <div className="my-2 flex items-center gap-3 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] font-semibold text-amber-500">
+                      <div className="h-px flex-1 bg-amber-500/30" />
+                      <span>── Cutoff Threshold Line (Top {thresholdCount} Auto-Advanced to Round 2) ──</span>
+                      <div className="h-px flex-1 bg-amber-500/30" />
                     </div>
-                    {/* Experience */}
-                    <div className="hidden w-32 text-sm text-muted-foreground md:block">
-                      {candidate.experience_years}y · {candidate.current_company}
-                    </div>
-                    {/* Skills */}
-                    <div className="hidden w-40 items-center gap-1 lg:flex">
-                      {candidate.skills.slice(0, 2).map((s) => (
-                        <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
-                      ))}
-                      {candidate.skills.length > 2 && <span className="text-xs text-muted-foreground">+{candidate.skills.length - 2}</span>}
-                    </div>
-                    {/* Status */}
-                    <div className="flex w-28 justify-end">
-                      <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium', config.color)}>
-                        <config.icon className="h-3 w-3" />
-                        {config.label}
-                      </span>
-                    </div>
-                    <div className="w-8 text-right">
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </motion.div>
-                </Link>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -402,6 +509,68 @@ export default function CandidateListPage() {
           </div>
         )}
       </div>
+
+      {/* Top 10 Benchmark Projects Modal */}
+      <Dialog open={benchmarkModalOpen} onOpenChange={setBenchmarkModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                <Trophy className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">Top 10 Benchmark Projects & Experience</DialogTitle>
+                <DialogDescription>
+                  Synthesized via tournament sliding-window evaluation against the Job Description across candidate resumes.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-3">
+            {benchmarkData?.top_projects && benchmarkData.top_projects.length > 0 ? (
+              benchmarkData.top_projects.map((proj, idx) => (
+                <div
+                  key={proj.id || idx}
+                  className="rounded-xl border border-border/80 bg-background-elevated p-4 transition-all hover:border-primary/40"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
+                        #{idx + 1}
+                      </span>
+                      <h4 className="font-semibold text-sm text-foreground">{proj.title}</h4>
+                    </div>
+                    <Badge variant="outline" className="border-primary/30 text-primary text-[11px]">
+                      Complexity {proj.complexity_score || 9}/10
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                    {proj.description}
+                  </p>
+                  {proj.technologies && proj.technologies.length > 0 && (
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                      {proj.technologies.map((t) => (
+                        <span
+                          key={t}
+                          className="rounded-md bg-secondary/80 px-2 py-0.5 text-[10px] font-medium text-secondary-foreground"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                <Trophy className="mx-auto h-8 w-8 text-muted-foreground/50 mb-2" />
+                No benchmark synthesized yet. Click <strong>"Run Comparative Matching"</strong> to evaluate candidate projects and extract the Top 10 benchmark!
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -54,12 +54,21 @@ export interface FunnelStage {
   count: number;
 }
 
+export interface BenchmarkProject {
+  id?: string;
+  title: string;
+  description: string;
+  technologies: string[];
+  complexity_score: number;
+}
+
 export interface BenchmarkProfile {
   shortlisted_count: number;
   avg_resume_score: number;
   avg_test_score: number;
   avg_interview_score: number;
   top_skills: string[];
+  top_projects?: BenchmarkProject[];
   avg_experience_years: number;
 }
 
@@ -112,6 +121,8 @@ export interface Candidate {
   location: string;
   ai_match_score: number; // vs JD
   resume_text?: string;
+  rank?: number;
+  comparative_feedback?: string;
   round_results: RoundResult[];
 }
 

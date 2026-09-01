@@ -29,6 +29,9 @@ class BenchmarkProfile(Base, UUIDMixin, TimestampMixin):
     top_skills = mapped_column(
         JSON().with_variant(JSONB, "postgresql"), default=list, nullable=False
     )
+    top_projects = mapped_column(
+        JSON().with_variant(JSONB, "postgresql"), default=list, nullable=False
+    )
     avg_experience_years: Mapped[float] = mapped_column(
         Float, default=0.0, nullable=False
     )

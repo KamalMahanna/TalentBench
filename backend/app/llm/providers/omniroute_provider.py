@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import httpx
 import json
 from typing import Any, AsyncIterator
 import numpy as np
@@ -7,7 +8,14 @@ import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from app.config import settings
-from app.llm.gateway import EvalResponse, LLMGateway, LLMResponse, ScreenResult
+from app.llm.gateway import (
+    BenchmarkProject,
+    ComparativeScoreResult,
+    EvalResponse,
+    LLMGateway,
+    LLMResponse,
+    ScreenResult,
+)
 
 logger = structlog.get_logger()
 
@@ -96,6 +104,48 @@ class LangChainOmniRouteProvider(LLMGateway):
             timeout=self.timeout,
             max_retries=self.max_retries,
         )
+
+    async def _stream_chat_completion(
+        self,
+        messages: list[dict],
+        model: str | None = None,
+        temperature: float = 0.1,
+        max_tokens: int = 1500,
+    ) -> str:
+        url = f"{self.base_url.rstrip('/')}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": model or self.model_name,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+        full_text: list[str] = []
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            async with client.stream("POST", url, headers=headers, json=payload) as response:
+                if response.status_code != 200:
+                    err_body = await response.aread()
+                    raise RuntimeError(f"OmniRoute HTTP {response.status_code}: {err_body.decode(errors='ignore')}")
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data_str = line[6:].strip()
+                        if data_str == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data_str)
+                            choices = chunk.get("choices", [])
+                            if choices:
+                                delta = choices[0].get("delta", {})
+                                content = delta.get("content", "")
+                                if content:
+                                    full_text.append(content)
+                        except Exception:
+                            pass
+        return "".join(full_text)
 
     def _hash_seed(self, text: str) -> int:
         h = hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -525,3 +575,250 @@ class LangChainOmniRouteProvider(LLMGateway):
         raw_output = await self._execute_with_omniroute_fallback(_call)
         cleaned = raw_output.strip() if raw_output else ""
         return cleaned if cleaned else jd_text.strip()
+
+    async def synthesize_top_benchmark_projects(
+        self,
+        jd_text: str,
+        candidate_project_batches: list[list[dict]],
+    ) -> list[dict]:
+        """
+        Token-bounded tournament synthesis:
+        For each batch of candidate projects, merge with running Top 10 and prompt LLM to ground against JD
+        and distill the definitive Top 10 Benchmark Projects & Experiences.
+        """
+        current_top_10: list[dict] = []
+
+        system_prompt = (
+            "You are an elite technical recruiting architect establishing the gold-standard project benchmark for a role.\n"
+            "Given the Job Description and a pool of candidate projects/experiences, select and rank the TOP 10 highest-caliber, "
+            "most technically rigorous projects that demonstrate the core system design, scale, architectural depth, and problem-solving "
+            "required for the role.\n\n"
+            "STRICT JSON OUTPUT FORMAT:\n"
+            "Return ONLY valid JSON with key 'top_projects' containing an array of up to 10 objects:\n"
+            "{\n"
+            "  \"top_projects\": [\n"
+            "    {\n"
+            "      \"id\": \"p1\",\n"
+            "      \"title\": \"Project Name / Title\",\n"
+            "      \"description\": \"Technical summary explaining architectural complexity, scale, and why it is a top benchmark.\",\n"
+            "      \"technologies\": [\"Python\", \"Kafka\", \"PostgreSQL\"],\n"
+            "      \"complexity_score\": 9\n"
+            "    }\n"
+            "  ]\n"
+            "}"
+        )
+
+        for batch_idx, batch in enumerate(candidate_project_batches):
+            combined_pool = current_top_10 + batch
+            if not combined_pool:
+                continue
+
+            prompt = (
+                f"JOB DESCRIPTION:\n{jd_text}\n\n"
+                f"PROJECT POOL TO EVALUATE (Batch {batch_idx + 1}/{len(candidate_project_batches)}):\n"
+                f"{json.dumps(combined_pool, indent=2)}\n\n"
+                "Select and rank the TOP 10 projects that best exemplify the gold-standard engineering depth required by this JD."
+            )
+
+            async def _call(model_name: str):
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ]
+                raw_text = await self._stream_chat_completion(messages, model=model_name, temperature=0.1, max_tokens=1500)
+                clean = _clean_json_text(raw_text)
+                parsed = json.loads(clean)
+                return parsed.get("top_projects", [])
+
+            try:
+                result = await self._execute_with_omniroute_fallback(_call)
+                if result and isinstance(result, list):
+                    current_top_10 = result[:10]
+            except Exception as e:
+                logger.warning("omniroute_tournament_batch_failed", batch_idx=batch_idx, error=str(e))
+                if not current_top_10 and combined_pool:
+                    current_top_10 = combined_pool[:10]
+
+        if not current_top_10:
+            curated_defaults = [
+                {
+                    "id": "bench-1",
+                    "title": "Distributed Multi-Region Event Ingestion Platform",
+                    "description": "High-throughput Kafka and Go pipeline processing 500k events/sec with sub-50ms p99 latency and cross-region consensus.",
+                    "technologies": ["Go", "Apache Kafka", "Kubernetes", "PostgreSQL", "Prometheus"],
+                    "complexity_score": 10,
+                },
+                {
+                    "id": "bench-2",
+                    "title": "Real-Time Transaction Ledger & Double-Entry Consensus",
+                    "description": "Financial ledger utilizing Redis distributed locks and transactional outbox pattern to achieve strict linearizability and zero double-spends.",
+                    "technologies": ["Python", "FastAPI", "Redis", "PostgreSQL", "Docker"],
+                    "complexity_score": 9,
+                },
+                {
+                    "id": "bench-3",
+                    "title": "Low-Latency Global Distributed Cache Layer",
+                    "description": "Distributed in-memory caching system with consistent hashing, LRU-K eviction, and cache-aside synchronization handling 2M QPS.",
+                    "technologies": ["Rust", "Redis", "gRPC", "Grafana", "AWS"],
+                    "complexity_score": 9,
+                },
+                {
+                    "id": "bench-4",
+                    "title": "Automated Zero-Downtime Multi-Cluster CI/CD Mesh",
+                    "description": "GitOps automated canary deployment operator orchestrating progressive blue/green rollouts across 12 Kubernetes clusters.",
+                    "technologies": ["Kubernetes", "Terraform", "ArgoCD", "Helm", "Go"],
+                    "complexity_score": 9,
+                },
+                {
+                    "id": "bench-5",
+                    "title": "Vector Search & Retrieval-Augmented Generation Engine",
+                    "description": "Semantic search microservice leveraging pgvector and HNSW index indexing 10M embeddings with hybrid BM25 re-ranking.",
+                    "technologies": ["Python", "pgvector", "LangChain", "FastAPI", "Docker"],
+                    "complexity_score": 8,
+                },
+                {
+                    "id": "bench-6",
+                    "title": "Fault-Tolerant Distributed Task Orchestration Engine",
+                    "description": "Celery & Redis task broker supporting priority queues, exponential backoff retries, dead-letter monitoring, and heartbeats.",
+                    "technologies": ["Python", "Celery", "Redis", "PostgreSQL"],
+                    "complexity_score": 8,
+                },
+                {
+                    "id": "bench-7",
+                    "title": "Real-Time WebSocket Collaboration & Presence Gateway",
+                    "description": "Stateful WebSocket gateway with horizontal autoscaling, Redis pub/sub presence tracking, and CRDT synchronization.",
+                    "technologies": ["TypeScript", "Node.js", "Redis", "Docker", "Socket.io"],
+                    "complexity_score": 8,
+                },
+                {
+                    "id": "bench-8",
+                    "title": "High-Throughput ETL & Analytics Data Warehouse Lakehouse",
+                    "description": "Automated data pipeline ingesting 100GB/day of clickstream logs into Apache Iceberg with automated schema evolution.",
+                    "technologies": ["Python", "Apache Spark", "DuckDB", "S3", "Parquet"],
+                    "complexity_score": 8,
+                },
+                {
+                    "id": "bench-9",
+                    "title": "Zero-Trust Identity, RBAC & API Gateway Envoy Proxy",
+                    "description": "Edge reverse proxy with mTLS authentication, token bucket rate limiting, and JWT OAuth2 validation.",
+                    "technologies": ["Envoy", "Go", "Docker", "OpenID Connect"],
+                    "complexity_score": 8,
+                },
+                {
+                    "id": "bench-10",
+                    "title": "Unified Telemetry & OpenTelemetry Observability Fabric",
+                    "description": "Distributed tracing fabric auto-instrumenting 30+ services with OpenTelemetry, Tempo, Loki, and Prometheus alert rules.",
+                    "technologies": ["OpenTelemetry", "Prometheus", "Grafana", "Docker"],
+                    "complexity_score": 8,
+                },
+            ]
+            current_top_10 = curated_defaults[:10]
+
+        return current_top_10
+
+    async def comparative_score_candidate(
+        self,
+        jd_text: str,
+        top_benchmark_projects: list[dict],
+        candidate_resume: str,
+        candidate_projects: list[str],
+        candidate_name: str = "Candidate",
+    ) -> ComparativeScoreResult:
+        """
+        Score candidate against Top 10 Benchmark Projects and JD.
+        Outputs comparative_score, relative_depth, missing_areas, and concrete recommended_project_to_build.
+        """
+        system_prompt = (
+            "You are a principal engineer conducting comparative resume benchmarking.\n"
+            "Compare the candidate's actual projects and experience work against the TOP 10 BENCHMARK PROJECTS "
+            "established from the candidate pool and the Job Description.\n\n"
+            "EVALUATION CRITERIA:\n"
+            "1. Technical Depth & Scale: How does the candidate's architecture, concurrency, throughput, and system complexity compare to the benchmark projects?\n"
+            "2. comparative_score: Integer 0 to 100 representing their relative percentile and caliber.\n"
+            "3. relative_depth: One of 'top_tier' (85-100), 'competitive' (70-84), 'developing' (50-69), 'entry_level' (<50).\n"
+            "4. missing_areas: List of 2-4 specific technical architectural gaps compared to the top benchmark.\n"
+            "5. recommended_project_to_build: Clear, actionable recommendation explaining specifically what level and kind of project "
+            "the candidate should build (concrete technical stack, architecture patterns, scale) compared to what was in their resume, "
+            "to reach the benchmark caliber.\n\n"
+            "STRICT JSON OUTPUT FORMAT:\n"
+            "Return ONLY a JSON object with keys:\n"
+            "{\n"
+            "  \"comparative_score\": 78,\n"
+            "  \"relative_depth\": \"competitive\",\n"
+            "  \"missing_areas\": [\"Distributed state management\", \"High-throughput stream processing\"],\n"
+            "  \"recommended_project_to_build\": \"Build an event-driven ledger service with Kafka and Redis distributed locks to demonstrate distributed consistency rather than CRUD APIs.\"\n"
+            "}"
+        )
+
+        prompt = (
+            f"JOB DESCRIPTION:\n{jd_text}\n\n"
+            f"TOP 10 BENCHMARK PROJECTS (Gold standard from candidate pool):\n"
+            f"{json.dumps(top_benchmark_projects, indent=2)}\n\n"
+            f"CANDIDATE NAME: {candidate_name}\n"
+            f"CANDIDATE PROJECTS: {json.dumps(candidate_projects)}\n"
+            f"CANDIDATE RESUME EXCERPT:\n{candidate_resume[:2000]}\n\n"
+            "Evaluate this candidate against the benchmark projects and provide strict JSON output."
+        )
+
+        async def _call(model_name: str):
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ]
+            raw_text = await self._stream_chat_completion(messages, model=model_name, temperature=0.1, max_tokens=1000)
+            clean = _clean_json_text(raw_text)
+            return json.loads(clean)
+
+        try:
+            res_dict = await self._execute_with_omniroute_fallback(_call)
+            if res_dict and isinstance(res_dict, dict):
+                return ComparativeScoreResult(
+                    comparative_score=int(res_dict.get("comparative_score", 70)),
+                    relative_depth=str(res_dict.get("relative_depth", "competitive")),
+                    missing_areas=res_dict.get("missing_areas", []),
+                    recommended_project_to_build=str(res_dict.get("recommended_project_to_build", "")),
+                    raw_output=json.dumps(res_dict),
+                    model_name=_format_model_tag(self.model_name),
+                )
+        except Exception as e:
+            logger.warning("comparative_score_candidate_failed", candidate=candidate_name, error=str(e))
+
+        bench_techs = set()
+        for p in (top_benchmark_projects or []):
+            for t in p.get("technologies", []):
+                bench_techs.add(t.lower())
+
+        cand_text = f"{candidate_resume} {' '.join(candidate_projects)}".lower()
+        matched = [t for t in bench_techs if t in cand_text]
+        missing = [t.title() for t in bench_techs if t not in cand_text][:3]
+        if not missing:
+            missing = ["High-throughput stream processing", "Multi-region consensus"]
+
+        base_score = 65 + min(20, len(matched) * 4)
+        if base_score >= 85:
+            depth = "top_tier"
+        elif base_score >= 70:
+            depth = "competitive"
+        elif base_score >= 50:
+            depth = "developing"
+        else:
+            depth = "entry_level"
+
+        top_ref = top_benchmark_projects[0] if top_benchmark_projects else {
+            "title": "Distributed Multi-Region Event Ingestion Platform",
+            "technologies": ["Go", "Kafka", "PostgreSQL"],
+        }
+        rec_text = (
+            f"Build a project comparable to '{top_ref.get('title')}' utilizing {', '.join(missing[:2])} "
+            f"focusing on sub-50ms latency, fault tolerance, and automated failover rather than basic CRUD APIs."
+        )
+
+        return ComparativeScoreResult(
+            comparative_score=base_score,
+            relative_depth=depth,
+            missing_areas=missing,
+            recommended_project_to_build=rec_text,
+            raw_output="",
+            model_name=_format_model_tag(self.model_name),
+        )
+

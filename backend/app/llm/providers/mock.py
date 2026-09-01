@@ -4,7 +4,14 @@ import json
 import random
 from typing import Any, AsyncIterator
 import numpy as np
-from app.llm.gateway import EvalResponse, LLMGateway, LLMResponse, ScreenResult
+from app.llm.gateway import (
+    BenchmarkProject,
+    ComparativeScoreResult,
+    EvalResponse,
+    LLMGateway,
+    LLMResponse,
+    ScreenResult,
+)
 
 
 class MockLLMProvider(LLMGateway):
@@ -351,3 +358,126 @@ class MockLLMProvider(LLMGateway):
             f"### Responsibilities & Qualifications\n"
             f"{filtered}"
         )
+
+    async def synthesize_top_benchmark_projects(
+        self,
+        jd_text: str,
+        candidate_project_batches: list[list[dict]],
+    ) -> list[dict]:
+        curated_defaults = [
+            {
+                "id": "bench-1",
+                "title": "Distributed Multi-Region Event Ingestion Platform",
+                "description": "High-throughput Kafka and Go pipeline processing 500k events/sec with sub-50ms p99 latency and cross-region consensus.",
+                "technologies": ["Go", "Apache Kafka", "Kubernetes", "PostgreSQL", "Prometheus"],
+                "complexity_score": 10,
+            },
+            {
+                "id": "bench-2",
+                "title": "Real-Time Transaction Ledger & Double-Entry Consensus",
+                "description": "Financial ledger utilizing Redis distributed locks and transactional outbox pattern to achieve strict linearizability and zero double-spends.",
+                "technologies": ["Python", "FastAPI", "Redis", "PostgreSQL", "Docker"],
+                "complexity_score": 9,
+            },
+            {
+                "id": "bench-3",
+                "title": "Low-Latency Global Distributed Cache Layer",
+                "description": "Distributed in-memory caching system with consistent hashing, LRU-K eviction, and cache-aside synchronization handling 2M QPS.",
+                "technologies": ["Rust", "Redis", "gRPC", "Grafana", "AWS"],
+                "complexity_score": 9,
+            },
+            {
+                "id": "bench-4",
+                "title": "Automated Zero-Downtime Multi-Cluster CI/CD Mesh",
+                "description": "GitOps automated canary deployment operator orchestrating progressive blue/green rollouts across 12 Kubernetes clusters.",
+                "technologies": ["Kubernetes", "Terraform", "ArgoCD", "Helm", "Go"],
+                "complexity_score": 9,
+            },
+            {
+                "id": "bench-5",
+                "title": "Vector Search & Retrieval-Augmented Generation Engine",
+                "description": "Semantic search microservice leveraging pgvector and HNSW index indexing 10M embeddings with hybrid BM25 re-ranking.",
+                "technologies": ["Python", "pgvector", "LangChain", "FastAPI", "Docker"],
+                "complexity_score": 8,
+            },
+            {
+                "id": "bench-6",
+                "title": "Fault-Tolerant Distributed Task Orchestration Engine",
+                "description": "Celery & Redis task broker supporting priority queues, exponential backoff retries, dead-letter monitoring, and heartbeats.",
+                "technologies": ["Python", "Celery", "Redis", "PostgreSQL"],
+                "complexity_score": 8,
+            },
+            {
+                "id": "bench-7",
+                "title": "Real-Time WebSocket Collaboration & Presence Gateway",
+                "description": "Stateful WebSocket gateway with horizontal autoscaling, Redis pub/sub presence tracking, and CRDT synchronization.",
+                "technologies": ["TypeScript", "Node.js", "Redis", "Docker", "Socket.io"],
+                "complexity_score": 8,
+            },
+            {
+                "id": "bench-8",
+                "title": "High-Throughput ETL & Analytics Data Warehouse Lakehouse",
+                "description": "Automated data pipeline ingesting 100GB/day of clickstream logs into Apache Iceberg with automated schema evolution.",
+                "technologies": ["Python", "Apache Spark", "DuckDB", "S3", "Parquet"],
+                "complexity_score": 8,
+            },
+            {
+                "id": "bench-9",
+                "title": "Zero-Trust Identity, RBAC & API Gateway Envoy Proxy",
+                "description": "Edge reverse proxy with mTLS authentication, token bucket rate limiting, and JWT OAuth2 validation.",
+                "technologies": ["Envoy", "Go", "Docker", "OpenID Connect"],
+                "complexity_score": 8,
+            },
+            {
+                "id": "bench-10",
+                "title": "Unified Telemetry & OpenTelemetry Observability Fabric",
+                "description": "Distributed tracing fabric auto-instrumenting 30+ services with OpenTelemetry, Tempo, Loki, and Prometheus alert rules.",
+                "technologies": ["OpenTelemetry", "Prometheus", "Grafana", "Docker"],
+                "complexity_score": 8,
+            },
+        ]
+        return curated_defaults
+
+    async def comparative_score_candidate(
+        self,
+        jd_text: str,
+        top_benchmark_projects: list[dict],
+        candidate_resume: str,
+        candidate_projects: list[str],
+        candidate_name: str = "Candidate",
+    ) -> ComparativeScoreResult:
+        seed = self._hash_seed(f"{candidate_name}-{candidate_resume[:100]}")
+        rng = random.Random(seed)
+        # Score between 45 and 96
+        score = rng.randint(48, 96)
+
+        if score >= 85:
+            relative_depth = "top_tier"
+            missing = ["Advanced multi-region fault injection", "Chaos engineering validation"]
+            rec = "Projects match benchmark caliber. Deepen chaos engineering and multi-region disaster recovery demonstrations."
+        elif score >= 70:
+            relative_depth = "competitive"
+            missing = ["High-throughput stream processing", "Formal linearizability testing"]
+            rec = "Transition from synchronous REST endpoints to asynchronous message streams (e.g. Kafka/RabbitMQ) with backpressure."
+        else:
+            relative_depth = "developing"
+            missing = [
+                "Distributed concurrency control and locking",
+                "High-scale fault tolerance patterns",
+                "Production telemetry and observability",
+            ]
+            rec = (
+                "Your current projects focus on basic monolithic CRUD functionality. To compete with the top benchmark resumes, "
+                "build an event-driven system (e.g. distributed task scheduler or real-time event pipeline) utilizing Redis distributed locks, "
+                "Kafka event queues, and Docker containerization rather than single-node database APIs."
+            )
+
+        return ComparativeScoreResult(
+            comparative_score=score,
+            relative_depth=relative_depth,
+            missing_areas=missing,
+            recommended_project_to_build=rec,
+            raw_output=f"Mock score {score}",
+            model_name="mock-gpt-4o",
+        )
+

@@ -34,6 +34,23 @@ class ScreenResult(BaseModel):
     model_name: str = "default"
 
 
+class BenchmarkProject(BaseModel):
+    id: str = ""
+    title: str
+    description: str
+    technologies: list[str] = []
+    complexity_score: int = 8  # 1-10
+
+
+class ComparativeScoreResult(BaseModel):
+    comparative_score: int  # 0-100
+    relative_depth: str = "competitive"  # top_tier, competitive, developing, entry_level
+    missing_areas: list[str] = []
+    recommended_project_to_build: str = ""
+    raw_output: str = ""
+    model_name: str = "default"
+
+
 class LLMGateway(ABC):
     """Abstract interface for all LLM interactions in TalentBench."""
 
@@ -111,5 +128,35 @@ class LLMGateway(ABC):
         Clean and polish raw job description text by eliminating company background fluff,
         benefits/perks, and legal boilerplate, retaining only the high-signal role overview,
         key responsibilities, required qualifications, and core technical requirements.
+        """
+        pass
+
+    @abstractmethod
+    async def synthesize_top_benchmark_projects(
+        self,
+        jd_text: str,
+        candidate_project_batches: list[list[dict]],
+    ) -> list[dict]:
+        """
+        Sliding-window tournament synthesis:
+        Takes chunked batches of candidate projects and iteratively merges them with the running
+        Top 10 projects, prompting the LLM to ground against the JD and retain the definitive
+        Top 10 Benchmark Projects & Experiences across the entire applicant pool.
+        """
+        pass
+
+    @abstractmethod
+    async def comparative_score_candidate(
+        self,
+        jd_text: str,
+        top_benchmark_projects: list[dict],
+        candidate_resume: str,
+        candidate_projects: list[str],
+        candidate_name: str = "Candidate",
+    ) -> ComparativeScoreResult:
+        """
+        Evaluate candidate projects and experience against the Top 10 Benchmark Projects and the JD.
+        Outputs comparative score, relative depth, missing architectural areas, and personalized
+        recommendations on what level and kind of project they should build.
         """
         pass

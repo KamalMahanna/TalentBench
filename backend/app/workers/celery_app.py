@@ -11,6 +11,7 @@ celery_app = Celery(
         "app.workers.scoring_tasks",
         "app.workers.mail_tasks",
         "app.workers.benchmark_tasks",
+        "app.workers.comparative_tasks",
         "app.workers.dead_letter",
     ],
 )
@@ -27,6 +28,7 @@ celery_app.conf.update(
     task_routes={
         "app.workers.resume_tasks.*": {"queue": "resume_queue"},
         "app.workers.scoring_tasks.*": {"queue": "scoring_queue"},
+        "app.workers.comparative_tasks.*": {"queue": "scoring_queue"},
         "app.workers.mail_tasks.*": {"queue": "mail_queue"},
         "app.workers.benchmark_tasks.*": {"queue": "benchmark_queue"},
         "app.workers.dead_letter.*": {"queue": "dlq_queue"},

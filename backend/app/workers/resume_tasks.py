@@ -220,7 +220,9 @@ def process_single_candidate_resume(
             )
             threshold_limit = None
             if resume_round:
-                if getattr(resume_round, "cutoff_type", None) == "count" and getattr(resume_round, "cutoff_count", None):
+                if getattr(resume_round, "cutoff_type", None) == "count" and getattr(
+                    resume_round, "cutoff_count", None
+                ):
                     threshold_limit = resume_round.cutoff_count
                 elif getattr(resume_round, "cutoff_threshold", 0) > 0:
                     threshold_limit = resume_round.cutoff_threshold

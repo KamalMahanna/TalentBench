@@ -121,12 +121,8 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("OMNIROUTE_MODEL", "OMNIROUTE_MODEL_NAME"),
     )
     OMNIROUTE_MODEL_NAME: str | None = None
-    OMNIROUTE_FALLBACK_MODELS: list[str] = [
-        "gpt-4o",
-        "claude-3-5-sonnet-20241022",
-        "qwen-2.5-72b-instruct",
-    ]
-    OMNIROUTE_MAX_RETRIES: int = 3
+    OMNIROUTE_FALLBACK_MODELS: list[str] = []
+    OMNIROUTE_MAX_RETRIES: int = 1
     OMNIROUTE_TIMEOUT: float = 60.0
 
     OPENAI_API_KEY: str | None = None

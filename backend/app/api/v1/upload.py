@@ -210,4 +210,3 @@ async def upload_resume_files(
             batch_id=batch_id,
         )
     )
-

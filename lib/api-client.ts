@@ -285,6 +285,82 @@ export const api = {
     window.URL.revokeObjectURL(downloadUrl);
   },
 
+  async runComparativeMatching(roleId: string): Promise<ApiResponse<{ task_id: string; message: string }>> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/roles/${roleId}/run-comparative-matching`, {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      if (res.ok) {
+        return (await res.json()) as ApiResponse<{ task_id: string; message: string }>;
+      }
+    } catch (err) {
+      console.warn('Backend runComparativeMatching error:', err);
+    }
+    return delay(
+      {
+        data: {
+          task_id: 'mock-comp-task-1',
+          message: 'Comparative Resume Matching started in background.',
+        },
+      },
+      800,
+    );
+  },
+
+  async getComparativeBenchmark(
+    roleId: string,
+  ): Promise<ApiResponse<{ role_id: string; top_projects: any[]; cutoff_count: number; has_benchmark: boolean }>> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/roles/${roleId}/comparative-benchmark`, {
+        headers: authHeaders(),
+      });
+      if (res.ok) {
+        return (await res.json()) as ApiResponse<{
+          role_id: string;
+          top_projects: any[];
+          cutoff_count: number;
+          has_benchmark: boolean;
+        }>;
+      }
+    } catch (err) {
+      console.warn('Backend getComparativeBenchmark error:', err);
+    }
+    return delay(
+      {
+        data: {
+          role_id: roleId,
+          top_projects: [
+            {
+              id: 'bench-1',
+              title: 'Distributed Multi-Region Event Ingestion Platform',
+              description: 'High-throughput Kafka and Go pipeline processing 500k events/sec with sub-50ms p99 latency.',
+              technologies: ['Go', 'Kafka', 'Kubernetes', 'PostgreSQL'],
+              complexity_score: 10,
+            },
+            {
+              id: 'bench-2',
+              title: 'Real-Time Transaction Ledger & Double-Entry Consensus',
+              description: 'Financial ledger utilizing Redis distributed locks and transactional outbox pattern.',
+              technologies: ['Python', 'FastAPI', 'Redis', 'PostgreSQL'],
+              complexity_score: 9,
+            },
+            {
+              id: 'bench-3',
+              title: 'Low-Latency Global Distributed Cache Layer',
+              description: 'Distributed in-memory caching system with consistent hashing and LRU-K eviction.',
+              technologies: ['Rust', 'Redis', 'gRPC', 'AWS'],
+              complexity_score: 9,
+            },
+          ],
+          cutoff_count: 300,
+          has_benchmark: true,
+        },
+      },
+      400,
+    );
+  },
+
   // ── Candidates ─────────────────────────────────────────────────────────────
   async getCandidates(
     roleId: string,
