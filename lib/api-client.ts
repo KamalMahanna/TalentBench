@@ -172,6 +172,20 @@ export const api = {
     roleId: string,
     rounds: Partial<Round>[],
   ): Promise<ApiResponse<Round[]>> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/roles/${roleId}/rounds`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify(rounds),
+      });
+      if (res.ok) {
+        const json = (await res.json()) as ApiResponse<Round[]>;
+        mockData.updateRounds(roleId, rounds);
+        return json;
+      }
+    } catch {
+      // fallback
+    }
     return delay({ data: mockData.updateRounds(roleId, rounds) }, 400);
   },
 

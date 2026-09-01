@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, Plus, GripVertical, FileStack, Brain, Code2, MessageSquare,
   Settings2, Save, Loader2, Upload, Link2, PencilLine, Zap, X, ChevronRight, Trash2,
-  FileText, Sparkles, Edit3, Check, CheckCircle2,
+  FileText, Sparkles, Edit3, Check, CheckCircle2, Sliders,
 } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { GlowButton } from '@/components/glow-button';
@@ -61,7 +61,8 @@ export default function RoleDetailPage() {
   const [rounds, setRounds] = useState<Round[]>([]);
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [editingRound, setEditingRound] = useState<Round | null>(null);
+  const [editingRoundId, setEditingRoundId] = useState<string | null>(null);
+  const editingRound = rounds.find((r) => r.id === editingRoundId) || null;
 
   // Role & JD details state
   const [title, setTitle] = useState('');
@@ -144,18 +145,18 @@ export default function RoleDetailPage() {
       mail_template: `Hi {{name}}, your ${template.label} for {{role}} is ready.`,
       created_at: new Date().toISOString(),
     };
-    setRounds([...rounds, newRound]);
+    setRounds((prev) => [...prev, newRound]);
     setAddOpen(false);
-    setEditingRound(newRound);
+    setEditingRoundId(newRound.id);
   }
 
   function updateRound(id: string, updates: Partial<Round>) {
-    setRounds(rounds.map((r) => (r.id === id ? { ...r, ...updates } : r)));
+    setRounds((prev) => prev.map((r) => (r.id === id ? { ...r, ...updates } : r)));
   }
 
   function removeRound(id: string) {
-    setRounds(rounds.filter((r) => r.id !== id));
-    setEditingRound(null);
+    setRounds((prev) => prev.filter((r) => r.id !== id));
+    setEditingRoundId(null);
   }
 
   if (isLoading) return <Skeleton className="h-96 rounded-2xl" />;
@@ -346,7 +347,7 @@ export default function RoleDetailPage() {
                         </div>
 
                         {/* Configure */}
-                        <Button variant="ghost" size="sm" onClick={() => setEditingRound(round)}>
+                        <Button variant="ghost" size="sm" onClick={() => setEditingRoundId(round.id)}>
                           <Settings2 className="h-4 w-4" />
                           Configure
                         </Button>
@@ -395,7 +396,7 @@ export default function RoleDetailPage() {
       </Dialog>
 
       {/* Edit round dialog */}
-      <Dialog open={!!editingRound} onOpenChange={(open) => !open && setEditingRound(null)}>
+      <Dialog open={!!editingRound} onOpenChange={(open) => !open && setEditingRoundId(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           {editingRound && (
             <>
@@ -407,10 +408,12 @@ export default function RoleDetailPage() {
               <div className="space-y-5">
                 {/* Name */}
                 <div className="space-y-2">
-                  <Label>Round name</Label>
+                  <Label htmlFor="round-name-input">Round name</Label>
                   <Input
+                    id="round-name-input"
                     value={editingRound.name}
                     onChange={(e) => updateRound(editingRound.id, { name: e.target.value })}
+                    placeholder="e.g. Resume Screen, Aptitude & Reasoning, DSA Round"
                     className="bg-background-elevated"
                   />
                 </div>
@@ -418,13 +421,27 @@ export default function RoleDetailPage() {
                 {/* Type */}
                 <div className="space-y-2">
                   <Label>Round type</Label>
-                  <Select value={editingRound.type} onValueChange={(v) => updateRound(editingRound.id, { type: v as RoundType })}>
+                  <Select
+                    value={editingRound.type}
+                    onValueChange={(v) => {
+                      const newType = v as RoundType;
+                      updateRound(editingRound.id, {
+                        type: newType,
+                        input_source: newType === 'resume_screen' ? 'excel_upload' : editingRound.input_source,
+                      });
+                    }}
+                  >
                     <SelectTrigger className="bg-background-elevated">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {ROUND_TYPES.map((t) => (
-                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                        <SelectItem key={t.value} value={t.value}>
+                          <div className="flex items-center gap-2">
+                            <t.icon className="h-4 w-4 text-primary" />
+                            <span>{t.label}</span>
+                          </div>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -437,12 +454,13 @@ export default function RoleDetailPage() {
                     {INPUT_SOURCES.map((src) => (
                       <button
                         key={src.value}
+                        type="button"
                         onClick={() => updateRound(editingRound.id, { input_source: src.value })}
                         className={cn(
-                          'flex flex-col items-center gap-2 rounded-xl border p-3 text-xs font-medium transition-all',
+                          'flex flex-col items-center gap-2 rounded-xl border p-3 text-xs font-medium transition-all cursor-pointer',
                           editingRound.input_source === src.value
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border bg-background-elevated text-muted-foreground hover:border-primary/40',
+                            ? 'border-primary bg-primary/15 text-primary ring-1 ring-primary/40'
+                            : 'border-border bg-background-elevated text-muted-foreground hover:border-primary/40 hover:text-foreground',
                         )}
                       >
                         <src.icon className="h-4 w-4" />
@@ -458,45 +476,96 @@ export default function RoleDetailPage() {
                     <div className="flex items-center gap-2 font-medium">
                       <Zap className="h-4 w-4 text-primary" /> AI scoring
                     </div>
-                    <p className="text-xs text-muted-foreground">Let AI evaluate and score this round</p>
+                    <p className="text-xs text-muted-foreground">
+                      {editingRound.ai_scored
+                        ? 'Let AI evaluate, benchmark, and score this round'
+                        : 'Manual recruiter evaluation (automated AI scoring turned off)'}
+                    </p>
                   </div>
                   <Switch
+                    id="round-ai-scored-switch"
                     checked={editingRound.ai_scored}
                     onCheckedChange={(checked) => updateRound(editingRound.id, { ai_scored: checked })}
                   />
                 </div>
 
-                {/* Cutoff */}
-                <div className="space-y-2">
-                  <Label>Cutoff threshold: {editingRound.cutoff_threshold}%</Label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={editingRound.cutoff_threshold}
-                    onChange={(e) => updateRound(editingRound.id, { cutoff_threshold: Number(e.target.value) })}
-                    className="w-full accent-primary"
-                  />
+                {/* Cutoff Threshold */}
+                <div className="space-y-3 rounded-xl border border-border bg-background-elevated p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 font-medium">
+                        <Sliders className="h-4 w-4 text-primary" /> Cutoff Threshold
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {editingRound.cutoff_threshold > 0
+                          ? `Candidates scoring below ${editingRound.cutoff_threshold}% will fail this round`
+                          : 'No cutoff threshold required (pass through)'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="cutoff-toggle" className="text-xs text-muted-foreground cursor-pointer">
+                        {editingRound.cutoff_threshold > 0 ? 'Enabled' : 'Disabled'}
+                      </Label>
+                      <Switch
+                        id="cutoff-toggle"
+                        checked={editingRound.cutoff_threshold > 0}
+                        onCheckedChange={(enabled) =>
+                          updateRound(editingRound.id, { cutoff_threshold: enabled ? 60 : 0 })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {editingRound.cutoff_threshold > 0 && (
+                    <div className="pt-2 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Minimum Pass Benchmark:</span>
+                        <span className="font-semibold text-primary">{editingRound.cutoff_threshold}%</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          min={1}
+                          max={100}
+                          value={editingRound.cutoff_threshold}
+                          onChange={(e) => updateRound(editingRound.id, { cutoff_threshold: Number(e.target.value) })}
+                          className="w-full accent-primary cursor-pointer"
+                        />
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={editingRound.cutoff_threshold}
+                          onChange={(e) => {
+                            const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                            updateRound(editingRound.id, { cutoff_threshold: val });
+                          }}
+                          className="w-16 h-8 text-center text-xs"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Mail template */}
                 <div className="space-y-2">
-                  <Label>Mail template</Label>
+                  <Label htmlFor="round-mail-template">Mail template</Label>
                   <Textarea
+                    id="round-mail-template"
                     value={editingRound.mail_template}
                     onChange={(e) => updateRound(editingRound.id, { mail_template: e.target.value })}
-                    className="bg-background-elevated min-h-[80px]"
+                    className="bg-background-elevated min-h-[90px] font-sans text-sm leading-relaxed"
                     placeholder="Hi {{name}}, your {{role}} evaluation is ready."
                   />
-                  <p className="text-xs text-muted-foreground">Variables: {'{{name}}'}, {'{{role}}'}, {'{{gap_summary}}'}</p>
+                  <p className="text-xs text-muted-foreground">Variables: {'{{name}}'}, {'{{role}}'}, {'{{round_name}}'}, {'{{gap_summary}}'}</p>
                 </div>
               </div>
 
               <DialogFooter className="gap-2">
-                <Button variant="destructive" onClick={() => removeRound(editingRound.id)}>
-                  <Trash2 className="mr-2 h-4 w-4" /> Remove
+                <Button type="button" variant="destructive" onClick={() => removeRound(editingRound.id)}>
+                  <Trash2 className="mr-2 h-4 w-4" /> Remove Round
                 </Button>
-                <GlowButton onClick={() => setEditingRound(null)}>Done</GlowButton>
+                <GlowButton type="button" onClick={() => setEditingRoundId(null)}>Done</GlowButton>
               </DialogFooter>
             </>
           )}
