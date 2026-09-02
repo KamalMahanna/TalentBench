@@ -508,7 +508,9 @@ async def export_resumes_excel(role_id: str, db: AsyncSession = Depends(get_db))
     res = await db.execute(stmt)
     candidates = res.scalars().all()
 
-    data_rows = []
+    shortlisted_rows = []
+    rejected_rows = []
+
     for idx, cand in enumerate(candidates):
         rr = next(
             (r for r in (cand.round_results or []) if r.round_type == "resume_screen"),
@@ -516,11 +518,11 @@ async def export_resumes_excel(role_id: str, db: AsyncSession = Depends(get_db))
         )
         verdict = (
             rr.ai_verdict
-            if rr
+            if rr and rr.ai_verdict
             else (
-                "yes"
+                "Qualified candidate with strong matching skills."
                 if cand.status in ("screened", "tested", "interviewed", "hired")
-                else ""
+                else "Did not fulfill role requirements."
             )
         )
         is_shortlisted = cand.status in (
@@ -536,48 +538,93 @@ async def export_resumes_excel(role_id: str, db: AsyncSession = Depends(get_db))
             else str(cand.skills or "")
         )
 
-        data_rows.append(
-            {
-                "Rank": f"#{idx + 1}",
-                "Candidate ID": cand.id,
-                "Name": cand.name,
-                "Email ID": cand.email,
-                "Status": "Shortlisted (Round 2)" if is_shortlisted else "Rejected",
-                "Comparative Score": cand.overall_score or (rr.score if rr else 0),
-                "Project Feedback & Recommendation": verdict,
-                "Skills": skills_str,
-                "Experience (Years)": cand.experience_years,
-                "Current Company": cand.current_company or "",
-                "Extracted Resume Text": cand.resume_text or "",
-                "Screening Date": cand.created_at.strftime("%Y-%m-%d %H:%M:%S")
-                if hasattr(cand.created_at, "strftime")
-                else str(cand.created_at),
-            }
-        )
+        if is_shortlisted:
+            shortlisted_rows.append(
+                {
+                    "Rank": f"#{len(shortlisted_rows) + 1}",
+                    "Candidate ID (Email)": cand.id,
+                    "Name": cand.name,
+                    "Email ID": cand.email,
+                    "Comparative Score": cand.overall_score or (rr.score if rr else 0),
+                    "Experience (Years)": cand.experience_years,
+                    "Current Company": cand.current_company or "",
+                    "Matched Skills": skills_str,
+                    "AI Evaluation Verdict": verdict,
+                    "Extracted Resume Text": cand.resume_text or "",
+                    "Screening Date": cand.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                    if hasattr(cand.created_at, "strftime")
+                    else str(cand.created_at),
+                }
+            )
+        else:
+            rejected_rows.append(
+                {
+                    "Rank": f"#{len(rejected_rows) + 1}",
+                    "Candidate ID (Email)": cand.id,
+                    "Name": cand.name,
+                    "Email ID": cand.email,
+                    "Score": cand.overall_score or (rr.score if rr else 0),
+                    "Experience (Years)": cand.experience_years,
+                    "Rejection Reason / Skill Gap": (
+                        rr.ai_summary
+                        if rr and rr.ai_summary
+                        else "Did not meet technical requirements"
+                    ),
+                    "Personalized Rejection Mail Body (Copy for HR)": verdict,
+                    "Automated Mail Status": "Manual Send Required (Automated email delivery coming soon)",
+                    "Extracted Resume Text": cand.resume_text or "",
+                    "Screening Date": cand.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                    if hasattr(cand.created_at, "strftime")
+                    else str(cand.created_at),
+                }
+            )
 
-    if not data_rows:
-        df = pd.DataFrame(
+    df_shortlisted = (
+        pd.DataFrame(shortlisted_rows)
+        if shortlisted_rows
+        else pd.DataFrame(
             columns=[
                 "Rank",
-                "Candidate ID",
+                "Candidate ID (Email)",
                 "Name",
                 "Email ID",
-                "Status",
                 "Comparative Score",
-                "Project Feedback & Recommendation",
-                "Skills",
                 "Experience (Years)",
                 "Current Company",
+                "Matched Skills",
+                "AI Evaluation Verdict",
                 "Extracted Resume Text",
                 "Screening Date",
             ]
         )
-    else:
-        df = pd.DataFrame(data_rows)
+    )
+
+    df_rejected = (
+        pd.DataFrame(rejected_rows)
+        if rejected_rows
+        else pd.DataFrame(
+            columns=[
+                "Rank",
+                "Candidate ID (Email)",
+                "Name",
+                "Email ID",
+                "Score",
+                "Experience (Years)",
+                "Rejection Reason / Skill Gap",
+                "Personalized Rejection Mail Body (Copy for HR)",
+                "Automated Mail Status",
+                "Extracted Resume Text",
+                "Screening Date",
+            ]
+        )
+    )
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Resume Screening")
+        df_shortlisted.to_excel(
+            writer, index=False, sheet_name="Shortlisted Candidates"
+        )
+        df_rejected.to_excel(writer, index=False, sheet_name="Rejected Candidates")
 
     output.seek(0)
     safe_title = (
@@ -646,5 +693,135 @@ async def get_comparative_benchmark(role_id: str, db: AsyncSession = Depends(get
             "top_projects": top_projects or [],
             "cutoff_count": cutoff_count,
             "has_benchmark": bool(top_projects),
+        }
+    )
+
+
+@router.post("/roles/{role_id}/rounds/{round_id}/start-workflow")
+async def start_round_workflow(
+    role_id: str,
+    round_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Start the interactive AI agent workflow for a specific round.
+    """
+    stmt = select(Round).where(Round.id == round_id, Round.role_id == role_id)
+    res = await db.execute(stmt)
+    round_obj = res.scalars().first()
+    if not round_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Round not found"
+        )
+
+    from app.workers.workflow_tasks import run_round_workflow
+
+    task = run_round_workflow.delay(role_id, round_id)
+
+    return ApiResponse(
+        data={
+            "task_id": str(task.id),
+            "role_id": role_id,
+            "round_id": round_id,
+            "round_name": round_obj.name,
+            "status": "running",
+            "message": f"Workflow started for round '{round_obj.name}'.",
+        }
+    )
+
+
+@router.get("/roles/{role_id}/rounds/{round_id}/workflow-status")
+async def get_round_workflow_status(
+    role_id: str,
+    round_id: str,
+):
+    """
+    Get the live workflow status, step progress, metrics, and logs for a round.
+    """
+    import json
+    import redis
+    from app.config import settings
+
+    try:
+        r = redis.from_url(settings.get_redis_url, decode_responses=True)
+        key = f"talentbench:workflow:{role_id}:{round_id}"
+        val = r.get(key)
+        if val:
+            return ApiResponse(data=json.loads(val))
+    except Exception:
+        pass
+
+    return ApiResponse(
+        data={
+            "role_id": role_id,
+            "round_id": round_id,
+            "status": "idle",
+            "current_step": 0,
+            "total_steps": 6,
+            "step_name": "Ready to run",
+            "logs": [],
+            "stats": {"total": 0, "processed": 0, "advanced": 0, "disqualified": 0},
+        }
+    )
+
+
+@router.post("/roles/{role_id}/rounds/{round_id}/reset-workflow")
+async def reset_round_workflow(
+    role_id: str,
+    round_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Resets the workflow for a round back to the initial un-screened state.
+    Allows recruiters/presenters to re-run and demonstrate the workflow from scratch.
+    """
+    from sqlalchemy import delete
+    from app.models import Candidate, RoundResult, MailQueue, BenchmarkProfile
+    from app.workers.resume_tasks import publish_event
+    import redis
+    from app.config import settings
+
+    stmt_cands = select(Candidate).where(Candidate.role_id == role_id)
+    res_cands = await db.execute(stmt_cands)
+    candidates = res_cands.scalars().all()
+    cand_ids = [c.id for c in candidates]
+
+    for c in candidates:
+        c.status = "applied"
+        c.overall_score = 0
+        c.ai_match_score = 0
+        c.current_round = 0
+
+    if cand_ids:
+        await db.execute(
+            delete(RoundResult).where(RoundResult.candidate_id.in_(cand_ids))
+        )
+        await db.execute(delete(MailQueue).where(MailQueue.candidate_id.in_(cand_ids)))
+    await db.execute(
+        delete(BenchmarkProfile).where(BenchmarkProfile.role_id == role_id)
+    )
+    await db.commit()
+
+    # Clear Redis state
+    try:
+        r = redis.from_url(settings.get_redis_url, decode_responses=True)
+        r.delete(f"talentbench:workflow:{role_id}:{round_id}")
+    except Exception:
+        pass
+
+    publish_event(
+        role_id=role_id,
+        event_type="workflow_reset",
+        payload={
+            "role_id": role_id,
+            "round_id": round_id,
+            "message": "Workflow reset to initial state.",
+        },
+    )
+
+    return ApiResponse(
+        data={
+            "status": "reset",
+            "message": "Workflow reset to initial state. Ready to demonstrate.",
         }
     )

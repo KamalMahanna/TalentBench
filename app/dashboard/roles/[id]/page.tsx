@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, Plus, GripVertical, FileStack, Brain, Code2, MessageSquare,
   Settings2, Save, Loader2, Upload, Link2, PencilLine, Zap, X, ChevronRight, Trash2,
-  FileText, Sparkles, Edit3, Check, CheckCircle2, Sliders, Percent, Users, Info,
+  FileText, Sparkles, Edit3, Check, CheckCircle2, Sliders, Percent, Users, Info, Play, Bot,
 } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { GlowButton } from '@/components/glow-button';
@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { RoundWorkflowModal } from '@/components/workflow/round-workflow-modal';
 import type { Round, RoundType, InputSource, Role } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -64,6 +65,7 @@ export default function RoleDetailPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editingRoundId, setEditingRoundId] = useState<string | null>(null);
   const editingRound = rounds.find((r) => r.id === editingRoundId) || null;
+  const [workflowRound, setWorkflowRound] = useState<Round | null>(null);
 
   // Role & JD details state
   const [title, setTitle] = useState('');
@@ -384,14 +386,17 @@ export default function RoleDetailPage() {
                         {/* Info */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <h3 className="truncate font-medium">{round.name}</h3>
+                            <Badge variant="outline" className="text-[10px] font-mono py-0 px-1.5 border-border/70 text-muted-foreground">
+                              Stage {i + 1}
+                            </Badge>
+                            <h3 className="truncate font-semibold text-sm">{round.name}</h3>
                             {round.ai_scored && (
-                              <Badge variant="secondary" className="shrink-0 gap-1">
-                                <Zap className="h-3 w-3" /> AI
+                              <Badge variant="secondary" className="shrink-0 gap-1 text-[10px] py-0 px-1.5">
+                                <Zap className="h-2.5 w-2.5 text-primary" /> AI Agent
                               </Badge>
                             )}
                           </div>
-                          <p className="truncate text-xs text-muted-foreground">
+                          <p className="truncate text-xs text-muted-foreground mt-0.5">
                             Cutoff:{' '}
                             {round.cutoff_type === 'count'
                               ? `Top ${round.cutoff_count || 300} resumes`
@@ -402,11 +407,26 @@ export default function RoleDetailPage() {
                           </p>
                         </div>
 
-                        {/* Configure */}
-                        <Button variant="ghost" size="sm" onClick={() => setEditingRoundId(round.id)}>
-                          <Settings2 className="h-4 w-4" />
-                          Configure
-                        </Button>
+                        {/* Actions: Start Workflow & Configure */}
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => setWorkflowRound(round)}
+                            className="h-8 gap-1.5 text-xs font-semibold bg-gradient-to-r from-primary to-accent hover:opacity-95 text-primary-foreground shadow-sm cursor-pointer"
+                          >
+                            <Play className="h-3.5 w-3.5 fill-current" />
+                            Start Workflow
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingRoundId(round.id)}
+                            className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            <Settings2 className="h-3.5 w-3.5" />
+                            Configure
+                          </Button>
+                        </div>
                       </motion.div>
                     </Reorder.Item>
                   );
@@ -855,6 +875,18 @@ export default function RoleDetailPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Round Workflow Execution Modal */}
+      <RoundWorkflowModal
+        open={!!workflowRound}
+        onOpenChange={(open) => !open && setWorkflowRound(null)}
+        roleId={roleId}
+        round={workflowRound}
+        onWorkflowComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['role', roleId] });
+          queryClient.invalidateQueries({ queryKey: ['candidates', roleId] });
+        }}
+      />
     </div>
   );
 }

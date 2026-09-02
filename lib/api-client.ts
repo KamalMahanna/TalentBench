@@ -10,6 +10,7 @@ import type {
   PerformanceReport,
   Role,
   Round,
+  RoundWorkflowState,
   OrgMember,
 } from './types';
 import { mockData } from './mock-data';
@@ -81,10 +82,29 @@ export const api = {
   },
 
   async getRoles(): Promise<ApiResponse<Role[]>> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/roles`, {
+        headers: authHeaders(),
+      });
+      if (res.ok) {
+        const json = (await res.json()) as ApiResponse<Role[]>;
+        if (json.data && json.data.length > 0) return json;
+      }
+    } catch (err) {
+      console.warn('Backend getRoles error, falling back to mock:', err);
+    }
     return delay({ data: mockData.getRoles() });
   },
 
   async getRole(id: string): Promise<ApiResponse<Role>> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/roles/${id}`, {
+        headers: authHeaders(),
+      });
+      if (res.ok) return (await res.json()) as ApiResponse<Role>;
+    } catch (err) {
+      console.warn('Backend getRole error, falling back to mock:', err);
+    }
     return delay({ data: mockData.getRole(id) });
   },
 
@@ -372,6 +392,23 @@ export const api = {
       sort?: string;
     },
   ): Promise<PaginatedResponse<Candidate>> {
+    try {
+      const url = new URL(`${API_BASE_URL}/roles/${roleId}/candidates`);
+      if (params?.page) url.searchParams.set('page', String(params.page));
+      if (params?.page_size) url.searchParams.set('page_size', String(params.page_size));
+      if (params?.search) url.searchParams.set('search', params.search);
+      if (params?.status) url.searchParams.set('status', params.status);
+      if (params?.sort) url.searchParams.set('sort', params.sort);
+
+      const res = await fetch(url.toString(), {
+        headers: authHeaders(),
+      });
+      if (res.ok) {
+        return (await res.json()) as PaginatedResponse<Candidate>;
+      }
+    } catch (err) {
+      console.warn('Backend getCandidates error, falling back to mock:', err);
+    }
     return delay(mockData.getCandidates(roleId, params));
   },
 
@@ -464,6 +501,82 @@ export const api = {
     mockData.removeMember(id);
     return delay({ data: { id } });
   },
+
+  // ── Round Workflow Execution ──────────────────────────────────────────────
+  async startRoundWorkflow(
+    roleId: string,
+    roundId: string,
+  ): Promise<ApiResponse<{ task_id: string; status: string; message: string }>> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/roles/${roleId}/rounds/${roundId}/start-workflow`, {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      if (res.ok) {
+        return (await res.json()) as ApiResponse<{ task_id: string; status: string; message: string }>;
+      }
+    } catch (err) {
+      console.warn('Backend startRoundWorkflow error:', err);
+    }
+    return delay({
+      data: {
+        task_id: 'mock-task-' + roundId,
+        status: 'running',
+        message: 'Round workflow initiated successfully.',
+      },
+    });
+  },
+
+  async getRoundWorkflowStatus(
+    roleId: string,
+    roundId: string,
+  ): Promise<ApiResponse<RoundWorkflowState>> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/roles/${roleId}/rounds/${roundId}/workflow-status`, {
+        headers: authHeaders(),
+      });
+      if (res.ok) {
+        return (await res.json()) as ApiResponse<RoundWorkflowState>;
+      }
+    } catch (err) {
+      console.warn('Backend getRoundWorkflowStatus error:', err);
+    }
+    return delay({
+      data: {
+        role_id: roleId,
+        round_id: roundId,
+        status: 'idle',
+        current_step: 0,
+        total_steps: 6,
+        step_name: 'Ready to run',
+        logs: [],
+        stats: { total: 0, processed: 0, advanced: 0, disqualified: 0 },
+      },
+    });
+  },
+
+  async resetRoundWorkflow(
+    roleId: string,
+    roundId: string,
+  ): Promise<ApiResponse<{ status: string; message: string }>> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/roles/${roleId}/rounds/${roundId}/reset-workflow`, {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      if (res.ok) {
+        return (await res.json()) as ApiResponse<{ status: string; message: string }>;
+      }
+    } catch (err) {
+      console.warn('Backend resetRoundWorkflow error:', err);
+    }
+    return delay({
+      data: {
+        status: 'reset',
+        message: 'Workflow reset to initial state.',
+      },
+    });
+  },
 };
 
 // Re-export RoundResult type for the override function return
@@ -476,25 +589,53 @@ export function subscribeToLiveUpdates(
   onError?: () => void,
 ): () => void {
   let active = true;
-  let interval: ReturnType<typeof setInterval> | null = null;
+  let eventSource: EventSource | null = null;
+  let fallbackInterval: ReturnType<typeof setInterval> | null = null;
 
-  function startPolling() {
-    interval = setInterval(() => {
+  function startFallbackPolling() {
+    if (fallbackInterval) return;
+    fallbackInterval = setInterval(() => {
       if (!active) return;
       const events = mockData.generateLiveEvents(roleId);
       events.forEach(onEvent);
     }, 4000);
   }
 
-  // Simulate initial SSE connection attempt then fallback to polling
-  setTimeout(() => {
-    if (!active) return;
+  try {
+    const sseUrl = `${API_BASE_URL}/roles/${roleId}/events`;
+    eventSource = new EventSource(sseUrl);
+
+    eventSource.onmessage = (e) => {
+      if (!active) return;
+      try {
+        const parsed = JSON.parse(e.data);
+        onEvent(parsed);
+      } catch {
+        // ignore parse error
+      }
+    };
+
+    eventSource.onerror = () => {
+      onError?.();
+      // On connection error, start fallback polling
+      if (active && !fallbackInterval) {
+        startFallbackPolling();
+      }
+    };
+  } catch {
     onError?.();
-    startPolling();
-  }, 800);
+    startFallbackPolling();
+  }
 
   return () => {
     active = false;
-    if (interval) clearInterval(interval);
+    if (eventSource) {
+      try {
+        eventSource.close();
+      } catch {}
+    }
+    if (fallbackInterval) {
+      clearInterval(fallbackInterval);
+    }
   };
 }

@@ -96,13 +96,15 @@ async def get_candidates(
         )
 
     if sort == "score_desc":
-        query = query.order_by(Candidate.overall_score.desc())
+        query = query.order_by(Candidate.overall_score.desc(), Candidate.name.asc())
     elif sort == "score_asc":
-        query = query.order_by(Candidate.overall_score.asc())
+        query = query.order_by(Candidate.overall_score.asc(), Candidate.name.asc())
     elif sort == "recent":
         query = query.order_by(Candidate.applied_at.desc())
     else:
-        query = query.order_by(Candidate.applied_at.desc())
+        query = query.order_by(
+            Candidate.overall_score.desc(), Candidate.applied_at.desc()
+        )
 
     count_query = select(func.count()).select_from(query.order_by(None).subquery())
     total_res = await db.execute(count_query)

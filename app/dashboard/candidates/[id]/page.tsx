@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, Mail, Phone, MapPin, Briefcase, GraduationCap, FileText,
   CheckCircle2, XCircle, Clock, Zap, Shield, History, Edit3, AlertCircle,
+  Copy, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { GlowButton } from '@/components/glow-button';
@@ -43,6 +44,7 @@ export default function CandidateDetailPage() {
   const [overrideStatus, setOverrideStatus] = useState<'passed' | 'failed'>('passed');
   const [overrideReason, setOverrideReason] = useState('');
   const [overriding, setOverriding] = useState(false);
+  const [showExtractedResume, setShowExtractedResume] = useState(false);
 
   async function handleOverride() {
     if (!overrideTarget) return;
@@ -145,6 +147,28 @@ export default function CandidateDetailPage() {
                     {candidate.projects.map((p) => <p key={p} className="text-sm">• {p}</p>)}
                   </div>
                 </div>
+
+                {/* Extracted Raw Resume Text Preview */}
+                {candidate.resume_text && (
+                  <div className="pt-3 border-t border-border/50">
+                    <button
+                      type="button"
+                      onClick={() => setShowExtractedResume(!showExtractedResume)}
+                      className="flex items-center justify-between w-full text-xs font-semibold text-primary hover:text-primary/80 transition-colors cursor-pointer"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <FileText className="h-3.5 w-3.5" />
+                        Parsed Resume (ID: {candidate.id})
+                      </span>
+                      {showExtractedResume ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    </button>
+                    {showExtractedResume && (
+                      <div className="mt-2 max-h-64 overflow-y-auto rounded-lg bg-background p-3 text-[11px] font-mono leading-relaxed border border-border/60 whitespace-pre-wrap selection:bg-primary/20 text-muted-foreground">
+                        {candidate.resume_text}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </Reveal>
@@ -201,12 +225,46 @@ export default function CandidateDetailPage() {
                           </div>
                         </div>
                         {/* AI verdict */}
-                        <div className="mt-3 rounded-lg bg-background-elevated p-3">
-                          <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-primary">
-                            <Shield className="h-3.5 w-3.5" /> AI Verdict
+                        {result.status === 'passed' ? (
+                          <div className="mt-3 rounded-lg bg-background-elevated p-3">
+                            <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-primary">
+                              <Shield className="h-3.5 w-3.5" /> AI Verdict
+                            </div>
+                            <p className="text-sm text-foreground/90">{result.ai_verdict}</p>
                           </div>
-                          <p className="text-sm text-foreground/90">{result.ai_verdict}</p>
-                        </div>
+                        ) : (
+                          /* Personalized Rejection Email Body for HR */
+                          <div className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <Mail className="h-4 w-4 text-rose-400" />
+                                <span className="text-xs font-semibold text-rose-400">
+                                  Personalized Rejection Mail Body
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-[10px] text-muted-foreground border-border/70">
+                                  Manual Send (Automated mail coming soon)
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  className="h-7 text-xs gap-1.5 font-medium cursor-pointer"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(result.ai_verdict || '');
+                                    toast.success('Rejection mail body copied to clipboard!');
+                                  }}
+                                >
+                                  <Copy className="h-3 w-3" />
+                                  Copy Mail Body
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="rounded-lg bg-background/80 p-3 text-xs font-sans whitespace-pre-wrap leading-relaxed border border-border/50 text-foreground/90">
+                              {result.ai_verdict}
+                            </div>
+                          </div>
+                        )}
                         {result.overridden && result.override_reason && (
                           <div className="mt-2 rounded-lg bg-accent/5 p-3">
                             <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-accent">

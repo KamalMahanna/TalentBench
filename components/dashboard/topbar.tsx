@@ -46,17 +46,23 @@ export function DashboardTopbar() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-full">
-                  <Avatar className="h-9 w-9 ring-2 ring-border">
-                    {user?.avatar_url && <AvatarImage src={user.avatar_url} alt={user.name} />}
-                    <AvatarFallback>{user?.name?.charAt(0) ?? 'R'}</AvatarFallback>
-                  </Avatar>
+                <button className="flex items-center gap-2 rounded-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40 transition-transform active:scale-95">
+                  <div className="h-9 w-9 rounded-full ring-2 ring-border/80 bg-gradient-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20 flex items-center justify-center select-none shadow-sm text-lg">
+                    <span>🧑‍💼</span>
+                  </div>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
-                  <div className="text-sm font-medium">{user?.name}</div>
-                  <div className="text-xs text-muted-foreground">{user?.email}</div>
+                  <div className="flex items-center gap-2.5 py-0.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 text-base shrink-0">
+                      🧑‍💼
+                    </div>
+                    <div className="overflow-hidden">
+                      <div className="text-sm font-medium truncate">{user?.name || 'Alex Morgan'}</div>
+                      <div className="text-xs text-muted-foreground truncate">{user?.email || 'recruiter@talentbench.io'}</div>
+                    </div>
+                  </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>

@@ -3,13 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Search, Filter, Download, CheckCircle2, XCircle,
   Clock, AlertCircle, Wifi, WifiOff, Mail, ChevronLeft, ChevronRight,
-  FileSpreadsheet, Loader2, Sparkles, Trophy, Lightbulb,
+  FileSpreadsheet, Loader2, Sparkles, Trophy, Lightbulb, Bot, Copy,
 } from 'lucide-react';
 import { api, subscribeToLiveUpdates } from '@/lib/api-client';
 import { GlowButton } from '@/components/glow-button';
@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RoundWorkflowModal } from '@/components/workflow/round-workflow-modal';
 import type { BenchmarkProject, Candidate, CandidateStatus, LiveUpdateEvent } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -43,10 +44,11 @@ const ROW_HEIGHT = 64;
 export default function CandidateListPage() {
   const params = useParams();
   const roleId = params.id as string;
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [sort, setSort] = useState<string>('recent');
+  const [sort, setSort] = useState<string>('score_desc');
   const [page, setPage] = useState(1);
   const [allCandidates, setAllCandidates] = useState<Candidate[]>([]);
   const [total, setTotal] = useState(0);
@@ -61,6 +63,7 @@ export default function CandidateListPage() {
     cutoff_count: number;
     has_benchmark: boolean;
   } | null>(null);
+  const [workflowModalOpen, setWorkflowModalOpen] = useState(false);
 
   const { data: roleData } = useQuery({
     queryKey: ['role', roleId],
@@ -68,6 +71,7 @@ export default function CandidateListPage() {
   });
 
   const role = roleData?.data;
+  const resumeRound = role?.rounds?.find((r) => r.type === 'resume_screen') || role?.rounds?.[0] || null;
 
   async function handleDownloadExcel() {
     setDownloadingExcel(true);
@@ -313,6 +317,15 @@ export default function CandidateListPage() {
                 </Button>
                 <Button
                   size="sm"
+                  variant="outline"
+                  onClick={() => setWorkflowModalOpen(true)}
+                  className="h-7 text-xs gap-1.5 font-medium cursor-pointer border-primary/40 bg-primary/5 hover:bg-primary/10 text-primary"
+                >
+                  <Bot className="h-3.5 w-3.5" />
+                  Live Agent Console
+                </Button>
+                <Button
+                  size="sm"
                   variant="ghost"
                   onClick={handleOpenBenchmark}
                   className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
@@ -355,8 +368,8 @@ export default function CandidateListPage() {
             <SelectValue placeholder="Sort" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="recent">Most recent</SelectItem>
             <SelectItem value="score_desc">Score: High to Low</SelectItem>
+            <SelectItem value="recent">Most recent</SelectItem>
             <SelectItem value="score_asc">Score: Low to High</SelectItem>
           </SelectContent>
         </Select>
@@ -404,13 +417,19 @@ export default function CandidateListPage() {
           <div className="space-y-0.5 p-2">
             {allCandidates.map((candidate, idx) => {
               const config = STATUS_CONFIG[candidate.status];
-              const resumeRound = role?.rounds?.find((r) => r.type === 'resume_screen');
+              const resumeRound = role?.rounds?.find((r) => r.type === 'resume_screen') || role?.rounds?.[0];
               const thresholdCount =
                 resumeRound?.cutoff_type === 'count'
-                  ? resumeRound.cutoff_count || 300
-                  : (resumeRound?.cutoff_threshold || 300);
+                  ? resumeRound.cutoff_count || 5
+                  : (resumeRound?.cutoff_threshold || 5);
 
-              const isCutoffBoundary = idx === thresholdCount - 1 && allCandidates.length > thresholdCount;
+              const hasEvaluated = allCandidates.some((c) => c.overall_score > 0 || c.status === 'screened');
+              const isCutoffBoundary =
+                hasEvaluated &&
+                statusFilter === 'all' &&
+                (sort === 'score_desc' || !sort) &&
+                idx === thresholdCount - 1 &&
+                allCandidates.length > thresholdCount;
               const feedback = candidate.round_results?.[0]?.ai_verdict;
 
               return (
@@ -475,9 +494,27 @@ export default function CandidateListPage() {
                         ))}
                         {candidate.skills.length > 2 && <span className="text-xs text-muted-foreground">+{candidate.skills.length - 2}</span>}
                       </div>
-                      {/* Status */}
-                      <div className="flex w-32 justify-end">
-                        <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium', config.color)}>
+                      {/* Status & Quick Copy Mail */}
+                      <div className="flex w-44 items-center justify-end gap-1.5">
+                        {candidate.status === 'rejected' && feedback && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-1.5 text-[10px] gap-1 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 cursor-pointer"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(feedback);
+                              toast.success(`Personalized rejection mail copied for ${candidate.name}! (Automated mail coming soon)`);
+                            }}
+                            title="Copy personalized rejection mail (Automated mail delivery coming soon)"
+                          >
+                            <Copy className="h-3 w-3" />
+                            Copy Mail
+                          </Button>
+                        )}
+                        <span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium', config.color)}>
                           <config.icon className="h-3 w-3" />
                           {config.label}
                         </span>
@@ -488,10 +525,13 @@ export default function CandidateListPage() {
                     </motion.div>
                   </Link>
                   {isCutoffBoundary && (
-                    <div className="my-2 flex items-center gap-3 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] font-semibold text-amber-500">
-                      <div className="h-px flex-1 bg-amber-500/30" />
-                      <span>── Cutoff Threshold Line (Top {thresholdCount} Auto-Advanced to Round 2) ──</span>
-                      <div className="h-px flex-1 bg-amber-500/30" />
+                    <div className="my-3 flex items-center gap-3 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-semibold text-emerald-400 shadow-sm">
+                      <div className="h-px flex-1 bg-emerald-500/30" />
+                      <span className="flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                        Cutoff Threshold Line · Top {thresholdCount} Shortlisted {role?.rounds && role.rounds.length > 1 ? 'for Round 2' : 'Candidates'}
+                      </span>
+                      <div className="h-px flex-1 bg-emerald-500/30" />
                     </div>
                   )}
                 </div>
@@ -571,6 +611,18 @@ export default function CandidateListPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Round Workflow Execution Modal */}
+      <RoundWorkflowModal
+        open={workflowModalOpen}
+        onOpenChange={setWorkflowModalOpen}
+        roleId={roleId}
+        round={resumeRound}
+        onWorkflowComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['candidates', roleId] });
+          queryClient.invalidateQueries({ queryKey: ['role', roleId] });
+        }}
+      />
     </div>
   );
 }

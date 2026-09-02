@@ -119,9 +119,15 @@ export default function SettingsPage() {
                   return (
                     <StaggerItem key={member.id}>
                       <div className="flex items-center gap-4 rounded-xl border border-border/50 bg-background-elevated p-4">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={member.avatar_url} alt={member.name} />
-                          <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                        <Avatar className="h-10 w-10 flex items-center justify-center bg-gradient-to-br from-indigo-500/20 to-purple-500/20 text-base">
+                          {member.name.toLowerCase().includes('alex') || member.role === 'admin' ? (
+                            <span>🧑‍💼</span>
+                          ) : (
+                            <>
+                              <AvatarImage src={member.avatar_url} alt={member.name} />
+                              <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                            </>
+                          )}
                         </Avatar>
                         <div className="flex-1">
                           <div className="text-sm font-medium">{member.name}</div>

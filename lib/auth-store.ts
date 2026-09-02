@@ -9,7 +9,7 @@ const DEMO_RECRUITER: AuthUser = {
   id: 'demo-recruiter-id',
   email: 'recruiter@talentbench.io',
   name: 'Alex Morgan',
-  avatar_url: 'https://i.pravatar.cc/150?u=recruiter',
+  avatar_url: '🧑‍💼',
   org_id: 'demo-org-id',
   token: 'demo-token',
 };
@@ -49,6 +49,9 @@ export const useAuthStore = create<AuthState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.setHasHydrated(true);
+          if (state.user && (!state.user.avatar_url || state.user.avatar_url.includes('pravatar'))) {
+            state.user.avatar_url = '🧑‍💼';
+          }
           if (state.user?.token) {
             setAuthToken(state.user.token);
           }

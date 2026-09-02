@@ -209,12 +209,49 @@ export interface PaginatedResponse<T> {
 }
 
 export interface LiveUpdateEvent {
-  type: 'candidate_status' | 'new_candidate' | 'round_complete' | 'bulk_progress';
+  type: 'candidate_status' | 'new_candidate' | 'round_complete' | 'bulk_progress' | 'agent_workflow_event' | 'workflow_completed';
   payload: {
     candidate_id?: string;
     role_id?: string;
-    status?: CandidateStatus;
+    round_id?: string;
+    status?: CandidateStatus | string;
     progress?: number;
     message?: string;
+    current_step?: number;
+    total_steps?: number;
+    step_name?: string;
+    log?: AgentWorkflowLog;
+    stats?: {
+      total?: number;
+      processed?: number;
+      advanced?: number;
+      disqualified?: number;
+    };
   };
+}
+
+export interface AgentWorkflowLog {
+  id: string;
+  timestamp: string;
+  tag: string;
+  message: string;
+  candidate_id?: string;
+}
+
+export interface RoundWorkflowState {
+  role_id: string;
+  round_id: string;
+  status: 'idle' | 'running' | 'completed' | 'failed';
+  current_step: number;
+  total_steps: number;
+  step_name: string;
+  logs: AgentWorkflowLog[];
+  stats: {
+    total: number;
+    processed: number;
+    advanced: number;
+    disqualified: number;
+  };
+  started_at?: string;
+  updated_at?: string;
 }

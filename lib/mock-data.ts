@@ -266,7 +266,7 @@ class MockDataStore {
       id: faker.string.uuid(),
       email,
       name: 'Alex Morgan',
-      avatar_url: 'https://i.pravatar.cc/150?u=recruiter',
+      avatar_url: '🧑‍💼',
       org_id: this.org.id,
       token: 'mock-jwt-token-' + faker.string.alphanumeric(24),
     };
@@ -278,32 +278,61 @@ class MockDataStore {
       'Backend Engineer',
       'Staff Platform Engineer',
       'Product Designer',
-      'Data Scientist',
+      'Data Analyst - Mock',
       'DevOps Engineer',
     ];
     titles.forEach((title, i) => {
-      const id = faker.string.uuid();
-      const rounds = makeRounds(id);
+      const isMockDA = title === 'Data Analyst - Mock';
+      const id = isMockDA ? '7d27c985-3e9f-4d75-956c-c4b56e9c6ab7' : faker.string.uuid();
+      const rounds = isMockDA
+        ? [
+            {
+              id: '6e328f9e-b25e-42f2-8c7d-e5219efed745',
+              role_id: id,
+              name: 'Resume Screen',
+              type: 'resume_screen' as const,
+              order: 0,
+              input_source: 'excel_upload' as const,
+              ai_scored: true,
+              cutoff_threshold: 75,
+              cutoff_type: 'count' as const,
+              cutoff_count: 5,
+              mail_template: 'Hi {{name}}, your application for Data Analyst is being evaluated.',
+              created_at: faker.date.past().toISOString(),
+            },
+          ]
+        : makeRounds(id);
+
       const role: Role = {
         id,
         org_id: this.org.id,
         title,
-        department: DEPARTMENTS[i % DEPARTMENTS.length],
+        department: isMockDA ? 'Analytics' : DEPARTMENTS[i % DEPARTMENTS.length],
         location: faker.helpers.arrayElement(LOCATIONS),
         employment_type: faker.helpers.arrayElement(['Full-time', 'Contract'] as const),
-        description: faker.lorem.paragraphs(2),
-        status: i < 4 ? 'active' : i === 4 ? 'draft' : 'closed',
+        description: isMockDA
+          ? 'We are seeking an enthusiastic Data Analyst with 1+ year of professional experience in SQL, Python/Pandas, and Power BI / Tableau.'
+          : faker.lorem.paragraphs(2),
+        status: isMockDA ? 'active' : i < 4 ? 'active' : i === 4 ? 'draft' : 'closed',
         created_at: faker.date.recent({ days: 60 }).toISOString(),
-        applicant_count: 0,
+        applicant_count: isMockDA ? 20 : 0,
         rounds,
       };
-      const count = i < 2 ? faker.number.int({ min: 8000, max: 12000 }) : faker.number.int({ min: 50, max: 500 });
+      const count = isMockDA ? 20 : i < 2 ? faker.number.int({ min: 8000, max: 12000 }) : faker.number.int({ min: 50, max: 500 });
       role.applicant_count = count;
       // Generate a smaller set for the table; the rest are "virtual"
-      const tableCount = Math.min(count, 200);
-      this.candidates[id] = Array.from({ length: tableCount }, (_, j) =>
-        makeCandidate(id, rounds, j + i * 1000),
-      );
+      const tableCount = isMockDA ? 20 : Math.min(count, 200);
+      this.candidates[id] = Array.from({ length: tableCount }, (_, j) => {
+        const c = makeCandidate(id, rounds, j + i * 1000);
+        if (isMockDA) {
+          c.status = 'applied';
+          c.overall_score = 0;
+          c.ai_match_score = 0;
+          c.current_round = 0;
+          c.round_results = [];
+        }
+        return c;
+      });
       this.roles.push(role);
     });
   }
