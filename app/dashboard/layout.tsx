@@ -143,26 +143,6 @@ export default function DashboardLayout({
               );
             })}
           </nav>
-
-          {/* Quick System Indicators */}
-          <div className={`mt-8 pt-6 border-t ${isLight ? "border-slate-200" : "border-white/10"}`}>
-            <div className={`text-[11px] font-mono uppercase mb-3 ${isLight ? "text-slate-500" : "text-[#7C91B4]"}`}>
-              Infrastructure
-            </div>
-            <div className={`space-y-2 text-xs font-mono ${isLight ? "text-slate-600" : "text-[#7C91B4]"}`}>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isLight ? "bg-emerald-500" : "bg-[#8FB6E8]"}`} />
-                  AI Screener
-                </span>
-                <span className={isLight ? "text-emerald-600 font-semibold" : "text-[#8FB6E8]"}>Online</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Trace Engine</span>
-                <span className={isLight ? "text-slate-400" : "text-[#7C91B4]/70"}>v2.4 Active</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* User profile & Logout */}

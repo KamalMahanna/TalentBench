@@ -83,17 +83,19 @@ async def test_gemini_rate_limiter_acquire():
         gemma_rpm_limit=30,
         gemma_tpm_limit=16000,
     )
-    # Acquire for gemma
-    await limiter.acquire("gemma-4-31b-it", estimated_tokens=100)
-    assert len(limiter._timestamps["gemma"]) == 1
-    assert len(limiter._token_logs["gemma"]) == 1
-    assert limiter._token_logs["gemma"][0][1] == 100
+    # Test in-memory fallback by mocking Redis client to None
+    with patch.object(limiter, "_get_redis", AsyncMock(return_value=None)):
+        # Acquire for gemma
+        await limiter.acquire("gemma-4-31b-it", estimated_tokens=100)
+        assert len(limiter._timestamps["gemma"]) == 1
+        assert len(limiter._token_logs["gemma"]) == 1
+        assert limiter._token_logs["gemma"][0][1] == 100
 
-    # Record actual tokens
-    await limiter.record_actual_tokens(
-        "gemma-4-31b-it", actual_tokens=150, estimated_tokens=100
-    )
-    assert limiter._token_logs["gemma"][0][1] == 150
+        # Record actual tokens
+        await limiter.record_actual_tokens(
+            "gemma-4-31b-it", actual_tokens=150, estimated_tokens=100
+        )
+        assert limiter._token_logs["gemma"][0][1] == 150
 
 
 @pytest.mark.asyncio

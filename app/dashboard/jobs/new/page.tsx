@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { GlassButton } from "@/components/ui/glass-button";
-import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Trash } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -47,12 +46,12 @@ export default function NewJobProfilePage() {
     }
 
     if (!description.trim()) {
-      toast.error("Job description is mandatory.");
+      toast.error("Job description is required.");
       return;
     }
 
     if (minExperience < 0 || maxExperience < minExperience) {
-      toast.error("Mandatory experience range: Maximum must be greater than or equal to minimum (>= 0).");
+      toast.error("Experience range: Maximum must be greater than or equal to minimum (>= 0).");
       return;
     }
 
@@ -102,10 +101,7 @@ export default function NewJobProfilePage() {
       </Link>
 
       <div>
-        <Badge variant="ice" pulse>
-          Mandatory Requirements Enforcement
-        </Badge>
-        <h1 className="mt-2 text-2xl sm:text-4xl font-display font-bold text-white tracking-tight">
+        <h1 className="text-2xl sm:text-4xl font-display font-bold text-white tracking-tight">
           Create Job Profile &amp; Pipeline
         </h1>
         <p className="text-xs sm:text-sm text-[#7C91B4] mt-1">
@@ -125,7 +121,7 @@ export default function NewJobProfilePage() {
             {/* Title */}
             <div>
               <label className="block text-xs font-mono text-[#7C91B4] mb-1.5 uppercase">
-                Job Title <span className="text-[#8FB6E8]">*</span>
+                Job Title
               </label>
               <input
                 type="text"
@@ -137,16 +133,11 @@ export default function NewJobProfilePage() {
               />
             </div>
 
-            {/* Mandatory Job Description */}
+            {/* Job Description */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-mono text-[#7C91B4] uppercase">
-                  Job Description <span className="text-[#8FB6E8]">* (Mandatory)</span>
-                </label>
-                <span className="text-[11px] font-mono text-[#7C91B4]">
-                  Used by AI agent to match candidate qualifications
-                </span>
-              </div>
+              <label className="block text-xs font-mono text-[#7C91B4] mb-1.5 uppercase">
+                Job Description
+              </label>
               <textarea
                 required
                 rows={6}
@@ -157,10 +148,10 @@ export default function NewJobProfilePage() {
               />
             </div>
 
-            {/* Mandatory Years of Experience Range */}
+            {/* Years of Experience Range */}
             <div>
               <label className="block text-xs font-mono text-[#7C91B4] mb-1.5 uppercase">
-                Required Years of Experience Range <span className="text-[#8FB6E8]">* (Mandatory)</span>
+                Required Years of Experience Range
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-4 rounded-xl bg-[#060B18]/40 border border-[#8FB6E8]/15">
@@ -189,9 +180,6 @@ export default function NewJobProfilePage() {
                   />
                 </div>
               </div>
-              <p className="mt-2 text-[11px] font-mono text-[#7C91B4]">
-                Candidates outside the {minExperience} - {maxExperience} year window will be flagged and held for manual HR verification.
-              </p>
             </div>
           </div>
         </div>

@@ -38,16 +38,23 @@ export async function POST(req: Request) {
     const resumeScreeningRoundId = job.pipeline[0]?.id;
 
     for (const file of files) {
-      // Clean candidate metadata or infer from filename/mock content
-      const name = file.name ? file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ") : "Candidate Applicant";
-      const cleanEmail = file.email || `${name.toLowerCase().replace(/\s+/g, ".")}@applicant.io`;
-      const expYears = file.experienceYears !== undefined ? Number(file.experienceYears) : Math.floor(Math.random() * 5) + 4;
-      const skills = file.skills || "Distributed Systems, Go, Kubernetes, Cloud Architecture, SQL";
-      const resumeText = file.resumeText || `Seasoned software engineer with ${expYears} years of experience architecting distributed services, microservices, and databases. Proven track record in high-scale production systems.`;
+      // Clean candidate name from fileName or candidateName
+      let rawName = file.candidateName || file.name || "";
+      rawName = rawName
+        .replace(/\.[^/.]+$/, "") // strip extension
+        .replace(/\b(resume|cv|curriculum\s+vitae|profile)\b/gi, "")
+        .replace(/[_-]/g, " ")
+        .trim();
+
+      const name = rawName || (file.email ? file.email.split("@")[0].replace(/[._-]/g, " ") : "Candidate Applicant");
+      const cleanEmail = file.email?.trim() || `${name.toLowerCase().replace(/\s+/g, ".")}@applicant.io`;
+      const expYears = file.experienceYears !== undefined ? Number(file.experienceYears) : Math.floor(Math.random() * 4) + 3;
+      const skills = file.skills || "Distributed Systems, Backend Engineering, Cloud Infrastructure";
+      const resumeText = file.resumeText || `Seasoned software engineer with experience architecting high-scale production systems.`;
 
       const candidate = await prisma.candidate.create({
         data: {
-          name,
+          name: name.replace(/\b\w/g, (c: string) => c.toUpperCase()),
           email: cleanEmail,
           phone: file.phone || "+1 (555) 234-5678",
           experienceYears: expYears,
