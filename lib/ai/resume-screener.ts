@@ -1,20 +1,7 @@
-export interface AgentTraceStep {
-  stepName: string;
-  category: "EXPERIENCE_VALIDATION" | "STACK_EXTRACTION" | "IMPACT_ANALYSIS" | "RECOMMENDATION";
-  timestamp: string;
-  status: "PASSED" | "FAILED" | "WARNING" | "INFO";
-  reasoning: string;
-  metric?: string;
-}
+import { AgentTraceStep, ScreeningResult } from "./types";
+import { llmGateway } from "./llm-gateway";
 
-export interface ScreeningResult {
-  score: number;
-  passed: boolean;
-  status: "SHORTLISTED" | "REJECTED";
-  agentTrace: AgentTraceStep[];
-  feedbackSummary: string;
-  personalizedReply: string;
-}
+export type { AgentTraceStep, ScreeningResult };
 
 export async function runResumeScreeningAgent({
   candidateName,
@@ -35,6 +22,50 @@ export async function runResumeScreeningAgent({
   minExperience: number;
   maxExperience: number;
 }): Promise<ScreeningResult> {
+  try {
+    return await llmGateway.screenCandidate({
+      candidateName,
+      candidateEmail,
+      candidateExperience,
+      resumeText,
+      jobTitle,
+      jobDescription,
+      minExperience,
+      maxExperience,
+    });
+  } catch (err) {
+    console.error("[runResumeScreeningAgent] Gateway error, executing fallback:", err);
+    return runDeterministicFallback({
+      candidateName,
+      candidateEmail,
+      candidateExperience,
+      resumeText,
+      jobTitle,
+      jobDescription,
+      minExperience,
+      maxExperience,
+    });
+  }
+}
+
+function runDeterministicFallback({
+  candidateName,
+  candidateExperience,
+  resumeText,
+  jobTitle,
+  jobDescription,
+  minExperience,
+  maxExperience,
+}: {
+  candidateName: string;
+  candidateEmail: string;
+  candidateExperience: number;
+  resumeText: string;
+  jobTitle: string;
+  jobDescription: string;
+  minExperience: number;
+  maxExperience: number;
+}): ScreeningResult {
   const traces: AgentTraceStep[] = [];
   const textLower = (resumeText || "").toLowerCase();
   const descLower = (jobDescription || "").toLowerCase();
@@ -42,7 +73,7 @@ export async function runResumeScreeningAgent({
   // STEP 1: Strict Experience Range Boundary Check
   const inExperienceRange =
     candidateExperience >= minExperience && candidateExperience <= maxExperience;
-  
+
   traces.push({
     stepName: "Experience Boundary Verification",
     category: "EXPERIENCE_VALIDATION",
@@ -57,7 +88,6 @@ export async function runResumeScreeningAgent({
   });
 
   // STEP 2: Key Skills & Architectural Match
-  // Extract key technical terms from job description
   const commonKeywords = [
     "rust", "go", "golang", "python", "kubernetes", "k8s", "distributed",
     "consensus", "raft", "paxos", "grpc", "microservices", "sql", "nosql",
@@ -116,15 +146,13 @@ export async function runResumeScreeningAgent({
   score += Math.round(matchRatio * 20);
   if (hasHighScaleSignals) score += 5;
 
-  // Cap score between 30 and 98
   score = Math.min(Math.max(score, 32), 97);
-
   const passed = inExperienceRange && score >= 70;
   const status = passed ? "SHORTLISTED" : "REJECTED";
 
   // STEP 4: Recommendation and Human Verification Directive
   traces.push({
-    stepName: "Autonomous Shortlisting Recommendation",
+    stepName: "Autonomous Calibration Directive (Fallback)",
     category: "RECOMMENDATION",
     timestamp: new Date().toISOString(),
     status: passed ? "PASSED" : "FAILED",
@@ -134,7 +162,6 @@ export async function runResumeScreeningAgent({
     metric: `Verdict: ${status} (Score ${score})`,
   });
 
-  // Construct empathetic, hyper-personalized reply
   let personalizedReply = "";
   if (passed) {
     personalizedReply = `Hi ${candidateName},
@@ -173,4 +200,3 @@ Talent Operations Team`;
     personalizedReply,
   };
 }
-

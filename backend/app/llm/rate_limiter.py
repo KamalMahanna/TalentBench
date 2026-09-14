@@ -233,3 +233,217 @@ class GroqRateLimiter:
             error=err_str[:150],
         )
         await asyncio.sleep(delay)
+
+
+class GeminiRateLimiter:
+    """
+    Sliding-window proactive & reactive rate limiter for Google Gemini & Gemma models:
+    Quotas:
+      - gemma-4-31b-it: 30 RPM (requests/min), 16,000 TPM (tokens/min)
+      - gemini-3.5-flash-lite: 15 RPM (requests/min), 250,000 TPM (tokens/min)
+    """
+
+    def __init__(
+        self,
+        gemma_rpm_limit: int = 30,
+        gemma_tpm_limit: int = 16000,
+        flash_lite_rpm_limit: int = 15,
+        flash_lite_tpm_limit: int = 250000,
+        max_retries: int = 3,
+        base_delay: float = 1.5,
+        max_delay: float = 30.0,
+    ):
+        self.quotas = {
+            "gemma": {"rpm": gemma_rpm_limit, "tpm": gemma_tpm_limit},
+            "flash_lite": {
+                "rpm": flash_lite_rpm_limit,
+                "tpm": flash_lite_tpm_limit,
+            },
+        }
+        self.max_retries = max_retries
+        self.base_delay = base_delay
+        self.max_delay = max_delay
+
+        # Sliding window deques (60s)
+        self._timestamps: dict[str, deque[float]] = {
+            "gemma": deque(),
+            "flash_lite": deque(),
+        }
+        self._token_logs: dict[str, deque[tuple[float, int]]] = {
+            "gemma": deque(),
+            "flash_lite": deque(),
+        }
+        self._lock = asyncio.Lock()
+        self._redis_client: aioredis.Redis | None = None
+
+    def _get_key(self, model: str) -> str:
+        return "gemma" if "gemma" in model.lower() else "flash_lite"
+
+    async def _get_redis(self) -> aioredis.Redis | None:
+        if self._redis_client is None:
+            try:
+                self._redis_client = aioredis.from_url(
+                    settings.get_redis_url,
+                    decode_responses=True,
+                    socket_connect_timeout=0.5,
+                    socket_timeout=0.5,
+                )
+                await self._redis_client.ping()
+            except Exception:
+                self._redis_client = None
+        return self._redis_client
+
+    async def acquire(self, model: str, estimated_tokens: int = 500) -> None:
+        """
+        Proactively throttles requests before dispatch to ensure sliding-window RPM and TPM
+        limits are respected for the selected model.
+        """
+        key = self._get_key(model)
+        rpm_limit = self.quotas[key]["rpm"]
+        tpm_limit = self.quotas[key]["tpm"]
+
+        async with self._lock:
+            while True:
+                now = time.time()
+                r = await self._get_redis()
+
+                if r:
+                    try:
+                        current_min_key = f"gemini:{key}:rpm:{int(now // 60)}"
+                        current_tpm_key = f"gemini:{key}:tpm:{int(now // 60)}"
+
+                        pipe = r.pipeline()
+                        pipe.get(current_min_key)
+                        pipe.get(current_tpm_key)
+                        rpm_val, tpm_val = await pipe.execute()
+
+                        rpm = int(rpm_val or 0)
+                        tpm = int(tpm_val or 0)
+
+                        wait_seconds = 0.0
+                        if rpm >= rpm_limit:
+                            wait_seconds = max(wait_seconds, 60.0 - (now % 60) + 0.1)
+                        if tpm + estimated_tokens >= tpm_limit:
+                            wait_seconds = max(wait_seconds, 60.0 - (now % 60) + 0.1)
+
+                        if wait_seconds > 0:
+                            logger.info(
+                                "gemini_redis_rate_limit_wait",
+                                model=model,
+                                key=key,
+                                wait_seconds=round(wait_seconds, 2),
+                            )
+                            await asyncio.sleep(min(wait_seconds, 5.0))
+                            continue
+
+                        pipe = r.pipeline()
+                        pipe.incr(current_min_key)
+                        pipe.expire(current_min_key, 70)
+                        pipe.incrby(current_tpm_key, estimated_tokens)
+                        pipe.expire(current_tpm_key, 70)
+                        await pipe.execute()
+                        break
+                    except Exception:
+                        pass
+
+                # In-memory sliding window
+                req_deque = self._timestamps[key]
+                tok_deque = self._token_logs[key]
+
+                # Prune entries older than 60s
+                while req_deque and now - req_deque[0] > 60.0:
+                    req_deque.popleft()
+                while tok_deque and now - tok_deque[0][0] > 60.0:
+                    tok_deque.popleft()
+
+                curr_tpm = sum(t[1] for t in tok_deque)
+
+                wait_sec = 0.0
+                if len(req_deque) >= rpm_limit:
+                    wait_sec = max(wait_sec, 60.0 - (now - req_deque[0]) + 0.05)
+                if curr_tpm + estimated_tokens > tpm_limit and tok_deque:
+                    wait_sec = max(wait_sec, 60.0 - (now - tok_deque[0][0]) + 0.05)
+
+                if wait_sec > 0:
+                    logger.info(
+                        "gemini_rate_limit_throttle_wait",
+                        model=model,
+                        wait_seconds=round(wait_sec, 2),
+                        current_rpm=len(req_deque),
+                        rpm_limit=rpm_limit,
+                        current_tpm=curr_tpm,
+                        tpm_limit=tpm_limit,
+                    )
+                    await asyncio.sleep(min(wait_sec, 5.0))
+                    continue
+
+                req_deque.append(now)
+                tok_deque.append((now, estimated_tokens))
+                break
+
+    async def record_actual_tokens(
+        self, model: str, actual_tokens: int, estimated_tokens: int = 500
+    ) -> None:
+        """Adjust rolling token count with actual tokens reported by model."""
+        key = self._get_key(model)
+        diff = actual_tokens - estimated_tokens
+        if diff == 0:
+            return
+
+        r = await self._get_redis()
+        if r:
+            try:
+                now = time.time()
+                current_tpm_key = f"gemini:{key}:tpm:{int(now // 60)}"
+                pipe = r.pipeline()
+                if diff > 0:
+                    pipe.incrby(current_tpm_key, diff)
+                else:
+                    pipe.decrby(current_tpm_key, abs(diff))
+                await pipe.execute()
+            except Exception:
+                pass
+
+        async with self._lock:
+            tok_deque = self._token_logs[key]
+            if tok_deque:
+                t, prev = tok_deque[-1]
+                tok_deque[-1] = (t, max(0, prev + diff))
+
+    def parse_retry_after(self, error_message: str) -> float | None:
+        """Parse retry-after seconds or milliseconds from error messages."""
+        try:
+            m = re.search(
+                r"try (?:again )?in ([\d\.]+)m?s", error_message, re.IGNORECASE
+            )
+            if m:
+                val = float(m.group(1))
+                return val / 1000.0 if "ms" in m.group(0).lower() else val
+            m2 = re.search(r"retry after ([\d\.]+)s?", error_message, re.IGNORECASE)
+            if m2:
+                return float(m2.group(1))
+        except Exception:
+            pass
+        return None
+
+    async def handle_backoff(self, attempt: int, error: Exception | str) -> float:
+        """Exponential backoff with jitter on 429/timeouts."""
+        err_str = str(error)
+        parsed_wait = self.parse_retry_after(err_str)
+
+        if parsed_wait is not None:
+            delay = min(self.max_delay, parsed_wait + random.uniform(0.1, 0.4))
+        else:
+            delay = min(
+                self.max_delay,
+                (self.base_delay * (2**attempt)) + random.uniform(0.1, 0.5),
+            )
+
+        logger.warning(
+            "gemini_rate_limit_backoff",
+            attempt=attempt + 1,
+            delay_seconds=round(delay, 2),
+            error=err_str[:150],
+        )
+        await asyncio.sleep(delay)
+        return delay

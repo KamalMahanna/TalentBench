@@ -125,9 +125,22 @@ class Settings(BaseSettings):
     OMNIROUTE_MAX_RETRIES: int = 1
     OMNIROUTE_TIMEOUT: float = 60.0
 
+    # Google Gemini & Gemma Gateway Configuration
+    GEMINI_API_KEY: str | None = None
+    GEMMA_MODEL: str = "gemma-4-31b-it"
+    GEMINI_FLASH_LITE_MODEL: str = "gemini-3.5-flash-lite"
+    GEMINI_TOKEN_THRESHOLD: int = (
+        12000  # <12k tokens -> gemma-4-31b-it, >=12k -> gemini-3.5-flash-lite
+    )
+    GEMMA_RPM_LIMIT: int = 30  # 30 requests / minute
+    GEMMA_TPM_LIMIT: int = 16000  # 16,000 tokens / minute
+    GEMINI_FLASH_LITE_RPM_LIMIT: int = 15  # 15 requests / minute
+    GEMINI_FLASH_LITE_TPM_LIMIT: int = 250000  # 250,000 tokens / minute
+    GEMINI_MAX_RETRIES: int = 3
+    GEMINI_TIMEOUT: float = 45.0
+
     OPENAI_API_KEY: str | None = None
     ANTHROPIC_API_KEY: str | None = None
-    GEMINI_API_KEY: str | None = None
     LLM_MODEL: str = "qwen/qwen3.8-27b"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIMENSION: int = 1536

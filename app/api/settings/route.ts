@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionUser, getOrCreateDemoUser } from "@/lib/auth";
+import { updateGatewayConfig, getGatewayConfig } from "@/lib/ai/llm-gateway";
 
 // In-memory / persisted default configuration settings
 let settingsStore = {
@@ -60,6 +60,21 @@ let settingsStore = {
     autoRejectScoreThreshold: 45,
     enableDeterministicTracers: true,
   },
+  llm: {
+    provider: "gemini" as "gemini" | "omniroute",
+    geminiApiKey: process.env.GEMINI_API_KEY || "",
+    omnirouteBaseUrl: process.env.OMNIROUTE_BASE_URL || "http://localhost:20128/v1",
+    omnirouteApiKey: process.env.OMNIROUTE_API_KEY || "sk-omniroute-key",
+    omnirouteModel: process.env.OMNIROUTE_MODEL || "kamalai",
+    omnirouteFallbackModels: [] as string[],
+    tokenThreshold: 12000,
+    gemmaModel: "gemma-4-31b-it",
+    gemmaRpm: 30,
+    gemmaTpm: 16000,
+    geminiFlashLiteModel: "gemini-3.5-flash-lite",
+    geminiFlashLiteRpm: 15,
+    geminiFlashLiteTpm: 250000,
+  },
 };
 
 export async function GET() {
@@ -73,7 +88,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { org, templates, rubrics, newMember, removeMemberId } = body;
+    const { org, templates, rubrics, llm, newMember, removeMemberId } = body;
 
     if (org) {
       settingsStore.org = { ...settingsStore.org, ...org };
@@ -83,6 +98,16 @@ export async function POST(req: Request) {
     }
     if (rubrics) {
       settingsStore.rubrics = { ...settingsStore.rubrics, ...rubrics };
+    }
+    if (llm) {
+      settingsStore.llm = { ...settingsStore.llm, ...llm };
+      updateGatewayConfig({
+        provider: settingsStore.llm.provider,
+        geminiApiKey: settingsStore.llm.geminiApiKey,
+        omnirouteBaseUrl: settingsStore.llm.omnirouteBaseUrl,
+        omnirouteApiKey: settingsStore.llm.omnirouteApiKey,
+        omnirouteModel: settingsStore.llm.omnirouteModel,
+      });
     }
     if (newMember) {
       settingsStore.members.push({
@@ -106,4 +131,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to save settings" }, { status: 500 });
   }
 }
-
