@@ -1,36 +1,48 @@
-import * as React from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
+import React from "react";
+import { cn } from "@/lib/utils";
 
-import { cn } from '@/lib/utils';
-
-const badgeVariants = cva(
-  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-  {
-    variants: {
-      variant: {
-        default:
-          'border-transparent bg-primary text-primary-foreground hover:bg-primary/80',
-        secondary:
-          'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        destructive:
-          'border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80',
-        outline: 'text-foreground',
-      },
-    },
-    defaultVariants: {
-      variant: 'default',
-    },
-  }
-);
-
-export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
-
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
-  );
+interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
+  children: React.ReactNode;
+  variant?: "default" | "ice" | "emerald" | "cyan" | "amber" | "rose" | "purple" | "success" | "destructive" | "secondary";
+  pulse?: boolean;
 }
 
-export { Badge, badgeVariants };
+export function Badge({
+  children,
+  className,
+  variant = "ice",
+  pulse = false,
+  ...props
+}: BadgeProps) {
+  const variantClasses = {
+    default: "bg-white/[0.05] text-[#EAF1FB] border border-white/10",
+    ice: "bg-white/5 border border-white/10 text-[#8FB6E8] shadow-[0_4px_20px_rgba(143,182,232,0.15)]",
+    emerald: "bg-emerald-500/10 text-emerald-300 border border-emerald-500/25",
+    cyan: "bg-cyan-500/10 text-cyan-300 border border-cyan-500/25",
+    amber: "bg-amber-500/10 text-amber-300 border border-amber-500/25",
+    rose: "bg-rose-500/10 text-rose-300 border border-rose-500/25",
+    purple: "bg-purple-500/10 text-purple-300 border border-purple-500/25",
+    success: "bg-emerald-500/10 text-emerald-300 border border-emerald-500/25",
+    destructive: "bg-rose-500/10 text-rose-300 border border-rose-500/25",
+    secondary: "bg-white/5 border border-white/10 text-[#8FB6E8]",
+  };
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium tracking-widest uppercase font-mono backdrop-blur-md",
+        variantClasses[variant],
+        className
+      )}
+      {...props}
+    >
+      {pulse && (
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#8FB6E8] opacity-75" />
+          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#8FB6E8]" />
+        </span>
+      )}
+      {children}
+    </span>
+  );
+}

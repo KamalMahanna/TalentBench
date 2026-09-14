@@ -56,6 +56,8 @@ htmlcov/
 *.dump
 *.dump.gz
 *.dump.gz.sha256
+*.db
+*.db-journal
 /tmp/talentbench_backups/
 postgres_data/
 redis_data/

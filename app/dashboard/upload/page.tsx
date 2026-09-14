@@ -1,249 +1,463 @@
-'use client';
+"use client";
 
-import { useState, useCallback, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
+import { GlassButton } from "@/components/ui/glass-button";
+import { Badge } from "@/components/ui/badge";
 import {
-  UploadCloud, FileSpreadsheet, FileText, X, CheckCircle2,
-  AlertCircle, Loader2, ArrowRight,
-} from 'lucide-react';
-import { api } from '@/lib/api-client';
-import { GlowButton } from '@/components/glow-button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { useQuery } from '@tanstack/react-query';
-import { cn } from '@/lib/utils';
+  TrayArrowUp,
+  FileText,
+  FilePdf,
+  FileDoc,
+  Trash,
+  CheckCircle,
+  Clock,
+  Sparkle,
+  ArrowRight,
+  Briefcase,
+  Warning,
+  ArrowsClockwise,
+  UsersThree,
+} from "@phosphor-icons/react";
+import { toast } from "sonner";
+import { useTheme } from "@/context/theme-context";
 
-interface FileStatus {
+interface QueuedFile {
+  id: string;
   name: string;
   size: number;
+  status: "pending" | "processing" | "completed" | "error";
   progress: number;
-  status: 'pending' | 'processing' | 'done' | 'error';
+  candidateName?: string;
+  experienceYears?: number;
+  skills?: string;
+  resumeText?: string;
 }
 
+interface JobProfileSummary {
+  id: string;
+  title: string;
+  minExperience: number;
+  maxExperience: number;
+}
+
+const SAMPLE_RESUMES = [
+  {
+    name: "Siddharth_Nair_Senior_Systems.pdf",
+    candidateName: "Siddharth Nair",
+    experienceYears: 6,
+    skills: "Rust, Go, Raft, Distributed Systems, gRPC, PostgreSQL",
+    resumeText:
+      "Senior Infrastructure Engineer with 6 years experience architecting fault-tolerant consensus mechanisms in Go and Rust. Led engineering for distributed KV storage system handling 1.2M queries/sec. Deep background in Linux networking and systems optimization.",
+  },
+  {
+    name: "Anya_Petrova_Distributed_Staff.pdf",
+    candidateName: "Anya Petrova",
+    experienceYears: 8,
+    skills: "Distributed Databases, Go, Kubernetes, RocksDB, Storage Engines",
+    resumeText:
+      "Staff Systems Architect with 8 years building distributed storage engines and multi-region consensus clusters. Contributor to open source Raft consensus implementations. Expert in low-latency systems and kernel tuning.",
+  },
+  {
+    name: "Lucas_Muller_Backend_Lead.docx",
+    candidateName: "Lucas Müller",
+    experienceYears: 5,
+    skills: "Go, Kubernetes, Kafka, gRPC, Docker, Cloud Architecture",
+    resumeText:
+      "Backend Lead with 5 years experience scaling event-driven streaming clusters using Kafka and Go microservices. Managed zero-downtime cluster migrations on AWS and GCP with strict SLA guarantees.",
+  },
+  {
+    name: "Mei_Ling_Systems_Junior.pdf",
+    candidateName: "Mei Ling",
+    experienceYears: 2,
+    skills: "Python, FastAPI, Docker, SQL, Basic Go",
+    resumeText:
+      "Junior Software Developer with 2 years experience building REST APIs with Python and FastAPI. Keen interest in expanding into distributed systems and cloud infrastructure.",
+  },
+];
+
 export default function BulkUploadPage() {
-  const searchParams = useSearchParams();
-  const initialRole = searchParams.get('role') ?? '';
-  const [roleId, setRoleId] = useState(initialRole);
-  const [files, setFiles] = useState<FileStatus[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<{ uploaded: number; failed: number } | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const { theme } = useTheme();
+  const isLight = theme === "light";
 
-  const { data: rolesData } = useQuery({
-    queryKey: ['roles'],
-    queryFn: () => api.getRoles(),
-  });
-  const roles = rolesData?.data ?? [];
+  const [jobs, setJobs] = useState<JobProfileSummary[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
+  const [queue, setQueue] = useState<QueuedFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [autoScreen, setAutoScreen] = useState(true);
+  const [isIngesting, setIsIngesting] = useState(false);
+  const [completedCount, setCompletedCount] = useState<number | null>(null);
 
-  const handleFiles = useCallback((fileList: FileList) => {
-    const newFiles: FileStatus[] = Array.from(fileList).map((f) => ({
-      name: f.name,
-      size: f.size,
-      progress: 0,
-      status: 'pending' as const,
-    }));
-    setFiles((prev) => [...prev, ...newFiles]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch("/api/jobs")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.jobs && data.jobs.length > 0) {
+          setJobs(data.jobs);
+          setSelectedJobId(data.jobs[0].id);
+        }
+      })
+      .catch((err) => console.error("Error loading jobs:", err));
   }, []);
 
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setDragActive(false);
-    handleFiles(e.dataTransfer.files);
-  }
+  const addFilesToQueue = (files: FileList | File[]) => {
+    const newItems: QueuedFile[] = Array.from(files).map((file, idx) => ({
+      id: `file-${Date.now()}-${idx}`,
+      name: file.name,
+      size: file.size,
+      status: "pending",
+      progress: 0,
+    }));
+    setQueue((prev) => [...prev, ...newItems]);
+    toast.success(`Added ${newItems.length} resume(s) to queue`);
+  };
 
-  function handleDragOver(e: React.DragEvent) {
+  const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setDragActive(true);
-  }
-  function handleDragLeave(e: React.DragEvent) {
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      addFilesToQueue(e.dataTransfer.files);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setDragActive(false);
-  }
+    setIsDragging(true);
+  }, []);
 
-  function removeFile(index: number) {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
-  }
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
 
-  async function handleUpload() {
-    if (!roleId) {
-      toast.error('Please select a role');
+  const handleLoadSampleBatch = () => {
+    const sampleItems: QueuedFile[] = SAMPLE_RESUMES.map((s, idx) => ({
+      id: `sample-${Date.now()}-${idx}`,
+      name: s.name,
+      size: 145000 + idx * 28000,
+      status: "pending",
+      progress: 0,
+      candidateName: s.candidateName,
+      experienceYears: s.experienceYears,
+      skills: s.skills,
+      resumeText: s.resumeText,
+    }));
+
+    setQueue((prev) => [...prev, ...sampleItems]);
+    toast.success("Loaded 4 sample production resume profiles into queue!");
+  };
+
+  const removeFile = (id: string) => {
+    setQueue((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const clearQueue = () => {
+    setQueue([]);
+    setCompletedCount(null);
+  };
+
+  const handleStartIngestion = async () => {
+    if (!selectedJobId) {
+      toast.error("Please select a target Job Requisition.");
       return;
     }
-    if (files.length === 0) {
-      toast.error('Please add files to upload');
+
+    if (queue.length === 0) {
+      toast.error("Please add resumes to the ingestion queue.");
       return;
     }
 
-    setUploading(true);
-    setResult(null);
-    setFiles((prev) => prev.map((f) => ({ ...f, status: 'processing' as const, progress: 0 })));
+    setIsIngesting(true);
+    setCompletedCount(null);
+
+    // Simulate animated upload progress
+    setQueue((prev) =>
+      prev.map((item) => ({ ...item, status: "processing", progress: 25 }))
+    );
 
     try {
-      const res = await api.bulkUpload(
-        roleId,
-        files.map((f) => ({ name: f.name, size: f.size })),
-        (fileName, progress, status) => {
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.name === fileName ? { ...f, progress, status } : f,
-            ),
-          );
-        },
+      // Step 1: Advance progress
+      setTimeout(() => {
+        setQueue((prev) =>
+          prev.map((item) => ({ ...item, progress: 65 }))
+        );
+      }, 400);
+
+      // Step 2: Send payload to bulk upload API
+      const res = await fetch("/api/candidates/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobProfileId: selectedJobId,
+          autoScreen,
+          files: queue.map((f) => ({
+            name: f.candidateName || f.name,
+            experienceYears: f.experienceYears,
+            skills: f.skills,
+            resumeText: f.resumeText,
+          })),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Ingestion failed.");
+        setIsIngesting(false);
+        setQueue((prev) =>
+          prev.map((item) => ({ ...item, status: "error" }))
+        );
+        return;
+      }
+
+      // Mark all as completed
+      setQueue((prev) =>
+        prev.map((item) => ({ ...item, status: "completed", progress: 100 }))
       );
-      setResult(res.data);
-      toast.success(`Upload complete: ${res.data.uploaded} processed, ${res.data.failed} failed`);
-    } catch {
-      toast.error('Upload failed');
-    } finally {
-      setUploading(false);
+      setCompletedCount(data.processed);
+      setIsIngesting(false);
+      toast.success(
+        `Successfully ingested ${data.processed} candidate(s)${
+          autoScreen ? " and executed AI screening" : ""
+        }!`
+      );
+    } catch (err) {
+      console.error("Upload error:", err);
+      toast.error("Network error during bulk ingestion.");
+      setIsIngesting(false);
     }
-  }
+  };
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold tracking-tight">Bulk Upload</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Upload resumes or Excel files to add candidates to a role</p>
+    <div className="max-w-4xl mx-auto space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className={`text-2xl sm:text-3xl font-display font-bold tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
+              Bulk Resume Ingestion Center
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-medium bg-[#8FB6E8]/15 text-[#8FB6E8] border border-[#8FB6E8]/25">
+              Multi-Format Dropzone
+            </span>
+          </div>
+          <p className={`text-xs sm:text-sm mt-1 ${isLight ? "text-slate-600" : "text-[#7C91B4]"}`}>
+            Ingest candidate cohorts, extract structural signals, and trigger autonomous evaluation.
+          </p>
+        </div>
+
+        <GlassButton variant="secondary" onClick={handleLoadSampleBatch} className="text-xs">
+          <Sparkle size={16} />
+          Load Sample Cohort
+        </GlassButton>
       </div>
 
-      {/* Role selector */}
-      <div className="mb-6">
-        <Label className="mb-2 block">Select role</Label>
-        <Select value={roleId} onValueChange={setRoleId}>
-          <SelectTrigger className="bg-background-elevated">
-            <SelectValue placeholder="Choose a role..." />
-          </SelectTrigger>
-          <SelectContent>
-            {roles.map((r) => (
-              <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* Requisition Selector & Options Card */}
+      <div
+        className={`p-6 rounded-3xl border shadow-lg ${
+          isLight ? "bg-white border-slate-200" : "bg-[#0D1633] border-white/15"
+        }`}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center">
+          <div className="sm:col-span-8">
+            <label className="block text-xs font-mono uppercase text-[#7C91B4] mb-2">
+              Target Job Requisition *
+            </label>
+            <div className="relative">
+              <select
+                value={selectedJobId}
+                onChange={(e) => setSelectedJobId(e.target.value)}
+                className={`w-full py-2.5 px-4 rounded-xl text-sm border focus:outline-none focus:ring-1 focus:ring-[#8FB6E8] cursor-pointer ${
+                  isLight
+                    ? "bg-slate-50 border-slate-300 text-slate-900"
+                    : "bg-[#060B18] border-white/20 text-[#EAF1FB]"
+                }`}
+              >
+                {jobs.map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.title} (Tier: {j.minExperience}–{j.maxExperience} yrs)
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="sm:col-span-4 pt-4 sm:pt-0">
+            <label className="flex items-center gap-3 cursor-pointer text-xs sm:text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={autoScreen}
+                onChange={(e) => setAutoScreen(e.target.checked)}
+                className="w-4 h-4 rounded text-[#8FB6E8] focus:ring-[#8FB6E8] rounded border-white/20 cursor-pointer"
+              />
+              <span className={isLight ? "text-slate-700" : "text-slate-300"}>
+                Trigger Autonomous AI Screen immediately
+              </span>
+            </label>
+          </div>
+        </div>
       </div>
 
-      {/* Drop zone */}
+      {/* Drag and Drop Zone */}
       <div
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        onClick={() => inputRef.current?.click()}
-        className={cn(
-          'relative flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed p-12 text-center transition-all',
-          dragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40',
-        )}
+        onClick={() => fileInputRef.current?.click()}
+        className={`p-10 sm:p-16 rounded-3xl border-2 border-dashed text-center transition-all cursor-pointer relative overflow-hidden ${
+          isDragging
+            ? "border-[#8FB6E8] bg-[#8FB6E8]/10 scale-[1.01]"
+            : isLight
+            ? "border-slate-300 bg-white hover:border-blue-400 hover:bg-slate-50/50"
+            : "border-white/15 bg-white/[0.01] hover:border-[#8FB6E8]/40 hover:bg-white/[0.03]"
+        }`}
       >
         <input
-          ref={inputRef}
+          ref={fileInputRef}
           type="file"
           multiple
-          accept=".xlsx,.xls,.csv,.pdf,.doc,.docx"
+          accept=".pdf,.docx,.txt,.doc"
+          onChange={(e) => e.target.files && addFilesToQueue(e.target.files)}
           className="hidden"
-          onChange={(e) => e.target.files && handleFiles(e.target.files)}
         />
-        <motion.div
-          animate={{ y: dragActive ? -4 : 0 }}
-          className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary"
-        >
-          <UploadCloud className="h-8 w-8" />
-        </motion.div>
-        <h3 className="font-display text-lg font-semibold">Drop files here or click to browse</h3>
-        <p className="mt-1 text-sm text-muted-foreground">Supports .xlsx, .csv, .pdf, .doc, .docx</p>
+
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-[#8FB6E8]/10 text-[#8FB6E8] flex items-center justify-center mb-4">
+          <TrayArrowUp size={32} weight="duotone" />
+        </div>
+
+        <h3 className={`text-lg sm:text-xl font-display font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>
+          Drag &amp; Drop Resumes Here
+        </h3>
+        <p className={`text-xs sm:text-sm mt-1.5 max-w-sm mx-auto ${isLight ? "text-slate-600" : "text-[#7C91B4]"}`}>
+          Supports PDF, DOCX, TXT. Ingest single files or batch cohorts up to 50 resumes at once.
+        </p>
+
+        <div className="mt-6 flex items-center justify-center gap-2">
+          <span className="text-xs font-mono px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[#8FB6E8]">
+            Click to Browse Files
+          </span>
+        </div>
       </div>
 
-      {/* File list */}
-      <AnimatePresence>
-        {files.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mt-6 space-y-2"
-          >
-            {files.map((file, i) => (
-              <motion.div
-                key={`${file.name}-${i}`}
-                layout
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="glass flex items-center gap-4 rounded-xl p-4"
+      {/* Ingestion Queue Table */}
+      {queue.length > 0 && (
+        <div
+          className={`p-6 sm:p-8 rounded-3xl border shadow-xl space-y-6 ${
+            isLight ? "bg-white border-slate-200" : "bg-[#0D1633] border-white/15"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h3 className={`text-base sm:text-lg font-display font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                Ingestion Queue ({queue.length})
+              </h3>
+              {completedCount !== null && (
+                <span className="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+                  {completedCount} Ingested
+                </span>
+              )}
+            </div>
+
+            <button
+              onClick={clearQueue}
+              className="text-xs font-mono text-[#7C91B4] hover:text-rose-400 transition-colors"
+            >
+              Clear Queue
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {queue.map((item) => (
+              <div
+                key={item.id}
+                className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                  isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/10"
+                }`}
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-                  {file.name.endsWith('.xlsx') || file.name.endsWith('.csv') ? (
-                    <FileSpreadsheet className="h-5 w-5 text-success" />
-                  ) : (
-                    <FileText className="h-5 w-5 text-chart-4" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="truncate text-sm font-medium">{file.name}</span>
-                    <span className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</span>
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-[#8FB6E8]/10 text-[#8FB6E8] flex items-center justify-center shrink-0">
+                    <FilePdf size={22} weight="duotone" />
                   </div>
-                  {/* Progress bar */}
-                  {file.status === 'processing' || file.status === 'done' || file.status === 'error' ? (
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                      <motion.div
-                        animate={{ width: `${file.progress}%` }}
-                        className={cn(
-                          'h-full rounded-full',
-                          file.status === 'error' ? 'bg-destructive' : file.status === 'done' ? 'bg-success' : 'bg-primary',
-                        )}
+
+                  <div className="min-w-0">
+                    <h4 className={`text-sm font-semibold truncate ${isLight ? "text-slate-900" : "text-white"}`}>
+                      {item.name}
+                    </h4>
+                    <span className="text-xs font-mono text-[#7C91B4]">
+                      {(item.size / 1024).toFixed(1)} KB
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 shrink-0">
+                  {/* Progress Bar if processing */}
+                  {item.status === "processing" && (
+                    <div className="w-28 sm:w-36 h-2 rounded-full bg-white/10 overflow-hidden">
+                      <div
+                        className="h-full bg-[#8FB6E8] rounded-full transition-all duration-300"
+                        style={{ width: `${item.progress}%` }}
                       />
                     </div>
-                  ) : null}
-                </div>
-                {/* Status icon */}
-                <div className="shrink-0">
-                  {file.status === 'processing' && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
-                  {file.status === 'done' && <CheckCircle2 className="h-5 w-5 text-success" />}
-                  {file.status === 'error' && <AlertCircle className="h-5 w-5 text-destructive" />}
-                  {file.status === 'pending' && !uploading && (
-                    <button onClick={(e) => { e.stopPropagation(); removeFile(i); }} className="text-muted-foreground hover:text-foreground">
-                      <X className="h-5 w-5" />
+                  )}
+
+                  {/* Status Badges */}
+                  {item.status === "completed" && (
+                    <span className="inline-flex items-center gap-1 text-xs font-mono text-emerald-400 bg-emerald-500/15 px-2.5 py-1 rounded-full">
+                      <CheckCircle size={14} weight="fill" /> Ingested
+                    </span>
+                  )}
+                  {item.status === "processing" && (
+                    <span className="inline-flex items-center gap-1 text-xs font-mono text-[#8FB6E8] bg-[#8FB6E8]/15 px-2.5 py-1 rounded-full animate-pulse">
+                      <ArrowsClockwise size={14} className="animate-spin" /> Ingesting...
+                    </span>
+                  )}
+                  {item.status === "pending" && (
+                    <span className="inline-flex items-center gap-1 text-xs font-mono text-[#7C91B4] bg-white/5 px-2.5 py-1 rounded-full">
+                      <Clock size={14} /> Ready
+                    </span>
+                  )}
+
+                  {!isIngesting && (
+                    <button
+                      onClick={() => removeFile(item.id)}
+                      className="p-1.5 rounded-lg text-[#7C91B4] hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                    >
+                      <Trash size={16} />
                     </button>
                   )}
                 </div>
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
 
-      {/* Upload button */}
-      {files.length > 0 && (
-        <div className="mt-6 flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">{files.length} files ready</span>
-          <GlowButton onClick={handleUpload} disabled={uploading || !roleId}>
-            {uploading ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
-            ) : (
-              <>Start upload <ArrowRight className="ml-2 h-4 w-4" /></>
-            )}
-          </GlowButton>
+          {/* Action Bar */}
+          <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-xs font-mono text-[#7C91B4]">
+              Ready to process {queue.length} resume(s) for selected requisition.
+            </div>
+
+            <div className="flex items-center gap-3">
+              {completedCount !== null && (
+                <GlassButton variant="secondary" href="/dashboard/candidates">
+                  <UsersThree size={16} />
+                  View in Candidate Pool
+                </GlassButton>
+              )}
+
+              <GlassButton
+                variant="primary"
+                onClick={handleStartIngestion}
+                disabled={isIngesting}
+                withArrow
+              >
+                {isIngesting ? "Ingesting Cohort..." : "Execute Ingestion"}
+              </GlassButton>
+            </div>
+          </div>
         </div>
       )}
-
-      {/* Result */}
-      <AnimatePresence>
-        {result && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-6 glass-strong rounded-2xl p-6 text-center"
-          >
-            <CheckCircle2 className="mx-auto mb-3 h-12 w-12 text-success" />
-            <h3 className="font-display text-lg font-semibold">Upload Complete</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {result.uploaded} candidates processed successfully
-              {result.failed > 0 && `, ${result.failed} failed`}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
+

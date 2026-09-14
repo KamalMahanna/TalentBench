@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id          String       @id @default(cuid())
+  name        String
+  email       String       @unique
+  password    String
+  company     String?
+  jobProfiles JobProfile[]
+  createdAt   DateTime     @default(now())
+}
+
+model JobProfile {
+  id            String          @id @default(cuid())
+  title         String
+  description   String
+  minExperience Int
+  maxExperience Int
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pipeline      PipelineRound[]
+  candidates    Candidate[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model PipelineRound {
+  id           String        @id @default(cuid())
+  type         String        // "RESUME_SCREENING", "APTITUDE", "DSA", "COMMUNICATION", "HR_ROUND", "TECHNICAL", "CULTURE_FIT", "CUSTOM"
+  title        String
+  description  String?
+  order        Int
+  config       String?       // JSON string for round configuration (thresholds, criteria, prompt rules)
+  jobProfileId String
+  jobProfile   JobProfile    @relation(fields: [jobProfileId], references: [id], onDelete: Cascade)
+  results      RoundResult[]
+}
+
+model Candidate {
+  id                String        @id @default(cuid())
+  name              String
+  email             String
+  phone             String?
+  experienceYears   Int           @default(0)
+  resumeText        String?
+  skills            String?       // Comma separated or JSON string
+  jobProfileId      String
+  jobProfile        JobProfile    @relation(fields: [jobProfileId], references: [id], onDelete: Cascade)
+  status            String        @default("PENDING") // "PENDING", "IN_REVIEW", "SHORTLISTED", "REJECTED", "HIRED"
+  currentRound      Int           @default(0)
+  personalizedReply String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  roundResults      RoundResult[]
+}
+
+model RoundResult {
+  id              String        @id @default(cuid())
+  candidateId     String
+  candidate       Candidate     @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  pipelineRoundId String
+  pipelineRound   PipelineRound @relation(fields: [pipelineRoundId], references: [id], onDelete: Cascade)
+  score           Float?
+  passed          Boolean?
+  agentTrace      String?       // Stored JSON trace of agent reasoning & steps
+  feedback        String?
+  createdAt       DateTime      @default(now())
+}
+
