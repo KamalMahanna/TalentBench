@@ -17,7 +17,6 @@ import {
   TrayArrowUp,
 } from "@phosphor-icons/react";
 import { ConnectorNodeModal, ConnectorStageConfig } from "./connector-node-modal";
-import { GlassButton } from "@/components/ui/glass-button";
 
 export interface PipelineStageItem {
   id?: string;
@@ -193,20 +192,9 @@ export function PipelineCanvas({
               Connector Pipeline Stages ({stages.length})
             </h2>
             <p className="text-xs text-[#7C91B4] mt-0.5">
-              Modular sequential stages. First stage processes candidate resumes; subsequent rounds advance qualified cohorts.
+              configure rounds
             </p>
           </div>
-
-          {isEditable && (
-            <GlassButton
-              type="button"
-              size="sm"
-              variant="primary"
-              onClick={handleOpenCreateModal}
-            >
-              <Plus size={14} className="mr-1.5" /> Add Next Stage
-            </GlassButton>
-          )}
         </div>
 
         {/* Connected Stages Sequence */}
