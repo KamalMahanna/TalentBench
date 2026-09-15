@@ -19,9 +19,13 @@ import {
   Brain,
   Code,
   ChatTeardropDots,
+  TrayArrowUp,
+  Sparkle,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { PipelineCanvas, PipelineStageItem } from "@/components/pipeline/pipeline-canvas";
+import { ResumeScreeningConsole } from "@/components/pipeline/resume-screening-console";
 
 interface PipelineRound {
   id: string;
@@ -29,6 +33,7 @@ interface PipelineRound {
   title: string;
   description: string | null;
   order: number;
+  config: string | null;
 }
 
 interface RoundResult {
@@ -52,6 +57,8 @@ interface Candidate {
   status: string;
   currentRound: number;
   personalizedReply: string | null;
+  isOverridden?: boolean;
+  overrideReason?: string | null;
   roundResults: RoundResult[];
 }
 
@@ -74,7 +81,7 @@ export default function JobWorkspacePage({
 
   const [job, setJob] = useState<JobDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"pipeline" | "candidates">("pipeline");
+  const [activeTab, setActiveTab] = useState<"pipeline" | "screening" | "candidates">("pipeline");
 
   // Pipeline builder modal state
   const [showAddRoundModal, setShowAddRoundModal] = useState(false);
@@ -113,6 +120,63 @@ export default function JobWorkspacePage({
   useEffect(() => {
     fetchJob();
   }, [id]);
+
+  const handleSyncPipeline = async (newStages: PipelineStageItem[]) => {
+    if (!job) return;
+
+    // Check for deleted stages
+    const newStageIds = new Set(newStages.map((s) => s.id).filter(Boolean));
+    const deletedStages = job.pipeline.filter((p) => !newStageIds.has(p.id));
+
+    for (const d of deletedStages) {
+      try {
+        await fetch(`/api/jobs/${id}/pipeline?roundId=${d.id}`, { method: "DELETE" });
+      } catch (e) {}
+    }
+
+    // For new stages without ID
+    for (const s of newStages) {
+      if (!s.id) {
+        try {
+          await fetch(`/api/jobs/${id}/pipeline`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: s.type,
+              title: s.title,
+              description: s.description || null,
+              config: s.config || null,
+            }),
+          });
+        } catch (e) {}
+      }
+    }
+
+    // For existing stages: update order and config
+    const existingToUpdate = newStages
+      .filter((s) => Boolean(s.id))
+      .map((s, idx) => ({
+        id: s.id!,
+        order: idx,
+        title: s.title,
+        type: s.type,
+        description: s.description || null,
+        config: s.config || null,
+      }));
+
+    if (existingToUpdate.length > 0) {
+      try {
+        await fetch(`/api/jobs/${id}/pipeline`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rounds: existingToUpdate }),
+        });
+      } catch (e) {}
+    }
+
+    toast.success("Pipeline configuration updated.");
+    await fetchJob();
+  };
 
   const getRoundIcon = (type: string) => {
     switch (type) {
@@ -345,7 +409,17 @@ export default function JobWorkspacePage({
                 : "text-[#7C91B4] hover:text-[#EAF1FB]"
             }`}
           >
-            Pipeline Builder ({job.pipeline.length})
+            Pipeline Stages ({job.pipeline.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("screening")}
+            className={`px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+              activeTab === "screening"
+                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.2)] font-semibold"
+                : "text-[#7C91B4] hover:text-[#EAF1FB]"
+            }`}
+          >
+            <TrayArrowUp size={14} /> Resume Screening ({job.candidates.length})
           </button>
           <button
             onClick={() => setActiveTab("candidates")}
@@ -355,7 +429,7 @@ export default function JobWorkspacePage({
                 : "text-[#7C91B4] hover:text-[#EAF1FB]"
             }`}
           >
-            Candidates &amp; AI Traces ({job.candidates.length})
+            AI Traces ({job.candidates.length})
           </button>
         </div>
       </div>
@@ -363,99 +437,55 @@ export default function JobWorkspacePage({
       {/* TAB 1: VISUAL CONNECTOR PIPELINE BUILDER */}
       {activeTab === "pipeline" && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-[#0D1633] border border-[#8FB6E8]/15 shadow-lg">
-            <div>
-              <h2 className="text-base font-display font-semibold text-white">
-                Modular Connector Architecture
-              </h2>
-              <p className="text-xs text-[#7C91B4] mt-0.5">
-                Add Aptitude, DSA, Communication, or HR rounds as many times as you like. Reorder stages or remove them freely.
-              </p>
-            </div>
-            <GlassButton
-              size="sm"
-              variant="primary"
-              onClick={() => {
-                setNewRoundTitle("Coding & System Design DSA");
-                setShowAddRoundModal(true);
-              }}
-            >
-              + Add Connector Stage
-            </GlassButton>
-          </div>
-
-          {/* Connected Pipeline Nodes Visualization */}
-          <div className="space-y-4">
-            {job.pipeline.map((round, idx) => {
-              const Icon = getRoundIcon(round.type);
-              const isLast = idx === job.pipeline.length - 1;
-
-              return (
-                <div key={round.id} className="relative">
-                  {/* Connector Node Card */}
-                  <div className="rounded-2xl p-5 bg-[#0D1633] border border-[#8FB6E8]/20 hover:border-[#8FB6E8]/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
-                    <div className="flex items-center gap-4">
-                      {/* Step Indicator */}
-                      <div className="w-9 h-9 rounded-xl bg-[#8FB6E8]/10 border border-[#8FB6E8]/30 text-[#8FB6E8] flex items-center justify-center font-mono text-xs font-bold shrink-0">
-                        0{idx + 1}
-                      </div>
-
-                      <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-[#EAF1FB] shrink-0">
-                        <Icon size={20} weight="duotone" />
-                      </div>
-
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-semibold text-white">{round.title}</h3>
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-[#8FB6E8]/10 border border-[#8FB6E8]/25 text-[#8FB6E8] uppercase">
-                            {round.type}
-                          </span>
-                        </div>
-                        <p className="text-xs text-[#7C91B4] mt-0.5">
-                          {round.description || "Active evaluation gate in recruitment pipeline."}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Stage Controls: Move Up, Move Down, Delete */}
-                    <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
-                      <button
-                        onClick={() => moveRound(idx, "up")}
-                        disabled={idx === 0}
-                        className="p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-[#7C91B4] hover:text-white disabled:opacity-30 transition-colors"
-                        title="Move Round Earlier"
-                      >
-                        <ArrowUp size={14} />
-                      </button>
-                      <button
-                        onClick={() => moveRound(idx, "down")}
-                        disabled={isLast}
-                        className="p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-[#7C91B4] hover:text-white disabled:opacity-30 transition-colors"
-                        title="Move Round Later"
-                      >
-                        <ArrowDown size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteRound(round.id)}
-                        className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 transition-colors ml-1"
-                        title="Remove Stage"
-                      >
-                        <Trash size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Visual SVG Connector Cable between stages */}
-                  {!isLast && (
-                    <div className="h-6 flex items-center justify-center my-1">
-                      <div className="w-0.5 h-full bg-gradient-to-b from-[#8FB6E8]/40 via-[#60A5FA]/40 to-[#8FB6E8]/40" />
-                    </div>
-                  )}
-                </div>
-              );
+          <PipelineCanvas
+            stages={job.pipeline.map((p) => {
+              let cutoff = 50;
+              if (p.config) {
+                try {
+                  const parsed = JSON.parse(p.config);
+                  if (parsed.cutoff) cutoff = Number(parsed.cutoff);
+                } catch (e) {}
+              }
+              return {
+                id: p.id,
+                type: p.type,
+                title: p.title,
+                description: p.description,
+                order: p.order,
+                cutoff,
+                config: p.config,
+              };
             })}
-          </div>
+            onChange={handleSyncPipeline}
+            onExecuteStage={(stage) => {
+              setActiveTab("screening");
+            }}
+            isEditable={true}
+          />
         </div>
+      )}
+
+      {/* TAB 2: RESUME SCREENING STAGE EXECUTION CONSOLE */}
+      {activeTab === "screening" && (
+        <ResumeScreeningConsole
+          jobId={job.id}
+          jobTitle={job.title}
+          jobDescription={job.description}
+          cutoff={
+            (() => {
+              const resumeRound =
+                job.pipeline.find((r) => r.type === "RESUME_SCREENING") || job.pipeline[0];
+              if (resumeRound?.config) {
+                try {
+                  return JSON.parse(resumeRound.config).cutoff || 50;
+                } catch (e) {}
+              }
+              return 50;
+            })()
+          }
+          candidates={job.candidates}
+          onRefresh={fetchJob}
+        />
       )}
 
       {/* TAB 2: CANDIDATES & AI AGENT TRACE VERIFICATION */}

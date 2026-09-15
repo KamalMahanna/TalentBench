@@ -56,6 +56,8 @@ model Candidate {
   status            String        @default("PENDING") // "PENDING", "IN_REVIEW", "SHORTLISTED", "REJECTED", "HIRED"
   currentRound      Int           @default(0)
   personalizedReply String?
+  isOverridden      Boolean       @default(false)
+  overrideReason    String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   roundResults      RoundResult[]

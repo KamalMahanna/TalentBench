@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Trash } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { PipelineCanvas, PipelineStageItem } from "@/components/pipeline/pipeline-canvas";
 
 export default function NewJobProfilePage() {
   const router = useRouter();
@@ -15,27 +16,22 @@ export default function NewJobProfilePage() {
   const [maxExperience, setMaxExperience] = useState<number>(7);
   const [loading, setLoading] = useState(false);
 
-  // Default modular connector rounds
-  const [rounds, setRounds] = useState([
-    { type: "RESUME_SCREENING", title: "Autonomous AI Resume Screening" },
-    { type: "APTITUDE", title: "Cognitive Logic & Problem Solving" },
-    { type: "DSA", title: "Live DSA & System Algorithms" },
-    { type: "COMMUNICATION", title: "Technical Communication & Architecture" },
-    { type: "HR_ROUND", title: "Executive HR & Cultural Alignment" },
+  // Modular connector stages (starts with resume screening with cutoff 50, but can be customized or deleted to see the empty centered + canvas)
+  const [stages, setStages] = useState<PipelineStageItem[]>([
+    {
+      type: "RESUME_SCREENING",
+      title: "Autonomous AI Resume Screening",
+      description: "Screen applicant resumes against Job Description (>= 50% match rule) and benchmark top talent.",
+      cutoff: 50,
+      order: 0,
+      config: JSON.stringify({
+        cutoff: 50,
+        inputType: "BULK_RESUME_OR_EXCEL",
+        inputSpecText: "Bulk Resume Upload (PDF / DOCX / TXT) or Excel Sheet with column like 'resume_texts'.",
+        outputSpecText: "Shortlisted candidates pool, automated rejection email bodies detailing missing skills, and Comparative Benchmark ranking.",
+      }),
+    },
   ]);
-
-  const addRound = (type: string, defaultTitle: string) => {
-    setRounds([...rounds, { type, title: defaultTitle }]);
-    toast.success(`Added ${defaultTitle} to pipeline`);
-  };
-
-  const removeRound = (index: number) => {
-    if (rounds.length <= 1) {
-      toast.error("Pipeline must have at least one round.");
-      return;
-    }
-    setRounds(rounds.filter((_, i) => i !== index));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,8 +62,11 @@ export default function NewJobProfilePage() {
           description: description.trim(),
           minExperience: Number(minExperience),
           maxExperience: Number(maxExperience),
-          initialRounds: rounds.map((r, i) => ({
-            ...r,
+          initialRounds: stages.map((s, i) => ({
+            type: s.type,
+            title: s.title,
+            description: s.description || null,
+            config: s.config || null,
             order: i,
           })),
         }),
@@ -185,83 +184,11 @@ export default function NewJobProfilePage() {
         </div>
 
         {/* Card 2: Initial Pipeline Connector Configuration */}
-        <div className="rounded-3xl p-1.5 bg-white/[0.04] ring-1 ring-[#8FB6E8]/20 backdrop-blur-2xl shadow-xl">
-          <div className="rounded-[calc(1.5rem-4px)] bg-[#0D1633] p-6 sm:p-8 border border-white/10 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h2 className="text-lg font-display font-semibold text-white flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#60A5FA]" />
-                  Connector Pipeline Stages
-                </h2>
-                <p className="text-xs text-[#7C91B4] mt-0.5">
-                  HR can add aptitude, DSA, communication, or HR rounds as many times as desired.
-                </p>
-              </div>
-
-              {/* Quick Add Buttons */}
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => addRound("DSA", "Additional Technical DSA Round")}
-                  className="px-2.5 py-1 rounded-lg bg-[#60A5FA]/10 hover:bg-[#60A5FA]/20 text-[#60A5FA] text-xs font-mono border border-[#60A5FA]/30 transition-colors flex items-center gap-1"
-                >
-                  <Plus size={12} /> + DSA Round
-                </button>
-                <button
-                  type="button"
-                  onClick={() => addRound("APTITUDE", "Additional Aptitude Round")}
-                  className="px-2.5 py-1 rounded-lg bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 text-xs font-mono border border-amber-400/30 transition-colors flex items-center gap-1"
-                >
-                  <Plus size={12} /> + Aptitude Round
-                </button>
-                <button
-                  type="button"
-                  onClick={() => addRound("COMMUNICATION", "Leadership Communication Round")}
-                  className="px-2.5 py-1 rounded-lg bg-[#A78BFA]/10 hover:bg-[#A78BFA]/20 text-[#A78BFA] text-xs font-mono border border-[#A78BFA]/30 transition-colors flex items-center gap-1"
-                >
-                  <Plus size={12} /> + Comm Round
-                </button>
-              </div>
-            </div>
-
-            {/* Current Stages List */}
-            <div className="space-y-3">
-              {rounds.map((round, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-3.5 rounded-xl bg-[#060B18]/50 border border-white/5"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-full bg-white/5 font-mono text-[10px] text-[#8FB6E8] flex items-center justify-center">
-                      0{idx + 1}
-                    </span>
-                    <input
-                      type="text"
-                      value={round.title}
-                      onChange={(e) => {
-                        const next = [...rounds];
-                        next[idx].title = e.target.value;
-                        setRounds(next);
-                      }}
-                      className="bg-transparent text-xs sm:text-sm font-medium text-white focus:outline-none border-b border-transparent focus:border-[#8FB6E8]/50 px-1 py-0.5"
-                    />
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#8FB6E8]/10 text-[#8FB6E8] border border-[#8FB6E8]/20 uppercase">
-                      {round.type}
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => removeRound(idx)}
-                    className="p-1.5 text-[#7C91B4] hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
-                  >
-                    <Trash size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <PipelineCanvas
+          stages={stages}
+          onChange={setStages}
+          isEditable={true}
+        />
 
         {/* Submit */}
         <div className="flex justify-end gap-4 pt-2">

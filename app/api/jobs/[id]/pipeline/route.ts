@@ -73,12 +73,15 @@ export async function PUT(
     }
 
     // Reorder/update rounds in transaction
-    const updatePromises = rounds.map((r: { id: string; order: number; title?: string }, index: number) =>
+    const updatePromises = rounds.map((r: { id: string; order: number; title?: string; type?: string; description?: string; config?: string }, index: number) =>
       prisma.pipelineRound.update({
         where: { id: r.id },
         data: {
           order: typeof r.order === "number" ? r.order : index,
           ...(r.title ? { title: r.title } : {}),
+          ...(r.type ? { type: r.type } : {}),
+          ...(r.description !== undefined ? { description: r.description } : {}),
+          ...(r.config !== undefined ? { config: r.config } : {}),
         },
       })
     );
