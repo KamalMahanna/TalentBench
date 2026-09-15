@@ -73,8 +73,8 @@ export async function POST(req: Request) {
         : [
             {
               type: "RESUME_SCREENING",
-              title: "Autonomous AI Resume Screening",
-              description: "AI agent scans candidates against description and experience.",
+              title: "RESUME SCREENING",
+              description: "",
               order: 0,
             },
             {

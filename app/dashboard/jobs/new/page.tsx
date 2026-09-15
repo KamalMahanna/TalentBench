@@ -20,8 +20,8 @@ export default function NewJobProfilePage() {
   const [stages, setStages] = useState<PipelineStageItem[]>([
     {
       type: "RESUME_SCREENING",
-      title: "Autonomous AI Resume Screening",
-      description: "Screen applicant resumes against Job Description (>= 50% match rule) and benchmark top talent.",
+      title: "RESUME SCREENING",
+      description: "",
       cutoff: 50,
       order: 0,
       config: JSON.stringify({

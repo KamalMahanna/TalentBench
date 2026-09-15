@@ -241,19 +241,20 @@ export function PipelineCanvas({
                     {/* Details */}
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-sm font-semibold text-white truncate">
-                          {stage.title}
+                        <h3 className="text-sm font-semibold text-white tracking-wide truncate">
+                          {stage.type === "RESUME_SCREENING" ? "RESUME SCREENING" : stage.title}
                         </h3>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#60A5FA]/10 border border-[#60A5FA]/25 text-[#60A5FA] uppercase">
-                          {stage.type.replace("_", " ")}
-                        </span>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
-                          Cutoff: {cutoffVal} candidates
-                        </span>
+                        {stage.type !== "RESUME_SCREENING" && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#60A5FA]/10 border border-[#60A5FA]/25 text-[#60A5FA] uppercase">
+                            {stage.type.replace("_", " ")}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-xs text-[#7C91B4] mt-1 line-clamp-1">
-                        {stage.description || "Active evaluation gate in recruitment pipeline."}
-                      </p>
+                      {stage.type !== "RESUME_SCREENING" && stage.description && (
+                        <p className="text-xs text-[#7C91B4] mt-1 line-clamp-1">
+                          {stage.description}
+                        </p>
+                      )}
                     </div>
                   </div>
 
