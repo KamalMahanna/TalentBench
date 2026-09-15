@@ -14,6 +14,7 @@ import {
   Info,
 } from "@phosphor-icons/react";
 import { GlassButton } from "@/components/ui/glass-button";
+import { useLenis } from "@/lib/animations/lenis-provider";
 
 export interface ConnectorStageConfig {
   type: string;
@@ -159,10 +160,14 @@ export function ConnectorNodeModal({
     }
   }, [initialStage, isOpen]);
 
-  // Lock body scroll and listen for Escape key
+  const { lenis } = useLenis();
+
+  // Lock body scroll, pause Lenis smooth scroll, and listen for Escape key
   useEffect(() => {
     if (!isOpen) return;
 
+    // Pause global Lenis scroll so modal wheel events are not swallowed
+    lenis?.stop();
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
@@ -176,8 +181,9 @@ export function ConnectorNodeModal({
     return () => {
       document.body.style.overflow = originalOverflow;
       window.removeEventListener("keydown", handleKeyDown);
+      lenis?.start();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, lenis]);
 
   const handleSelectRoundType = (type: string) => {
     const info = ROUND_TYPES.find((r) => r.type === type);
@@ -208,7 +214,8 @@ export function ConnectorNodeModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto"
+      data-lenis-prevent
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
@@ -218,10 +225,11 @@ export function ConnectorNodeModal({
       aria-modal="true"
     >
       <div
-        className="w-full max-w-2xl my-auto rounded-3xl p-1 bg-white/[0.04] ring-1 ring-[#8FB6E8]/30 shadow-2xl flex flex-col max-h-[88vh]"
+        data-lenis-prevent
+        className="w-full max-w-2xl rounded-3xl p-1 bg-white/[0.04] ring-1 ring-[#8FB6E8]/30 shadow-2xl flex flex-col max-h-[85vh] min-h-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="rounded-[calc(1.5rem-2px)] bg-[#070D1E] border border-white/10 flex flex-col overflow-hidden max-h-[calc(88vh-8px)]">
+        <div className="rounded-[calc(1.5rem-2px)] bg-[#070D1E] border border-white/10 flex flex-col overflow-hidden max-h-[calc(85vh-8px)] flex-1 min-h-0">
           {/* Fixed Header */}
           <div className="flex items-center justify-between p-6 sm:p-7 pb-4 border-b border-white/10 shrink-0 bg-[#070D1E]">
             <div>
@@ -246,9 +254,12 @@ export function ConnectorNodeModal({
           </div>
 
           {/* Form with Scrollable Body and Fixed Footer */}
-          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             {/* Scrollable Body */}
-            <div className="p-6 sm:p-7 overflow-y-auto space-y-6 flex-1 pr-4 overscroll-contain">
+            <div
+              data-lenis-prevent
+              className="p-6 sm:p-7 overflow-y-auto space-y-6 flex-1 min-h-0 overscroll-contain touch-pan-y [scrollbar-width:thin] [scrollbar-color:#3B82F6_transparent]"
+            >
               {/* 1. Select Round Type Grid */}
               <div>
                 <label className="block text-xs font-mono text-[#8FB6E8] uppercase tracking-wider mb-2.5">
