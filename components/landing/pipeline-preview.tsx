@@ -80,21 +80,63 @@ export function PipelinePreview() {
 
     const ctx = gsap.context(() => {
       const track = trackRef.current!;
-      const distance = track.scrollWidth - window.innerWidth + 120;
 
-      // Horizontal Conveyor Track
-      gsap.to(track, {
-        x: -distance,
-        ease: "none",
-        scrollTrigger: {
-          trigger: wrapRef.current,
-          start: "top top",
-          end: () => `+=${distance}`,
-          pin: true,
-          scrub: 1,
-          invalidateOnRefresh: true,
+      const getPositions = () => {
+        const cards = track.querySelectorAll<HTMLElement>(".pipeline-node-card");
+        if (cards.length === 0) {
+          const fallbackDist = track.scrollWidth - window.innerWidth + 120;
+          return { startX: 0, endX: -fallbackDist, distance: fallbackDist };
+        }
+
+        const firstCard = cards[0];
+        const lastCard = cards[cards.length - 1];
+
+        const currentX = (gsap.getProperty(track, "x") as number) || 0;
+        const trackRect = track.getBoundingClientRect();
+        const trackBaseLeft = trackRect.left - currentX;
+
+        const firstCardRect = firstCard.getBoundingClientRect();
+        const firstCardCenterRel = firstCardRect.left - trackRect.left + firstCardRect.width / 2;
+
+        const lastCardRect = lastCard.getBoundingClientRect();
+        const lastCardCenterRel = lastCardRect.left - trackRect.left + lastCardRect.width / 2;
+
+        const viewportCenter = window.innerWidth / 2;
+
+        // Position where "Resume Screening" (first card) is centered horizontally in the middle of the screen
+        const startX = viewportCenter - trackBaseLeft - firstCardCenterRel;
+
+        // Position where "Add Custom Connector" (last card) reaches the middle of the screen
+        const endX = viewportCenter - trackBaseLeft - lastCardCenterRel;
+
+        const distance = Math.max(100, Math.abs(startX - endX));
+
+        return { startX, endX, distance };
+      };
+
+      // Set initial position immediately so "Resume Screening" starts in the middle
+      const initialPositions = getPositions();
+      gsap.set(track, { x: initialPositions.startX });
+
+      // Horizontal Conveyor Track: start centered on Resume Screening, end centered on Add Custom Connector
+      gsap.fromTo(
+        track,
+        {
+          x: () => getPositions().startX,
         },
-      });
+        {
+          x: () => getPositions().endX,
+          ease: "none",
+          scrollTrigger: {
+            trigger: wrapRef.current,
+            start: "top top",
+            end: () => `+=${getPositions().distance}`,
+            pin: true,
+            scrub: 1,
+            invalidateOnRefresh: true,
+          },
+        }
+      );
     }, wrapRef);
 
     return () => ctx.revert();
@@ -155,7 +197,7 @@ export function PipelinePreview() {
           return (
             <div key={stage.id} className="flex items-center gap-8">
               {/* Connector Node Card */}
-              <div className="w-[320px] sm:w-[360px] rounded-3xl p-1.5 bg-white/[0.04] ring-1 ring-[#8FB6E8]/20 shadow-2xl backdrop-blur-2xl group hover:ring-[#8FB6E8]/50 transition-all duration-300">
+              <div className="pipeline-node-card w-[320px] sm:w-[360px] rounded-3xl p-1.5 bg-white/[0.04] ring-1 ring-[#8FB6E8]/20 shadow-2xl backdrop-blur-2xl group hover:ring-[#8FB6E8]/50 transition-all duration-300">
                 <div className={`rounded-[calc(1.5rem-4px)] p-6 border transition-colors duration-300 ${
                   isLight
                     ? "bg-white/80 border-slate-200 text-slate-900 shadow-md backdrop-blur-xl"
