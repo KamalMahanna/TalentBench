@@ -1,15 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { GlassButton } from "./glass-button";
 import { Sparkle, List, X, Sun, Moon } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTheme } from "@/context/theme-context";
+import { useLenis } from "@/lib/animations/lenis-provider";
 
 export function Navigation() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isAtTop, setIsAtTop] = useState(true);
+  const [isVisible, setIsVisible] = useState(true);
+  const lastScrollYRef = useRef(0);
+  const { lenis } = useLenis();
   const { theme, toggleTheme } = useTheme();
   const isLight = theme === "light";
 
@@ -20,15 +25,68 @@ export function Navigation() {
     { label: "Reviews", href: "#reviews" },
   ];
 
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY || window.pageYOffset || 0;
+      const lastScrollY = lastScrollYRef.current;
+      const delta = currentScrollY - lastScrollY;
+
+      // At the starting point / top of the page: integrated with the website
+      if (currentScrollY <= 40) {
+        setIsAtTop(true);
+        setIsVisible(true);
+      } else {
+        setIsAtTop(false);
+
+        // Auto pop up when scroll down, auto hide when scroll up
+        if (delta > 6) {
+          // Scrolling down -> auto pop up
+          setIsVisible(true);
+        } else if (delta < -6) {
+          // Scrolling up -> auto hide
+          setIsVisible(false);
+        }
+      }
+
+      lastScrollYRef.current = currentScrollY;
+    };
+
+    handleScroll();
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    if (lenis) {
+      lenis.on("scroll", handleScroll);
+    }
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (lenis) {
+        lenis.off("scroll", handleScroll);
+      }
+    };
+  }, [lenis]);
+
   return (
     <>
-      <header className="fixed top-0 inset-x-0 z-40 px-4 pt-5 pointer-events-none">
+      <header
+        className={`fixed top-0 inset-x-0 z-40 pointer-events-none transition-all duration-500 ease-out ${
+          isAtTop
+            ? "px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 translate-y-0 opacity-100"
+            : isVisible || mobileOpen
+            ? "px-4 pt-4 sm:pt-5 translate-y-0 opacity-100"
+            : "px-4 pt-4 sm:pt-5 -translate-y-28 opacity-0"
+        }`}
+      >
         <nav
-          className={`mx-auto max-w-4xl h-14 px-4 sm:px-6 rounded-full backdrop-blur-2xl flex items-center justify-between pointer-events-auto transition-all duration-300 ${
-            isLight
-              ? "bg-white/85 border border-white/70 shadow-[0_12px_36px_rgba(0,0,0,0.08),0_1px_0_0_rgba(255,255,255,0.9)_inset] text-slate-800"
-              : "bg-gradient-to-r from-white/[0.12] via-[#0B1226]/85 to-white/[0.08] border border-[#8FB6E8]/20 shadow-[0_16px_40px_-10px_rgba(4,8,20,0.85),0_1px_0_0_rgba(255,255,255,0.3)_inset] text-[#EAF1FB]"
-          }`}
+          className={`mx-auto flex items-center justify-between pointer-events-auto transition-all duration-500 ease-out ${
+            isAtTop
+              ? "max-w-7xl h-16 px-2 sm:px-4 rounded-2xl bg-transparent border border-transparent shadow-none"
+              : `max-w-4xl h-14 px-4 sm:px-6 rounded-full backdrop-blur-2xl ${
+                  isLight
+                    ? "bg-white/85 border border-white/70 shadow-[0_12px_36px_rgba(0,0,0,0.08),0_1px_0_0_rgba(255,255,255,0.9)_inset] text-slate-800"
+                    : "bg-gradient-to-r from-white/[0.12] via-[#0B1226]/85 to-white/[0.08] border border-[#8FB6E8]/20 shadow-[0_16px_40px_-10px_rgba(4,8,20,0.85),0_1px_0_0_rgba(255,255,255,0.3)_inset] text-[#EAF1FB]"
+                }`
+          } ${isLight ? "text-slate-800" : "text-[#EAF1FB]"}`}
         >
           {/* Brand Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
