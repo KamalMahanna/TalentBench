@@ -38,13 +38,13 @@ export function Navigation() {
       } else {
         setIsAtTop(false);
 
-        // Auto pop up when scroll down, auto hide when scroll up
+        // Hide when scrolling down, show/pop up when scrolling up
         if (delta > 6) {
-          // Scrolling down -> auto pop up
-          setIsVisible(true);
-        } else if (delta < -6) {
-          // Scrolling up -> auto hide
+          // Scrolling down -> hide navbar
           setIsVisible(false);
+        } else if (delta < -6) {
+          // Scrolling up -> pop up navbar
+          setIsVisible(true);
         }
       }
 
