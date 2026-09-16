@@ -335,9 +335,8 @@ export function ConnectorNodeModal({
 
               {selectedType === "RESUME_SCREENING" && (
                 <div>
-                  <label className="block text-xs font-mono text-[#7C91B4] uppercase mb-1.5 flex items-center justify-between">
-                    <span>Candidate Shortlist Cutoff</span>
-                    <span className="text-[10px] text-[#60A5FA]">Target to Advance</span>
+                  <label className="block text-xs font-mono text-[#7C91B4] uppercase mb-1.5">
+                    Candidate Shortlist Cutoff
                   </label>
                   <input
                     type="number"
