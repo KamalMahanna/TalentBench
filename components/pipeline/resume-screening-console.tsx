@@ -19,6 +19,11 @@ import {
   Warning,
   MagnifyingGlass,
   CheckFat,
+  Lightning,
+  EnvelopeSimple,
+  Terminal,
+  CaretDown,
+  CaretUp,
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { GlassButton } from "@/components/ui/glass-button";
@@ -61,6 +66,38 @@ interface QueuedCandidate {
   source: string;
 }
 
+interface LiveCandidateFeedItem {
+  candidateId: string;
+  name: string;
+  email: string;
+  status: "SHORTLISTED" | "REJECTED";
+  score: number;
+  matchPercentage: number;
+  matches: boolean;
+  matchedSkills: string[];
+  missingSkills: string[];
+  reasoning: string;
+  mailBody: string;
+  timestamp: string;
+}
+
+interface CurrentlyEvaluatingCandidate {
+  id: string;
+  name: string;
+  email: string;
+  index: number;
+  total: number;
+  resumeSnippet: string;
+}
+
+interface LiveScreeningStats {
+  total: number;
+  processed: number;
+  shortlisted: number;
+  rejected: number;
+  currentStep: string;
+}
+
 export function ResumeScreeningConsole({
   jobId,
   jobTitle,
@@ -86,6 +123,22 @@ export function ResumeScreeningConsole({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [overridingId, setOverridingId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Live Inspection & Transparency states
+  const [liveScreeningFeed, setLiveScreeningFeed] = useState<LiveCandidateFeedItem[]>([]);
+  const [currentEvaluatingCandidate, setCurrentEvaluatingCandidate] =
+    useState<CurrentlyEvaluatingCandidate | null>(null);
+  const [liveLogs, setLiveLogs] = useState<string[]>([]);
+  const [showLiveTerminal, setShowLiveTerminal] = useState(true);
+  const [liveScreeningStats, setLiveScreeningStats] = useState<LiveScreeningStats>({
+    total: 0,
+    processed: 0,
+    shortlisted: 0,
+    rejected: 0,
+    currentStep: "Idle",
+  });
+  const [expandedMailId, setExpandedMailId] = useState<string | null>(null);
+  const terminalBottomRef = useRef<HTMLDivElement>(null);
 
   // Drag-and-drop and parsing states
   const [isDraggingResumes, setIsDraggingResumes] = useState(false);
@@ -404,44 +457,188 @@ export function ResumeScreeningConsole({
     await runBatchScreening();
   };
 
-  // ── Auto-trigger AI Screening (50% Match + Comparative Matching) ───────
-  const runBatchScreening = async () => {
+  // ── Auto-scroll agent trace terminal ────────────────────────────────
+  const addLiveLog = (msg: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setLiveLogs((prev) => [...prev, `[${timestamp}] ${msg}`]);
+  };
+
+  useEffect(() => {
+    if (terminalBottomRef.current && showLiveTerminal) {
+      terminalBottomRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [liveLogs, showLiveTerminal]);
+
+  // ── Stream Real-Time AI Screening (50% Match + Comparative Matching) ──
+  const runBatchScreening = async (rescreenAll = false) => {
     setIsScreening(true);
-    toast.loading("AI Agent calibrating resumes against JD (50% match rule)...", {
-      id: "screening-toast",
+    setLiveScreeningFeed([]);
+    setCurrentEvaluatingCandidate(null);
+    setLiveLogs([]);
+    setLiveScreeningStats({
+      total: 0,
+      processed: 0,
+      shortlisted: 0,
+      rejected: 0,
+      currentStep: "Contacting AI Gateway & establishing live telemetry stream...",
     });
+
+    const startTime = Date.now();
+    addLiveLog(`Establishing live telemetry connection to AI Screening Gateway...`);
+    addLiveLog(`Job Requisition: "${jobTitle}" | Cutoff: ${cutoff} | 50% Match Rule: ACTIVE`);
 
     try {
       const res = await fetch(`/api/jobs/${jobId}/candidates/screen-batch`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "text/event-stream",
+        },
         body: JSON.stringify({
           cutoff,
-          rescreenAll: false,
+          rescreenAll,
+          stream: true,
         }),
       });
 
-      const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || "Batch screening encountered an error.", {
-          id: "screening-toast",
-        });
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.error || "Batch screening encountered an error.");
         setIsScreening(false);
         return;
       }
 
-      toast.success(
-        `Screening Complete: ${data.shortlistedCount} Shortlisted, ${data.rejectedCount} Not Shortlisted.${
-          data.comparativeApplied ? " (Comparative Tournament Applied)" : ""
-        }`,
-        { id: "screening-toast" }
-      );
+      const reader = res.body?.getReader();
+      if (!reader) {
+        toast.error("Stream reader not supported in current browser environment.");
+        setIsScreening(false);
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const blocks = buffer.split("\n\n");
+        buffer = blocks.pop() || "";
+
+        for (const block of blocks) {
+          if (!block.trim()) continue;
+          const match = block.match(/event:\s*([^\n]+)\ndata:\s*(.+)/s);
+          if (!match) continue;
+
+          const eventType = match[1].trim();
+          let data: any = {};
+          try {
+            data = JSON.parse(match[2].trim());
+          } catch (e) {
+            continue;
+          }
+
+          if (eventType === "init") {
+            setLiveScreeningStats({
+              total: data.total,
+              processed: 0,
+              shortlisted: 0,
+              rejected: 0,
+              currentStep: `Active Calibration: Screening ${data.total} candidate(s) against 50% match rule...`,
+            });
+            addLiveLog(`[INIT] Loaded ${data.total} candidates. Target cutoff: ${data.cutoff}.`);
+          } else if (eventType === "candidate_start") {
+            setCurrentEvaluatingCandidate({
+              id: data.candidateId,
+              name: data.name,
+              email: data.email,
+              index: data.index,
+              total: data.total,
+              resumeSnippet: data.resumeSnippet,
+            });
+            setLiveScreeningStats((prev) => ({
+              ...prev,
+              currentStep: `Analyzing Candidate ${data.index} of ${data.total}: ${data.name}...`,
+            }));
+            addLiveLog(
+              `[DEQUEUE] Processing #${data.index}/${data.total}: ${data.name} (${data.email})`
+            );
+          } else if (eventType === "candidate_evaluated") {
+            const isMatch = Boolean(data.matches);
+            const feedItem: LiveCandidateFeedItem = {
+              candidateId: data.candidateId,
+              name: data.name,
+              email: data.email,
+              status: data.preliminaryVerdict,
+              score: data.score,
+              matchPercentage: data.matchPercentage,
+              matches: isMatch,
+              matchedSkills: data.matchedSkills || [],
+              missingSkills: data.missingSkills || [],
+              reasoning: data.reasoning,
+              mailBody: data.mailBody,
+              timestamp: new Date().toLocaleTimeString(),
+            };
+
+            setLiveScreeningFeed((prev) => [feedItem, ...prev]);
+            setLiveScreeningStats((prev) => ({
+              ...prev,
+              processed: data.index,
+              shortlisted: prev.shortlisted + (isMatch ? 1 : 0),
+              rejected: prev.rejected + (isMatch ? 0 : 1),
+            }));
+
+            addLiveLog(
+              `[VERDICT] ${data.name} -> ${
+                isMatch ? "SHORTLISTED (YES)" : "NOT SHORTLISTED (NO)"
+              } | Score: ${data.matchPercentage}% | Matched: [${(data.matchedSkills || []).slice(0, 3).join(", ")}]`
+            );
+            addLiveLog(
+              `[MAIL_GEN] Generated personalized response mail for ${data.email} (${(data.mailBody || "").length} chars)`
+            );
+
+            // Trigger silent background refresh so bottom tabs update in real time
+            onRefresh().catch(() => {});
+          } else if (eventType === "tournament_start") {
+            setLiveScreeningStats((prev) => ({
+              ...prev,
+              currentStep: `Matching pool (${data.matchingCount}) exceeds cutoff of ${data.cutoff}. Running Comparative Tournament...`,
+            }));
+            addLiveLog(
+              `[TOURNAMENT] Qualified pool (${data.matchingCount}) > cutoff (${data.cutoff}). Launching comparative tournament ranking...`
+            );
+          } else if (eventType === "tournament_complete") {
+            addLiveLog(
+              `[TOURNAMENT_DONE] Comparative tournament completed. Top ${data.qualifiedCount} candidates advanced to Shortlisted.`
+            );
+          } else if (eventType === "complete") {
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            setLiveScreeningStats((prev) => ({
+              ...prev,
+              currentStep: `Completed in ${elapsed}s! ${data.shortlistedCount} Shortlisted, ${data.rejectedCount} Not Shortlisted.`,
+            }));
+            addLiveLog(
+              `[FINISHED] Evaluation complete in ${elapsed}s. Shortlisted: ${data.shortlistedCount}, Not Shortlisted: ${data.rejectedCount}.`
+            );
+            toast.success(
+              `Screening complete! ${data.shortlistedCount} Shortlisted, ${data.rejectedCount} Not Shortlisted.`
+            );
+          } else if (eventType === "error") {
+            addLiveLog(`[ERROR] Screening error: ${data.message}`);
+            toast.error(data.message || "Error during screening");
+          }
+        }
+      }
 
       await onRefresh();
-    } catch (err) {
-      toast.error("Error communicating with AI screening engine.", { id: "screening-toast" });
+    } catch (err: any) {
+      console.error("Screening stream error:", err);
+      toast.error("Connection error while streaming AI screening.");
+      addLiveLog(`[ERROR] Stream aborted: ${err.message}`);
     } finally {
       setIsScreening(false);
+      setCurrentEvaluatingCandidate(null);
     }
   };
 
@@ -770,18 +967,369 @@ export function ResumeScreeningConsole({
             </div>
           )}
 
-          {/* Screening Running Notice */}
-          {isScreening && (
-            <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center gap-3 text-xs text-[#8FB6E8]">
-              <Cpu size={20} className="animate-spin text-[#60A5FA]" />
-              <div>
-                <span className="font-semibold text-white">
-                  Autonomous AI Resume Calibration In Progress...
-                </span>
-                <p className="text-[11px] text-[#A6C5EE] mt-0.5">
-                  Evaluating each resume against the job description with the 50% match rule. If matching pool &gt; {cutoff}, Comparative Resume Matching tournament will automatically rank top candidates.
-                </p>
+          {/* ── LIVE AI SCREENING INTELLIGENCE & TRANSPARENCY CONSOLE ─────── */}
+          {(isScreening || liveScreeningFeed.length > 0) && (
+            <div className="rounded-2xl bg-[#04091A] border border-[#60A5FA]/30 overflow-hidden shadow-2xl space-y-0 animate-fadeIn">
+              {/* Header Bar */}
+              <div className="p-4 sm:p-5 bg-gradient-to-r from-[#0D1836] via-[#0A122A] to-[#0D1836] border-b border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2.5">
+                    {isScreening ? (
+                      <span className="flex h-3 w-3 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                      </span>
+                    ) : (
+                      <CheckCircle size={18} weight="fill" className="text-emerald-400" />
+                    )}
+                    <h3 className="text-sm sm:text-base font-display font-bold text-white tracking-wide flex items-center gap-2">
+                      Live AI Screening Transparency Console
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-mono border uppercase ${
+                          isScreening
+                            ? "bg-[#60A5FA]/15 text-[#60A5FA] border-[#60A5FA]/30"
+                            : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                        }`}
+                      >
+                        {isScreening ? "Real-Time Telemetry Active" : "Calibration Session Completed"}
+                      </span>
+                    </h3>
+                  </div>
+                  <p className="text-xs text-[#7C91B4] font-mono">
+                    {liveScreeningStats.currentStep}
+                  </p>
+                </div>
+
+                {/* Real-Time Metrics Badges */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-mono">
+                    <span className="text-[#7C91B4]">Processed: </span>
+                    <span className="text-white font-bold">
+                      {liveScreeningStats.processed}/{liveScreeningStats.total || liveScreeningFeed.length}
+                    </span>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-xs font-mono text-emerald-300">
+                    <span>Shortlisted: </span>
+                    <span className="font-bold">{liveScreeningStats.shortlisted}</span>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs font-mono text-rose-300">
+                    <span>Not Shortlisted: </span>
+                    <span className="font-bold">{liveScreeningStats.rejected}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowLiveTerminal(!showLiveTerminal)}
+                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[#7C91B4] hover:text-white transition-colors cursor-pointer text-xs flex items-center gap-1 font-mono"
+                    title="Toggle Agent Trace Terminal"
+                  >
+                    <Terminal size={14} />
+                    {showLiveTerminal ? "Hide Trace" : "Show Trace"}
+                  </button>
+                  {!isScreening && liveScreeningFeed.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setLiveScreeningFeed([])}
+                      className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[#7C91B4] hover:text-white transition-colors cursor-pointer text-xs font-mono"
+                    >
+                      Clear Stream
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Glowing Progress Bar */}
+              {isScreening && (
+                <div className="w-full bg-white/5 h-1.5 overflow-hidden relative">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#3B82F6] via-[#60A5FA] to-emerald-400 transition-all duration-300 shadow-[0_0_12px_rgba(96,165,250,0.8)]"
+                    style={{
+                      width: `${
+                        liveScreeningStats.total > 0
+                          ? Math.min(
+                              100,
+                              Math.round(
+                                (liveScreeningStats.processed / liveScreeningStats.total) * 100
+                              )
+                            )
+                          : 20
+                      }%`,
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* ── SPOTLIGHT: Currently Analyzing Candidate ── */}
+              {currentEvaluatingCandidate && (
+                <div className="p-4 sm:p-5 bg-gradient-to-br from-[#0B1530] to-[#070D1E] border-b border-white/10 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center animate-pulse">
+                        <Lightning size={16} weight="fill" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-white flex items-center gap-2">
+                          Currently Inspecting: {currentEvaluatingCandidate.name}
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/10 text-slate-300">
+                            Candidate #{currentEvaluatingCandidate.index} of {currentEvaluatingCandidate.total}
+                          </span>
+                        </div>
+                        <div className="text-[11px] font-mono text-[#8FB6E8]">
+                          {currentEvaluatingCandidate.email}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#7C91B4]">
+                      <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+                      Streaming Model Inference &amp; Skill Calibration...
+                    </div>
+                  </div>
+
+                  {/* Scanned Excerpt Preview */}
+                  {currentEvaluatingCandidate.resumeSnippet && (
+                    <div className="p-3 rounded-xl bg-[#02050E] border border-white/5 font-mono text-[11px] text-slate-400 relative overflow-hidden">
+                      <div className="text-[10px] uppercase text-[#7C91B4] mb-1 flex items-center gap-1">
+                        <FileText size={12} /> Live Ingestion Stream Excerpt:
+                      </div>
+                      <p className="line-clamp-2 italic text-slate-300">
+                        &ldquo;{currentEvaluatingCandidate.resumeSnippet}&rdquo;
+                      </p>
+                      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-transparent via-[#60A5FA] to-transparent animate-pulse opacity-60" />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── LIVE EVALUATION STREAM (Cards with Live Generated Mail) ── */}
+              <div className="p-4 sm:p-6 space-y-4 max-h-[540px] overflow-y-auto">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono uppercase text-[#7C91B4] flex items-center gap-1.5">
+                    <Sparkle size={14} className="text-[#60A5FA]" />
+                    Evaluated Candidates &amp; Generated Communications ({liveScreeningFeed.length})
+                  </span>
+                  {liveScreeningFeed.length > 0 && (
+                    <span className="text-[10px] font-mono text-slate-400">
+                      Sorted latest first
+                    </span>
+                  )}
+                </div>
+
+                {liveScreeningFeed.length === 0 && isScreening && (
+                  <div className="p-8 text-center text-[#7C91B4] text-xs font-mono space-y-2">
+                    <div className="w-8 h-8 mx-auto rounded-xl bg-white/5 flex items-center justify-center animate-spin text-[#60A5FA]">
+                      <ArrowsClockwise size={18} />
+                    </div>
+                    <div>Streaming first candidate resume against Job Description...</div>
+                  </div>
+                )}
+
+                {liveScreeningFeed.map((item) => {
+                  const isShortlisted = item.status === "SHORTLISTED";
+                  const isMailOpen = expandedMailId === item.candidateId;
+
+                  return (
+                    <div
+                      key={item.candidateId}
+                      className={`p-4 rounded-2xl border transition-all ${
+                        isShortlisted
+                          ? "bg-gradient-to-br from-[#061C14]/70 to-[#0A1228]/80 border-emerald-500/30"
+                          : "bg-gradient-to-br from-[#220B13]/70 to-[#0A1228]/80 border-rose-500/30"
+                      }`}
+                    >
+                      {/* Candidate Verdict Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-white/10">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold font-display text-white">
+                              {item.name}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold flex items-center gap-1 ${
+                                isShortlisted
+                                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                                  : "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                              }`}
+                            >
+                              {isShortlisted ? (
+                                <>
+                                  <CheckCircle size={12} weight="fill" /> SHORTLISTED (YES)
+                                </>
+                              ) : (
+                                <>
+                                  <XCircle size={12} weight="fill" /> NOT SHORTLISTED (NO)
+                                </>
+                              )}
+                            </span>
+                          </div>
+                          <div className="text-[11px] font-mono text-[#7C91B4]">
+                            {item.email} · Evaluated at {item.timestamp}
+                          </div>
+                        </div>
+
+                        {/* Match Score Badge */}
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold border ${
+                              isShortlisted
+                                ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                                : "bg-rose-500/15 text-rose-300 border-rose-500/30"
+                            }`}
+                          >
+                            Score: {item.score}% {item.matches ? "≥ 50% Rule" : "< 50% Rule"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Skills & AI Reasoning */}
+                      <div className="py-3 space-y-2 text-xs">
+                        {/* Matched Skills */}
+                        {item.matchedSkills.length > 0 && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-[11px] font-mono text-emerald-400 shrink-0 w-24">
+                              Matched Skills:
+                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {item.matchedSkills.map((s, idx) => (
+                                <span
+                                  key={idx}
+                                  className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-[10px] font-mono"
+                                >
+                                  ✓ {s}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Missing Skills */}
+                        {item.missingSkills.length > 0 && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-[11px] font-mono text-rose-400 shrink-0 w-24">
+                              Missing Skills:
+                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {item.missingSkills.map((s, idx) => (
+                                <span
+                                  key={idx}
+                                  className="px-2 py-0.5 rounded-md bg-rose-500/15 border border-rose-500/25 text-rose-300 text-[10px] font-mono"
+                                >
+                                  ✕ {s}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* AI Reasoning */}
+                        {item.reasoning && (
+                          <div className="p-2.5 rounded-xl bg-black/30 border border-white/5 text-[11px] text-slate-300 font-sans leading-relaxed">
+                            <span className="font-semibold text-white font-mono text-[10px] uppercase mr-1.5">
+                              AI Decision Reasoning:
+                            </span>
+                            {item.reasoning}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* ── LIVE GENERATED MAIL BOX ── */}
+                      {item.mailBody && (
+                        <div className="pt-2 border-t border-white/10">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedMailId(isMailOpen ? null : item.candidateId)
+                            }
+                            className="w-full flex items-center justify-between p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] text-xs font-mono text-[#8FB6E8] transition-colors cursor-pointer"
+                          >
+                            <span className="flex items-center gap-2">
+                              <EnvelopeSimple size={15} className="text-[#8FB6E8]" weight="duotone" />
+                              <span className="font-semibold text-white">
+                                {isShortlisted
+                                  ? "Generated Advancement / Scorecard Mail"
+                                  : "Generated Rejection & Project Recommendation Mail"}
+                              </span>
+                              <span className="text-[10px] text-[#7C91B4]">
+                                ({item.mailBody.length} chars)
+                              </span>
+                            </span>
+                            <span className="text-[11px] text-[#7C91B4] flex items-center gap-1">
+                              {isMailOpen ? (
+                                <>
+                                  Hide Mail <CaretUp size={12} />
+                                </>
+                              ) : (
+                                <>
+                                  Inspect Mail <CaretDown size={12} />
+                                </>
+                              )}
+                            </span>
+                          </button>
+
+                          {isMailOpen && (
+                            <div className="mt-2 p-3.5 rounded-xl bg-[#02050E] border border-[#60A5FA]/20 space-y-2 animate-fadeIn">
+                              <div className="flex items-center justify-between text-[11px] font-mono pb-2 border-b border-white/10">
+                                <div>
+                                  <span className="text-[#7C91B4]">Recipient: </span>
+                                  <span className="text-white">{item.email}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(item.mailBody);
+                                    toast.success("Generated email copied to clipboard!");
+                                  }}
+                                  className="px-2 py-0.5 rounded bg-[#60A5FA]/20 text-[#60A5FA] hover:bg-[#60A5FA]/30 transition-colors flex items-center gap-1 text-[10px] cursor-pointer"
+                                >
+                                  <Copy size={11} /> Copy Email
+                                </button>
+                              </div>
+
+                              <div className="text-[11px] font-sans text-slate-200 whitespace-pre-wrap leading-relaxed">
+                                {item.mailBody}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── AGENT TRACE TERMINAL STREAM ── */}
+              {showLiveTerminal && (
+                <div className="border-t border-white/10 bg-[#02040A] p-3 sm:p-4 font-mono text-[11px] space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] text-[#7C91B4] pb-1 border-b border-white/5">
+                    <span className="flex items-center gap-1.5">
+                      <Terminal size={12} className="text-emerald-400" />
+                      Live Gateway Decision Log &amp; Agent Trace
+                    </span>
+                    <span>{liveLogs.length} telemetry events</span>
+                  </div>
+
+                  <div className="max-h-36 overflow-y-auto space-y-1 pr-1 scrollbar-thin">
+                    {liveLogs.map((log, idx) => {
+                      let color = "text-slate-300";
+                      if (log.includes("[VERDICT]")) {
+                        color = log.includes("SHORTLISTED") ? "text-emerald-400" : "text-rose-400";
+                      } else if (log.includes("[DEQUEUE]")) {
+                        color = "text-[#60A5FA]";
+                      } else if (log.includes("[MAIL_GEN]")) {
+                        color = "text-amber-300";
+                      } else if (log.includes("[ERROR]")) {
+                        color = "text-red-400 font-bold";
+                      }
+
+                      return (
+                        <div key={idx} className={`${color} leading-snug break-all`}>
+                          {log}
+                        </div>
+                      );
+                    })}
+                    <div ref={terminalBottomRef} />
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -805,15 +1353,28 @@ export function ResumeScreeningConsole({
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
-              {/* Quick Re-screen Unscreened */}
+              {/* Quick Screen Pending */}
               {pendingCandidates.length > 0 && (
                 <button
                   type="button"
-                  onClick={runBatchScreening}
+                  onClick={() => runBatchScreening(false)}
                   disabled={isScreening}
-                  className="px-3 py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/30 text-amber-300 text-xs font-mono transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/30 text-amber-300 text-xs font-mono transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Cpu size={14} /> Screen {pendingCandidates.length} Pending
+                  <Lightning size={14} /> Screen {pendingCandidates.length} Pending
+                </button>
+              )}
+
+              {/* Quick Re-screen All */}
+              {candidates.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => runBatchScreening(true)}
+                  disabled={isScreening}
+                  className="px-3 py-1.5 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-blue-300 text-xs font-mono transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ArrowsClockwise size={14} className={isScreening ? "animate-spin" : ""} />
+                  Re-screen All ({candidates.length})
                 </button>
               )}
 
