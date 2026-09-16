@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   TrayArrowUp,
   FileText,
@@ -87,8 +87,31 @@ export function ResumeScreeningConsole({
   const [overridingId, setOverridingId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
+  // Drag-and-drop and parsing states
+  const [isDraggingResumes, setIsDraggingResumes] = useState(false);
+  const [isDraggingExcel, setIsDraggingExcel] = useState(false);
+  const [isParsingFiles, setIsParsingFiles] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
+
+  // Prevent default browser behavior (opening dropped files in tabs) across window
+  useEffect(() => {
+    const handleGlobalDragOver = (e: DragEvent) => {
+      e.preventDefault();
+    };
+    const handleGlobalDrop = (e: DragEvent) => {
+      e.preventDefault();
+    };
+
+    window.addEventListener("dragover", handleGlobalDragOver);
+    window.addEventListener("drop", handleGlobalDrop);
+
+    return () => {
+      window.removeEventListener("dragover", handleGlobalDragOver);
+      window.removeEventListener("drop", handleGlobalDrop);
+    };
+  }, []);
 
   // Filter candidates by status
   const shortlistedCandidates = candidates.filter((c) => c.status === "SHORTLISTED");
@@ -103,16 +126,35 @@ export function ResumeScreeningConsole({
     return c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q);
   });
 
-  // ── Handle Bulk File Upload ──────────────────────────────────────────
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  // ── Core In-Browser Resume File Processor ───────────────────────────
+  const processResumeFiles = async (files: FileList | File[]) => {
     if (!files || files.length === 0) return;
 
-    toast.info(`Parsing ${files.length} resume file(s)...`);
-    const newStaged: QueuedCandidate[] = [];
+    const fileArray = Array.from(files).filter((file) => {
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      return (
+        ["pdf", "docx", "doc", "txt", "md", "rtf"].includes(ext || "") ||
+        file.type.includes("pdf") ||
+        file.type.includes("word") ||
+        file.type.includes("text")
+      );
+    });
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    if (fileArray.length === 0) {
+      toast.error("No compatible resume files found (supported formats: PDF, DOCX, TXT, MD).");
+      return;
+    }
+
+    setIsParsingFiles(true);
+    toast.loading(`Parsing ${fileArray.length} resume(s) locally in browser...`, {
+      id: "bulk-resume-parse-toast",
+    });
+
+    const newStaged: QueuedCandidate[] = [];
+    let successCount = 0;
+
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i];
       try {
         const parsed = await parseResumeFileInBrowser(file);
         let email = parsed.emailResult.email;
@@ -130,21 +172,67 @@ export function ResumeScreeningConsole({
           resumeText: parsed.text,
           source: file.name,
         });
+        successCount++;
       } catch (err) {
-        console.error("Error parsing resume:", err);
+        console.error("Error parsing resume:", file.name, err);
       }
     }
 
     setStagedCandidates((prev) => [...prev, ...newStaged]);
-    toast.success(`Parsed and prepared ${newStaged.length} resume(s) for queue.`);
+    setIsParsingFiles(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
+
+    if (successCount > 0) {
+      toast.success(`Successfully parsed & staged ${successCount} resume(s)!`, {
+        id: "bulk-resume-parse-toast",
+      });
+    } else {
+      toast.error(`Could not extract readable text from the provided file(s).`, {
+        id: "bulk-resume-parse-toast",
+      });
+    }
   };
 
-  // ── Handle Excel / CSV Sheet Upload ──────────────────────────────────
-  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // ── Handle File Input Selection ─────────────────────────────────────
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      await processResumeFiles(e.target.files);
+    }
+  };
 
+  // ── Resume Drag & Drop Handlers ─────────────────────────────────────
+  const handleResumeDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingResumes(true);
+  };
+
+  const handleResumeDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
+    if (!isDraggingResumes) setIsDraggingResumes(true);
+  };
+
+  const handleResumeDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDraggingResumes(false);
+  };
+
+  const handleResumeDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingResumes(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await processResumeFiles(e.dataTransfer.files);
+    }
+  };
+
+  // ── Core Excel / CSV Processor ──────────────────────────────────────
+  const processExcelFile = async (file: File) => {
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array" });
@@ -180,6 +268,51 @@ export function ResumeScreeningConsole({
     }
 
     if (excelInputRef.current) excelInputRef.current.value = "";
+  };
+
+  // ── Handle Excel Input Selection ────────────────────────────────────
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await processExcelFile(file);
+    }
+  };
+
+  // ── Excel Drag & Drop Handlers ──────────────────────────────────────
+  const handleExcelDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingExcel(true);
+  };
+
+  const handleExcelDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
+    if (!isDraggingExcel) setIsDraggingExcel(true);
+  };
+
+  const handleExcelDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDraggingExcel(false);
+  };
+
+  const handleExcelDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingExcel(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const excelFile =
+        Array.from(files).find((f) => {
+          const ext = f.name.split(".").pop()?.toLowerCase();
+          return ["xlsx", "xls", "csv"].includes(ext || "");
+        }) || files[0];
+      await processExcelFile(excelFile);
+    }
   };
 
   const parseCandidatesFromExcel = (rows: any[], resumeCol: string) => {
@@ -434,44 +567,97 @@ export function ResumeScreeningConsole({
 
           {/* Input Upload Areas */}
           {inputMode === "bulk_resumes" ? (
-            <div className="p-6 rounded-2xl border-2 border-dashed border-[#60A5FA]/30 hover:border-[#60A5FA]/60 bg-[#0A1228]/50 transition-all text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-[#60A5FA]/10 text-[#60A5FA] flex items-center justify-center mx-auto border border-[#60A5FA]/20">
-                <TrayArrowUp size={24} weight="duotone" />
+            <div
+              onDragEnter={handleResumeDragEnter}
+              onDragOver={handleResumeDragOver}
+              onDragLeave={handleResumeDragLeave}
+              onDrop={handleResumeDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`p-6 sm:p-8 rounded-2xl border-2 border-dashed transition-all text-center space-y-3 cursor-pointer relative overflow-hidden ${
+                isDraggingResumes
+                  ? "border-[#60A5FA] bg-[#60A5FA]/15 shadow-xl shadow-[#60A5FA]/20 scale-[1.01]"
+                  : "border-[#60A5FA]/30 hover:border-[#60A5FA]/60 bg-[#0A1228]/50"
+              }`}
+            >
+              <div
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto border transition-all ${
+                  isDraggingResumes
+                    ? "bg-[#60A5FA]/25 text-[#60A5FA] border-[#60A5FA]/50 scale-110"
+                    : "bg-[#60A5FA]/10 text-[#60A5FA] border-[#60A5FA]/20"
+                }`}
+              >
+                <TrayArrowUp
+                  size={24}
+                  weight="duotone"
+                  className={isDraggingResumes ? "animate-bounce text-[#60A5FA]" : ""}
+                />
               </div>
-              <div>
-                <h4 className="text-sm font-semibold text-white">Bulk Resume Upload</h4>
+              <div className="pointer-events-none">
+                <h4 className="text-sm font-semibold text-white">
+                  {isDraggingResumes ? "Drop your resume files here" : "Bulk Resume Upload"}
+                </h4>
                 <p className="text-xs text-[#7C91B4] mt-0.5">
-                  Select and upload multiple candidate resumes (PDF, DOCX, TXT). Text and email are auto-extracted.
+                  {isDraggingResumes
+                    ? "Release to extract text and candidate emails locally in your browser"
+                    : "Drag and drop multiple resumes (PDF, DOCX, TXT) here, or browse files"}
                 </p>
               </div>
               <input
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept=".pdf,.docx,.txt"
+                accept=".pdf,.docx,.doc,.txt,.md"
                 onChange={handleFileUpload}
                 className="hidden"
                 id="bulk-resume-upload-input"
               />
-              <div className="pt-2 flex justify-center gap-3">
-                <label
-                  htmlFor="bulk-resume-upload-input"
-                  className="px-4 py-2 rounded-xl bg-[#60A5FA] hover:bg-[#3B82F6] text-white text-xs font-semibold cursor-pointer shadow-lg transition-all"
+              <div className="pt-2 flex justify-center gap-3 pointer-events-none">
+                <span
+                  className={`px-4 py-2 rounded-xl text-white text-xs font-semibold shadow-lg transition-all ${
+                    isDraggingResumes
+                      ? "bg-[#3B82F6] scale-105"
+                      : "bg-[#60A5FA] hover:bg-[#3B82F6]"
+                  }`}
                 >
-                  Choose Resume Files
-                </label>
+                  {isParsingFiles ? "Parsing Resumes in Browser..." : "Choose or Drop Resume Files"}
+                </span>
               </div>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="p-6 rounded-2xl border-2 border-dashed border-emerald-500/30 hover:border-emerald-500/60 bg-[#0A1228]/50 transition-all text-center space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/20">
-                  <FileCsv size={24} weight="duotone" />
+              <div
+                onDragEnter={handleExcelDragEnter}
+                onDragOver={handleExcelDragOver}
+                onDragLeave={handleExcelDragLeave}
+                onDrop={handleExcelDrop}
+                onClick={() => excelInputRef.current?.click()}
+                className={`p-6 sm:p-8 rounded-2xl border-2 border-dashed transition-all text-center space-y-3 cursor-pointer relative overflow-hidden ${
+                  isDraggingExcel
+                    ? "border-emerald-500 bg-emerald-500/15 shadow-xl shadow-emerald-500/20 scale-[1.01]"
+                    : "border-emerald-500/30 hover:border-emerald-500/60 bg-[#0A1228]/50"
+                }`}
+              >
+                <div
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto border transition-all ${
+                    isDraggingExcel
+                      ? "bg-emerald-500/25 text-emerald-400 border-emerald-500/50 scale-110"
+                      : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                  }`}
+                >
+                  <FileCsv
+                    size={24}
+                    weight="duotone"
+                    className={isDraggingExcel ? "animate-bounce text-emerald-400" : ""}
+                  />
                 </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-white">Excel / CSV Sheet Upload</h4>
+                <div className="pointer-events-none">
+                  <h4 className="text-sm font-semibold text-white">
+                    {isDraggingExcel ? "Drop your spreadsheet here" : "Excel / CSV Sheet Upload"}
+                  </h4>
                   <p className="text-xs text-[#7C91B4] mt-0.5">
-                    Upload a spreadsheet containing candidate details and a column like <code className="text-emerald-300 font-mono">resume_texts</code>.
+                    {isDraggingExcel
+                      ? "Release to extract spreadsheet candidate records"
+                      : "Drag & drop an Excel/CSV file with a 'resume_texts' column, or browse"}
                   </p>
                 </div>
                 <input
@@ -482,13 +668,16 @@ export function ResumeScreeningConsole({
                   className="hidden"
                   id="excel-sheet-upload-input"
                 />
-                <div className="pt-2 flex justify-center">
-                  <label
-                    htmlFor="excel-sheet-upload-input"
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold cursor-pointer shadow-lg transition-all"
+                <div className="pt-2 flex justify-center pointer-events-none">
+                  <span
+                    className={`px-4 py-2 rounded-xl text-white text-xs font-semibold shadow-lg transition-all ${
+                      isDraggingExcel
+                        ? "bg-emerald-500 scale-105"
+                        : "bg-emerald-600 hover:bg-emerald-500"
+                    }`}
                   >
-                    Select Excel / CSV File
-                  </label>
+                    Select or Drop Excel / CSV File
+                  </span>
                 </div>
               </div>
 
