@@ -15,7 +15,6 @@ import {
   Sun,
   Moon,
   UsersThree,
-  TrayArrowUp,
   GearSix,
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
@@ -52,7 +51,6 @@ export default function DashboardLayout({
     { label: "Dashboard Overview", href: "/dashboard", icon: SquaresFour },
     { label: "Job Profiles", href: "/dashboard/jobs", icon: Briefcase },
     { label: "Candidate Pool", href: "/dashboard/candidates", icon: UsersThree },
-    { label: "Bulk Ingestion", href: "/dashboard/upload", icon: TrayArrowUp },
     { label: "Settings", href: "/dashboard/settings", icon: GearSix },
     { label: "New Job Profile", href: "/dashboard/jobs/new", icon: PlusCircle },
   ];
