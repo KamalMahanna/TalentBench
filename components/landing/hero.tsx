@@ -24,6 +24,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { PipelinePreview } from "@/components/landing/pipeline-preview";
+import { useLenis } from "@/lib/animations/lenis-provider";
 
 const faqs = [
   [
@@ -156,6 +157,7 @@ function ThemeToggle() {
 }
 
 export default function Home() {
+  const { lenis } = useLenis();
   const [menuOpen, setMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState(0);
 
@@ -167,7 +169,23 @@ export default function Home() {
 
   const scrollTo = (id: string) => {
     setMenuOpen(false);
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (lenis) {
+      lenis.scrollTo(el, { offset: -76 });
+    } else {
+      el.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const scrollToTop = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setMenuOpen(false);
+    if (lenis) {
+      lenis.scrollTo(0);
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   useEffect(() => {
@@ -282,7 +300,7 @@ export default function Home() {
   return (
     <div className="material-shell">
       <header className="app-bar">
-        <a className="brand" href="#top" aria-label="TalentBench home">
+        <a className="brand" href="#top" onClick={scrollToTop} aria-label="TalentBench home">
           <Image
             src="/logo.png"
             alt="TalentBench Logo"
@@ -701,7 +719,7 @@ export default function Home() {
       </main>
 
       <footer className="material-footer section-wrap">
-        <a className="brand" href="#top">
+        <a className="brand" href="#top" onClick={scrollToTop}>
           <Image
             src="/logo.png"
             alt="TalentBench Logo"
