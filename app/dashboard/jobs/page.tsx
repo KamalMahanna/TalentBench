@@ -1,13 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { GlassButton } from "@/components/ui/glass-button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Briefcase,
-  Trash,
-  UsersThree,
-} from "@phosphor-icons/react";
+import { Briefcase, Trash2, Users, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 
@@ -77,35 +73,47 @@ export default function JobsListPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
+          <h1 style={{ color: "var(--ink)" }} className="text-2xl sm:text-3xl font-bold tracking-tight">
             Job Profiles &amp; Pipelines
           </h1>
-          <p className="text-xs sm:text-sm text-[#7C91B4] mt-1">
+          <p style={{ color: "var(--muted)" }} className="text-xs sm:text-sm mt-1">
             Manage your open requisitions, mandatory experience parameters, and connector pipelines.
           </p>
         </div>
-        <GlassButton variant="primary" withArrow href="/dashboard/jobs/new">
-          Add Job Profile
-        </GlassButton>
+        <Link href="/dashboard/jobs/new">
+          <button className="md-button md-button--filled inline-flex items-center gap-2">
+            Add Job Profile
+            <ArrowRight size={16} />
+          </button>
+        </Link>
       </div>
 
       {loading ? (
-        <div className="p-16 text-center text-xs font-mono text-[#7C91B4] rounded-3xl border border-white/5 bg-white/[0.01]">
+        <div
+          style={{ color: "var(--muted)", borderColor: "var(--outline)", background: "var(--surface)" }}
+          className="p-16 text-center text-xs rounded-3xl border"
+        >
           Loading job profiles...
         </div>
       ) : jobs.length === 0 ? (
-        <div className="p-16 text-center rounded-3xl border border-dashed border-white/10 bg-white/[0.01]">
-          <Briefcase size={40} className="mx-auto text-[#7C91B4] mb-3" weight="duotone" />
-          <h3 className="text-lg font-display font-semibold text-white">
+        <div
+          style={{ borderColor: "var(--outline)", background: "var(--surface)" }}
+          className="p-16 text-center rounded-3xl border border-dashed"
+        >
+          <Briefcase size={40} style={{ color: "var(--muted)" }} className="mx-auto mb-3" />
+          <h3 style={{ color: "var(--ink)" }} className="text-lg font-semibold">
             No Job Profiles Configured
           </h3>
-          <p className="text-xs text-[#7C91B4] mt-1 max-w-sm mx-auto">
+          <p style={{ color: "var(--muted)" }} className="text-xs mt-1 max-w-sm mx-auto">
             Mandatory criteria: Add job description and minimum-maximum experience range to deploy your autonomous screening pipeline.
           </p>
           <div className="mt-6">
-            <GlassButton variant="primary" withArrow href="/dashboard/jobs/new">
-              Create First Profile
-            </GlassButton>
+            <Link href="/dashboard/jobs/new">
+              <button className="md-button md-button--filled inline-flex items-center gap-2">
+                Create First Profile
+                <ArrowRight size={16} />
+              </button>
+            </Link>
           </div>
         </div>
       ) : (
@@ -113,68 +121,91 @@ export default function JobsListPage() {
           {jobs.map((job) => (
             <div
               key={job.id}
-              className="rounded-3xl p-1.5 bg-white/[0.04] ring-1 ring-[#8FB6E8]/20 shadow-xl backdrop-blur-2xl hover:ring-[#8FB6E8]/40 transition-all duration-300"
+              style={{
+                background: "var(--surface)",
+                borderColor: "var(--outline)",
+              }}
+              className="rounded-3xl border shadow-sm hover:shadow-md transition-all duration-300"
             >
-              <div className="rounded-[calc(1.5rem-4px)] bg-[#0D1633] p-6 sm:p-8 border border-white/10">
+              <div
+                style={{ background: "var(--surface-high)", borderColor: "var(--outline)" }}
+                className="rounded-3xl p-6 sm:p-8 border"
+              >
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                   <div className="space-y-3 max-w-2xl">
                     <div className="flex flex-wrap items-center gap-2.5">
-                      <h2 className="text-xl font-display font-bold text-white tracking-tight">
+                      <h2 style={{ color: "var(--ink)" }} className="text-xl font-bold tracking-tight">
                         {job.title}
                       </h2>
                       <Badge variant="ice">
                         Experience: {job.minExperience} - {job.maxExperience} Years
                       </Badge>
-                      <span className="text-[11px] font-mono text-[#7C91B4]">
+                      <span style={{ color: "var(--muted)" }} className="text-[11px]">
                         Created {formatDate(job.createdAt)}
                       </span>
                     </div>
 
-                    <p className="text-xs sm:text-sm text-[#7C91B4] leading-relaxed line-clamp-2">
+                    <p style={{ color: "var(--muted)" }} className="text-xs sm:text-sm leading-relaxed line-clamp-2">
                       {job.description}
                     </p>
                   </div>
 
                   {/* Right side CTAs: Open Workspace or Delete */}
                   <div className="flex items-center gap-2.5 shrink-0 self-end md:self-start">
-                    <GlassButton
-                      size="sm"
-                      variant="primary"
-                      withArrow
-                      href={`/dashboard/jobs/${job.id}`}
-                    >
-                      Pipeline &amp; Candidates
-                    </GlassButton>
+                    <Link href={`/dashboard/jobs/${job.id}`}>
+                      <button className="md-button md-button--filled inline-flex items-center gap-2 text-sm">
+                        Pipeline &amp; Candidates
+                        <ArrowRight size={14} />
+                      </button>
+                    </Link>
                     <button
                       onClick={() => handleDelete(job.id, job.title)}
                       disabled={deletingId === job.id}
-                      className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/20 transition-all disabled:opacity-50"
+                      className="p-2.5 rounded-xl transition-all disabled:opacity-50"
+                      style={{
+                        background: "rgba(239,68,68,0.1)",
+                        color: "#f87171",
+                        border: "1px solid rgba(239,68,68,0.2)",
+                      }}
                       title="Delete Job Profile"
                     >
-                      <Trash size={16} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
 
                 {/* Pipeline Connectors Strip */}
-                <div className="mt-6 pt-6 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div
+                  style={{ borderColor: "var(--outline)" }}
+                  className="mt-6 pt-6 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-mono text-[#7C91B4]">Connector Rounds:</span>
+                    <span style={{ color: "var(--muted)" }} className="text-xs">
+                      Connector Rounds:
+                    </span>
                     {job.pipeline.map((round) => (
                       <span
                         key={round.id}
-                        className="text-xs font-mono px-3 py-1 rounded-lg bg-white/[0.04] border border-white/10 text-[#EAF1FB] flex items-center gap-1.5"
+                        style={{
+                          background: "var(--surface-purple)",
+                          borderColor: "var(--outline)",
+                          color: "var(--ink)",
+                        }}
+                        className="text-xs px-3 py-1 rounded-lg border flex items-center gap-1.5"
                       >
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#8FB6E8]" />
+                        <span
+                          className="w-1.5 h-1.5 rounded-full"
+                          style={{ background: "var(--primary)" }}
+                        />
                         {round.title}
                       </span>
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs font-mono text-[#7C91B4] shrink-0">
+                  <div style={{ color: "var(--muted)" }} className="flex items-center gap-4 text-xs shrink-0">
                     <span className="flex items-center gap-1.5">
-                      <UsersThree size={16} className="text-[#8FB6E8]" />
-                      <strong className="text-white">{job._count.candidates}</strong> Candidates
+                      <Users size={16} style={{ color: "var(--primary)" }} />
+                      <strong style={{ color: "var(--ink)" }}>{job._count.candidates}</strong> Candidates
                     </span>
                   </div>
                 </div>

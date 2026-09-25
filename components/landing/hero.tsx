@@ -1,270 +1,721 @@
 "use client";
 
-import React from "react";
-import { GlassButton } from "@/components/ui/glass-button";
-import { Badge } from "@/components/ui/badge";
-import { motion } from "motion/react";
-import {
-  ShieldCheck,
-  Cpu,
-  Code,
-  Users,
-  Compass,
-  CheckCircle,
-  TrendUp,
-  Sparkle,
-} from "@phosphor-icons/react";
+import { useState, useEffect, useRef } from "react";
 import { useTheme } from "@/context/theme-context";
+import { motion, AnimatePresence, type Variants } from "motion/react";
+import { initGSAP } from "@/lib/animations/gsap-setup";
+import {
+  ArrowRight,
+  BarChart3,
+  Check,
+  ClipboardList,
+  FileText,
+  Menu,
+  Plus,
+  Search,
+  Settings2,
+  Sparkles,
+  Sun,
+  Moon,
+  Users,
+  X,
+} from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { PipelinePreview } from "@/components/landing/pipeline-preview";
 
-export function HeroSection() {
-  const { theme } = useTheme();
-  const isLight = theme === "light";
+const faqs = [
+  [
+    "What is TalentBench?",
+    "TalentBench gives recruiting teams one clear workspace to review candidates, compare evidence, and make consistent decisions.",
+  ],
+  [
+    "Can I customize the scorecard?",
+    "Yes. Start with a role template or create your own criteria, weights, and interview rounds.",
+  ],
+  [
+    "Is candidate data shared with candidates?",
+    "You choose what to share. Candidate reports can include strengths, next steps, and benchmark context.",
+  ],
+];
 
-  const chipsData = [
-    { label: "RESUME AI SCREEN", icon: ShieldCheck, position: "-top-3 -left-4 sm:-top-4 sm:-left-6" },
-    { label: "DSA STRESS BENCHMARK", icon: Code, position: "top-1/3 -right-4 sm:-right-8" },
-    { label: "REASONING & LOGIC", icon: Cpu, position: "bottom-16 -left-4 sm:-left-6" },
-    { label: "EXECUTIVE INTERVIEW", icon: Users, position: "-bottom-4 right-6 sm:right-10" },
-  ];
+const stats = [
+  { value: "1,248", label: "Candidates reviewed", icon: Users, tone: "lavender" },
+  { value: "86%", label: "Shortlist confidence", icon: BarChart3, tone: "blue" },
+  { value: "4.8 days", label: "Average time to hire", icon: Sparkles, tone: "peach" },
+];
 
+const candidates = [
+  {
+    initials: "AM",
+    name: "Avery Morgan",
+    role: "Senior Product Designer",
+    score: 92,
+    status: "Strong match",
+    color: "purple",
+  },
+  {
+    initials: "JL",
+    name: "Jordan Lee",
+    role: "Product Designer",
+    score: 87,
+    status: "Review next",
+    color: "blue",
+  },
+  {
+    initials: "SK",
+    name: "Samira Khan",
+    role: "UX Researcher",
+    score: 81,
+    status: "Needs review",
+    color: "green",
+  },
+];
+
+const heroContainerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const heroItemVariants: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as const },
+  },
+};
+
+function Button({
+  children,
+  variant = "filled",
+  onClick,
+  href,
+}: {
+  children: React.ReactNode;
+  variant?: "filled" | "tonal" | "text";
+  onClick?: () => void;
+  href?: string;
+}) {
+  if (href) {
+    return (
+      <Link href={href} className={`md-button md-button--${variant}`}>
+        {children}
+      </Link>
+    );
+  }
   return (
-    <section className="relative min-h-[100dvh] pt-24 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex items-center">
-      <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-        {/* Left Column: Typography & CTAs (col-span-7) */}
-        <div className="lg:col-span-7 z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
-            className={`mb-6 inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-mono tracking-widest ${
-              isLight
-                ? "text-blue-700 bg-blue-50/80 border border-blue-200"
-                : "text-[#8FB6E8] bg-white/5 border border-white/10"
-            }`}
-          >
-            <Compass className={`h-3 w-3 animate-spin ${isLight ? "text-blue-600" : "text-[#8FB6E8]"}`} style={{ animationDuration: "10s" }} />
-            <span>AWWWARDS CERTIFIED BENCHMARK PROTOCOL</span>
-          </motion.div>
-
-          {/* 2-line desktop iron rule headline with signature ice gradient */}
-          <motion.h1
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1, ease: [0.23, 1, 0.32, 1] }}
-            className="text-4xl sm:text-6xl lg:text-[76px] font-display font-extrabold tracking-tight leading-[1.04] text-transparent bg-clip-text max-w-4xl"
-            style={{
-              backgroundImage: isLight
-                ? "linear-gradient(135deg, #0A1228 0%, #16244C 35%, #2563EB 70%, #1D4ED8 100%)"
-                : "linear-gradient(135deg, #FFFFFF 0%, #EAF1FB 30%, #8FB6E8 70%, #4B73AE 100%)",
-            }}
-          >
-            Autonomous pipelines. <br />
-            <span className={isLight ? "text-blue-600" : "text-[#8FB6E8]"}>Verified decisions.</span>
-          </motion.h1>
-
-          {/* Subtext: under 20 words */}
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2, ease: [0.23, 1, 0.32, 1] }}
-            className={`mt-6 text-base sm:text-lg max-w-[50ch] leading-relaxed ${
-              isLight ? "text-slate-600" : "text-[#7C91B4]"
-            }`}
-          >
-            Build multi-stage recruitment pipelines, automate resume shortlisting with inspectable agent traces, and deliver personalized candidate feedback.
-          </motion.p>
-
-          {/* CTAs */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3, ease: [0.23, 1, 0.32, 1] }}
-            className="mt-8 flex flex-wrap items-center gap-4"
-          >
-            <GlassButton size="lg" variant="primary" withArrow href="/dashboard/jobs/new">
-              Build a Pipeline
-            </GlassButton>
-            <GlassButton size="lg" variant="secondary" href="#ai-screening">
-              Inspect Agent Trace
-            </GlassButton>
-          </motion.div>
-
-          {/* Key proof metrics */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.45 }}
-            className={`mt-12 pt-8 border-t grid grid-cols-3 gap-6 max-w-lg ${
-              isLight ? "border-slate-200" : "border-white/10"
-            }`}
-          >
-            <div>
-              <div className={`text-2xl font-bold font-display ${isLight ? "text-slate-900" : "text-white"}`}>100%</div>
-              <div className={`text-xs font-mono mt-0.5 ${isLight ? "text-slate-500" : "text-[#7C91B4]"}`}>Trace Auditability</div>
-            </div>
-            <div>
-              <div className={`text-2xl font-bold font-display ${isLight ? "text-blue-600" : "text-[#8FB6E8]"}`}>8.4x</div>
-              <div className={`text-xs font-mono mt-0.5 ${isLight ? "text-slate-500" : "text-[#7C91B4]"}`}>Screening Velocity</div>
-            </div>
-            <div>
-              <div className={`text-2xl font-bold font-display ${isLight ? "text-indigo-600" : "text-[#60A5FA]"}`}>&lt; 120ms</div>
-              <div className={`text-xs font-mono mt-0.5 ${isLight ? "text-slate-500" : "text-[#7C91B4]"}`}>Pipeline Latency</div>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Right Column: Frosted Glassmorphism Showcase Card + Floating Chips (replaces globe star animation) */}
-        <div className="lg:col-span-5 relative flex items-center justify-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, ease: [0.23, 1, 0.32, 1] }}
-            className="w-full relative py-6"
-          >
-            {/* Luminous atmospheric focal glow */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-[450px] h-[450px] rounded-full bg-gradient-to-tr from-[#8FB6E8]/20 via-[#C084FC]/15 to-[#FDA4AF]/15 blur-[100px]" />
-            </div>
-
-            {/* Central Glassmorphism Reference Showcase Card ("GLASSMORPHISM — blurs") */}
-            <motion.div
-              animate={{
-                y: [0, -10, 0],
-                rotate: [0, 0.5, 0, -0.5, 0],
-              }}
-              transition={{
-                duration: 6,
-                ease: "easeInOut",
-                repeat: Infinity,
-              }}
-              className="relative w-full max-w-lg mx-auto p-6 sm:p-8 rounded-3xl glass-specimen-box cursor-default transform hover:-translate-y-1 transition-all duration-500 shadow-2xl z-10"
-            >
-              {/* Card Top Pill Badge matching talentbench_00001 (2) */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span className="text-[11px] font-mono tracking-wider font-semibold text-[#8FB6E8] uppercase">
-                    GLASSMORPHISM — blurs
-                  </span>
-                </div>
-                <span
-                  className={`text-[10px] font-mono px-2.5 py-1 rounded-full border ${
-                    isLight
-                      ? "bg-blue-50 text-blue-700 border-blue-200 font-semibold"
-                      : "bg-white/10 text-[#EAF1FB] border-white/15"
-                  }`}
-                >
-                  CALIBRATED BENCHMARK
-                </span>
-              </div>
-
-              {/* Candidate Profile Specimen */}
-              <div className="flex items-center gap-4 mb-6">
-                <div className="relative">
-                  <img
-                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
-                    alt="Elena Rostova"
-                    className="h-16 w-16 rounded-2xl object-cover border-2 border-white/50 shadow-md"
-                  />
-                  <span className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-white shadow-sm">
-                    <CheckCircle size={12} weight="bold" />
-                  </span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3
-                      className={`font-display text-lg sm:text-xl font-bold ${
-                        isLight ? "text-[#0F172A]" : "text-white"
-                      }`}
-                    >
-                      Elena Rostova
-                    </h3>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 font-semibold">
-                      TOP 1%
-                    </span>
-                  </div>
-                  <p className={`text-xs mt-0.5 ${isLight ? "text-slate-600" : "text-[#7C91B4]"}`}>
-                    Senior Distributed Systems Architect
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-[11px] font-mono font-bold ${isLight ? "text-blue-600" : "text-[#8FB6E8]"}`}>
-                      Cohort Percentile: 98.4th
-                    </span>
-                    <span className="text-xs text-slate-400">•</span>
-                    <span className={`text-[11px] font-mono ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                      Score: 94/100
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Real-time Benchmark Metrics */}
-              <div className="space-y-3 mb-6">
-                {[
-                  { name: "Algorithmic Concurrency", score: 99, pct: "99.2%" },
-                  { name: "Distributed Consensus & Raft", score: 97, pct: "98.5%" },
-                  { name: "AI-Synthesized Reasoning", score: 95, pct: "96.8%" },
-                ].map((metric) => (
-                  <div key={metric.name} className="space-y-1">
-                    <div className="flex justify-between text-[11px] font-mono">
-                      <span className={isLight ? "text-slate-700 font-medium" : "text-[#EAF1FB]"}>
-                        {metric.name}
-                      </span>
-                      <span className={`font-bold ${isLight ? "text-blue-600" : "text-[#8FB6E8]"}`}>{metric.pct}</span>
-                    </div>
-                    <div
-                      className={`h-1.5 w-full rounded-full overflow-hidden ${
-                        isLight ? "bg-slate-200/80" : "bg-white/10"
-                      }`}
-                    >
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-[#8FB6E8] via-[#60A5FA] to-[#A78BFA] transition-all duration-1000"
-                        style={{ width: `${metric.score}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Card Footer */}
-              <div className="pt-4 border-t border-white/15 flex items-center justify-between text-[11px]">
-                <div className="flex items-center gap-1.5 text-emerald-500 font-medium">
-                  <TrendUp size={14} weight="bold" />
-                  <span>Calibrated across 12,400+ submissions</span>
-                </div>
-                <Link
-                  href="/dashboard"
-                  className={`text-xs font-semibold hover:underline flex items-center gap-1 cursor-pointer ${
-                    isLight ? "text-blue-600" : "text-[#8FB6E8]"
-                  }`}
-                >
-                  <span>View Dossier</span>
-                  <Sparkle size={13} weight="fill" />
-                </Link>
-              </div>
-            </motion.div>
-
-            {/* Floating Glass Tag Chips (§7 from talentbench_00001 (2)) */}
-            {chipsData.map((chip, idx) => {
-              const Icon = chip.icon;
-              return (
-                <div
-                  key={chip.label}
-                  className={`absolute hidden xl:flex items-center gap-2 px-3.5 py-1.5 glass-tag-chip z-20 text-[11px] font-mono tracking-wider text-[#EAF1FB] border border-[#8FB6E8]/25 shadow-[0_10px_25px_-5px_rgba(4,8,20,0.8)] ${chip.position}`}
-                  style={{
-                    animation: `auraFloat${(idx % 4) + 1} 12s ease-in-out infinite alternate`,
-                  }}
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#8FB6E8] animate-ping" />
-                  <Icon className="h-3.5 w-3.5 text-[#8FB6E8]" />
-                  <span>{chip.label}</span>
-                </div>
-              );
-            })}
-          </motion.div>
-        </div>
-      </div>
-    </section>
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ duration: 0.15 }}
+      onClick={onClick}
+      className={`md-button md-button--${variant}`}
+    >
+      {children}
+    </motion.button>
   );
 }
+
+function Avatar({
+  initials,
+  color = "purple",
+}: {
+  initials: string;
+  color?: string;
+}) {
+  return <div className={`avatar avatar--${color}`}>{initials}</div>;
+}
+
+function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
+
+  return (
+    <button
+      className="theme-toggle"
+      onClick={toggleTheme}
+      aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
+      aria-pressed={isDark}
+      title={`Switch to ${isDark ? "light" : "dark"} theme`}
+    >
+      <span className="theme-toggle-icon">
+        {isDark ? <Moon size={15} /> : <Sun size={15} />}
+      </span>
+      <span className="theme-toggle-label">{isDark ? "Dark" : "Light"}</span>
+      <span className="theme-toggle-knob" />
+    </button>
+  );
+}
+
+export default function Home() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [openFaq, setOpenFaq] = useState(0);
+
+  const statsRowRef = useRef<HTMLElement>(null);
+  const stat1Ref = useRef<HTMLElement>(null);
+  const stat2Ref = useRef<HTMLElement>(null);
+  const stat3Ref = useRef<HTMLElement>(null);
+  const reportScoreNumRef = useRef<HTMLElement>(null);
+
+  const scrollTo = (id: string) => {
+    setMenuOpen(false);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    const { gsap } = initGSAP();
+
+    const ctx = gsap.context(() => {
+      // 1. Stats row reveal & number counters
+      const statItems = [
+        { ref: stat1Ref, target: 1248, format: (v: number) => Math.round(v).toLocaleString() },
+        { ref: stat2Ref, target: 86, format: (v: number) => `${Math.round(v)}%` },
+        { ref: stat3Ref, target: 4.8, format: (v: number) => `${v.toFixed(1)} days` },
+      ];
+
+      gsap.from(".stat-tile", {
+        scrollTrigger: {
+          trigger: statsRowRef.current || ".stats-row",
+          start: "top 85%",
+        },
+        y: 28,
+        opacity: 0,
+        duration: 0.6,
+        stagger: 0.12,
+        ease: "power2.out",
+        onStart: () => {
+          statItems.forEach(({ ref, target, format }) => {
+            if (!ref.current) return;
+            const obj = { val: 0 };
+            gsap.to(obj, {
+              val: target,
+              duration: 1.4,
+              ease: "power2.out",
+              onUpdate: () => {
+                if (ref.current) ref.current.innerText = format(obj.val);
+              },
+            });
+          });
+        },
+      });
+
+      // 2. Feature Cards Stagger on Scroll
+      gsap.from(".feature-card", {
+        scrollTrigger: {
+          trigger: ".feature-grid",
+          start: "top 80%",
+        },
+        y: 36,
+        opacity: 0,
+        duration: 0.7,
+        stagger: 0.15,
+        ease: "power2.out",
+      });
+
+      // 3. Scorecard Demo Bars Fill
+      gsap.from(".scorecard-demo .demo-bar i", {
+        scrollTrigger: {
+          trigger: ".scorecard-demo",
+          start: "top 85%",
+        },
+        scaleX: 0,
+        transformOrigin: "left center",
+        duration: 0.9,
+        stagger: 0.15,
+        ease: "power3.out",
+      });
+
+      // 4. Report Card Circular Score & Bars
+      gsap.from(".circle-progress", {
+        scrollTrigger: {
+          trigger: ".report-card",
+          start: "top 80%",
+        },
+        strokeDashoffset: 264,
+        duration: 1.5,
+        ease: "power2.out",
+      });
+
+      gsap.from(".report-bars b", {
+        scrollTrigger: {
+          trigger: ".report-bars",
+          start: "top 85%",
+        },
+        scaleX: 0,
+        transformOrigin: "left center",
+        duration: 1.1,
+        stagger: 0.15,
+        ease: "power3.out",
+      });
+
+      // 5. Report score number counter: 0 -> 92
+      if (reportScoreNumRef.current) {
+        const scoreObj = { val: 0 };
+        gsap.to(scoreObj, {
+          scrollTrigger: {
+            trigger: ".report-score",
+            start: "top 85%",
+          },
+          val: 92,
+          duration: 1.4,
+          ease: "power2.out",
+          onUpdate: () => {
+            if (reportScoreNumRef.current) {
+              reportScoreNumRef.current.innerText = String(Math.round(scoreObj.val));
+            }
+          },
+        });
+      }
+    });
+
+    return () => ctx.revert();
+  }, []);
+
+  return (
+    <div className="material-shell">
+      <header className="app-bar">
+        <a className="brand" href="#top" aria-label="TalentBench home">
+          <Image
+            src="/logo.png"
+            alt="TalentBench Logo"
+            width={32}
+            height={32}
+            className="w-8 h-8 object-contain"
+            priority
+          />
+          <span>TalentBench</span>
+        </a>
+        <nav className={menuOpen ? "main-nav main-nav--open" : "main-nav"}>
+          <button onClick={() => scrollTo("product")}>Product</button>
+          <button onClick={() => scrollTo("workspace")}>Workspace</button>
+          <button onClick={() => scrollTo("reports")}>Reports</button>
+          <button onClick={() => scrollTo("how-it-works")}>How it works</button>
+          <button onClick={() => scrollTo("pipeline")}>Pipeline</button>
+          <ThemeToggle />
+          <Button variant="filled" href="/dashboard">
+            Try TalentBench <ArrowRight size={16} />
+          </Button>
+        </nav>
+        <button
+          className="menu-button"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle navigation"
+        >
+          {menuOpen ? <X size={21} /> : <Menu size={21} />}
+        </button>
+      </header>
+
+      <main id="top">
+        <section className="hero-material" id="product">
+          <motion.div
+            className="hero-copy-material"
+            variants={heroContainerVariants}
+            initial="hidden"
+            animate="show"
+          >
+            <motion.div variants={heroItemVariants} className="status-chip">
+              <span className="status-dot" /> Recruiting, made clearer
+            </motion.div>
+            <motion.h1 variants={heroItemVariants}>
+              Make better<br />
+              <span>hiring decisions.</span>
+            </motion.h1>
+            <motion.p variants={heroItemVariants}>
+              One friendly workspace for reviewing candidates, calibrating your team, and turning every interview into useful signal.
+            </motion.p>
+            <motion.div variants={heroItemVariants} className="hero-buttons">
+              <Button href="/dashboard">
+                Explore the workspace <ArrowRight size={17} />
+              </Button>
+              <Button variant="text" onClick={() => scrollTo("reports")}>
+                See a sample report
+              </Button>
+            </motion.div>
+            <motion.div variants={heroItemVariants} className="trusted-line">
+              <span>Built for thoughtful teams</span>
+              <i />
+              <span>Fair by design</span>
+              <i />
+              <span>Simple to start</span>
+            </motion.div>
+          </motion.div>
+          <motion.div
+            className="hero-preview"
+            aria-label="TalentBench workspace preview"
+            initial={{ opacity: 0, y: 24, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="preview-window">
+              <div className="preview-toolbar">
+                <span className="toolbar-title">
+                  <span className="mini-mark">
+                    <Sparkles size={12} />
+                  </span>{" "}
+                  Product design / Q3
+                </span>
+                <span className="toolbar-actions">
+                  <Search size={15} />
+                  <Settings2 size={15} />
+                </span>
+              </div>
+              <div className="preview-body">
+                <aside className="preview-sidebar">
+                  <span className="sidebar-active">
+                    <BarChart3 size={15} /> Overview
+                  </span>
+                  <span>
+                    <Users size={15} /> Candidates
+                  </span>
+                  <span>
+                    <ClipboardList size={15} /> Scorecards
+                  </span>
+                  <span>
+                    <FileText size={15} /> Reports
+                  </span>
+                </aside>
+                <div className="preview-content">
+                  <div className="preview-heading">
+                    <div>
+                      <small>Good morning, Priya</small>
+                      <h3>Product design / Q3</h3>
+                    </div>
+                    <span className="small-pill">Live pipeline</span>
+                  </div>
+                  <div className="preview-metrics">
+                    <div>
+                      <small>In review</small>
+                      <strong>24</strong>
+                      <span>+6 this week</span>
+                    </div>
+                    <div>
+                      <small>Shortlisted</small>
+                      <strong>8</strong>
+                      <span>33% of pipeline</span>
+                    </div>
+                    <div>
+                      <small>Avg. score</small>
+                      <strong>87</strong>
+                      <span>+4 vs last role</span>
+                    </div>
+                  </div>
+                  <div className="preview-list">
+                    <div className="list-title">
+                      <span>Recent candidates</span>
+                      <span>View all</span>
+                    </div>
+                    {candidates.map((candidate) => (
+                      <motion.div
+                        className="preview-candidate"
+                        key={candidate.name}
+                        whileHover={{ scale: 1.015, x: 2, transition: { duration: 0.15 } }}
+                      >
+                        <Avatar
+                          initials={candidate.initials}
+                          color={candidate.color}
+                        />
+                        <div>
+                          <strong>{candidate.name}</strong>
+                          <small>{candidate.role}</small>
+                        </div>
+                        <b>{candidate.score}</b>
+                        <span
+                          className={`match-pill match-pill--${candidate.color}`}
+                        >
+                          {candidate.status}
+                        </span>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </section>
+
+        <section
+          ref={statsRowRef}
+          className="stats-row section-wrap"
+          aria-label="TalentBench results"
+        >
+          {stats.map(({ value, label, icon: Icon, tone }, index) => {
+            const statRef = index === 0 ? stat1Ref : index === 1 ? stat2Ref : stat3Ref;
+            return (
+              <div
+                className={`stat-tile stat-tile--${tone}`}
+                key={label}
+              >
+                <span className="stat-icon">
+                  <Icon size={19} />
+                </span>
+                <div>
+                  <strong ref={statRef}>{value}</strong>
+                  <span>{label}</span>
+                </div>
+              </div>
+            );
+          })}
+        </section>
+
+        <section className="workspace-section section-wrap" id="workspace">
+          <div className="section-intro">
+            <div className="section-kicker">A calmer recruiting workspace</div>
+            <h2>
+              Everything you need.<br />
+              <span>Nothing you don’t.</span>
+            </h2>
+            <p>
+              TalentBench keeps the important parts of hiring together, so your team can spend less time formatting and more time deciding.
+            </p>
+          </div>
+          <div className="feature-grid">
+            <motion.article
+              className="feature-card feature-card--large"
+              whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            >
+              <div className="feature-icon feature-icon--purple">
+                <Users size={21} />
+              </div>
+              <h3>Review candidates together</h3>
+              <p>
+                See every candidate’s evidence in one place. Leave notes, compare signals, and make the next step obvious.
+              </p>
+              <div className="review-stack">
+                <motion.div
+                  className="review-row"
+                  whileHover={{ scale: 1.015, x: 2, transition: { duration: 0.15 } }}
+                >
+                  <Avatar initials="AM" color="purple" />
+                  <span>Avery Morgan</span>
+                  <b>92</b>
+                  <Check size={16} />
+                </motion.div>
+                <motion.div
+                  className="review-row"
+                  whileHover={{ scale: 1.015, x: 2, transition: { duration: 0.15 } }}
+                >
+                  <Avatar initials="JL" color="blue" />
+                  <span>Jordan Lee</span>
+                  <b>87</b>
+                  <Check size={16} />
+                </motion.div>
+                <motion.div
+                  className="review-row"
+                  whileHover={{ scale: 1.015, x: 2, transition: { duration: 0.15 } }}
+                >
+                  <Avatar initials="SK" color="green" />
+                  <span>Samira Khan</span>
+                  <b>81</b>
+                  <Check size={16} />
+                </motion.div>
+              </div>
+            </motion.article>
+            <motion.article
+              className="feature-card feature-card--accent"
+              whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            >
+              <div className="feature-icon feature-icon--blue">
+                <BarChart3 size={21} />
+              </div>
+              <h3>Use a scorecard everyone understands</h3>
+              <p>
+                Set the criteria, add your weights, and keep interviews consistent from first screen to final round.
+              </p>
+              <div className="scorecard-demo">
+                <div>
+                  <span>Product thinking</span>
+                  <b>90%</b>
+                </div>
+                <div className="demo-bar">
+                  <i style={{ width: "90%" }} />
+                </div>
+                <div>
+                  <span>Craft & execution</span>
+                  <b>82%</b>
+                </div>
+                <div className="demo-bar">
+                  <i style={{ width: "82%" }} />
+                </div>
+                <div>
+                  <span>Collaboration</span>
+                  <b>94%</b>
+                </div>
+                <div className="demo-bar">
+                  <i style={{ width: "94%" }} />
+                </div>
+              </div>
+            </motion.article>
+            <motion.article
+              className="feature-card"
+              whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            >
+              <div className="feature-icon feature-icon--peach">
+                <FileText size={21} />
+              </div>
+              <h3>Give useful feedback</h3>
+              <p>
+                Turn your process into a clear candidate report with strengths, gaps, and next steps.
+              </p>
+              <Button variant="tonal" onClick={() => scrollTo("reports")}>
+                View sample report <ArrowRight size={15} />
+              </Button>
+            </motion.article>
+          </div>
+        </section>
+
+        <section className="report-showcase section-wrap" id="reports">
+          <div className="report-copy">
+            <div className="section-kicker">Candidate reports</div>
+            <h2>
+              A better way to say<br />
+              <span>“here’s where you stand.”</span>
+            </h2>
+            <p>
+              Share a thoughtful snapshot of performance that helps candidates grow and helps your team build trust.
+            </p>
+            <Button onClick={() => scrollTo("reports")}>
+              Explore reports <ArrowRight size={16} />
+            </Button>
+          </div>
+          <div className="report-card">
+            <div className="report-card-header">
+              <div>
+                <span className="small-label">Candidate report</span>
+                <h3>Avery Morgan</h3>
+                <span>Senior Product Designer</span>
+              </div>
+              <Avatar initials="AM" color="purple" />
+            </div>
+            <div className="report-score">
+              <div>
+                <small>Overall benchmark</small>
+                <strong>
+                  <span ref={reportScoreNumRef}>92</span><span>/100</span>
+                </strong>
+                <em>Top 12% of shortlist</em>
+              </div>
+              <div className="circle-score">
+                <svg viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="42" />
+                  <circle className="circle-progress" cx="50" cy="50" r="42" />
+                </svg>
+                <b>92</b>
+              </div>
+            </div>
+            <div className="report-bars">
+              <div>
+                <span>Product thinking</span>
+                <i>
+                  <b style={{ width: "90%" }} />
+                </i>
+              </div>
+              <div>
+                <span>Craft & execution</span>
+                <i>
+                  <b style={{ width: "84%" }} />
+                </i>
+              </div>
+              <div>
+                <span>Communication</span>
+                <i>
+                  <b style={{ width: "96%" }} />
+                </i>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <HowItWorks />
+
+        <PipelinePreview />
+
+        <section className="faq-section section-wrap">
+          <div className="section-intro">
+            <div className="section-kicker">Good to know</div>
+            <h2>
+              Questions,<br />
+              <span>answered.</span>
+            </h2>
+          </div>
+          <div className="faq-list">
+            {faqs.map(([question, answer], index) => (
+              <div className="faq-item" key={question}>
+                <button
+                  onClick={() => setOpenFaq(openFaq === index ? -1 : index)}
+                >
+                  <span>{question}</span>
+                  <motion.span
+                    animate={{ rotate: openFaq === index ? 45 : 0 }}
+                    transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <Plus size={20} />
+                  </motion.span>
+                </button>
+                <AnimatePresence initial={false}>
+                  {openFaq === index && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                      className="faq-answer"
+                    >
+                      <p>{answer}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <motion.section
+          className="cta-section section-wrap"
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div>
+            <div className="section-kicker">Ready when you are</div>
+            <h2>
+              Bring a little more<br />
+              <span>clarity to hiring.</span>
+            </h2>
+            <p>
+              Start with one role. See what your team can do with a shared point of view.
+            </p>
+          </div>
+          <Button href="/dashboard">
+            Get started <ArrowRight size={17} />
+          </Button>
+        </motion.section>
+      </main>
+
+      <footer className="material-footer section-wrap">
+        <a className="brand" href="#top">
+          <Image
+            src="/logo.png"
+            alt="TalentBench Logo"
+            width={26}
+            height={26}
+            className="w-6.5 h-6.5 object-contain"
+          />
+          <span>TalentBench</span>
+        </a>
+        <span>Recruiting tools for thoughtful teams.</span>
+        <span>© 2026 TalentBench</span>
+      </footer>
+    </div>
+  );
+}
+
+export { Home as LandingPage };

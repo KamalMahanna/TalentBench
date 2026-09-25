@@ -1,21 +1,22 @@
 "use client";
 
 import React, { useState } from "react";
+import { motion } from "motion/react";
 import {
   Plus,
-  Trash,
+  Trash2,
   ArrowUp,
   ArrowDown,
   FileText,
   Brain,
   Code,
-  TerminalWindow,
-  UsersThree,
-  Gear,
-  PencilSimple,
-  Sparkle,
-  TrayArrowUp,
-} from "@phosphor-icons/react";
+  Terminal,
+  Users,
+  Settings,
+  Pencil,
+  Sparkles,
+  Upload,
+} from "lucide-react";
 import { ConnectorNodeModal, ConnectorStageConfig } from "./connector-node-modal";
 
 export interface PipelineStageItem {
@@ -44,11 +45,11 @@ const getRoundIcon = (type: string) => {
     case "DSA":
       return Code;
     case "TECHNICAL":
-      return TerminalWindow;
+      return Terminal;
     case "HR_ROUND":
-      return UsersThree;
+      return Users;
     default:
-      return Gear;
+      return Settings;
   }
 };
 
@@ -80,7 +81,6 @@ export function PipelineCanvas({
     });
 
     if (editIndex !== null && editIndex >= 0) {
-      // Edit existing stage
       const updated = [...stages];
       updated[editIndex] = {
         ...updated[editIndex],
@@ -92,7 +92,6 @@ export function PipelineCanvas({
       };
       onChange(updated);
     } else {
-      // Add new stage
       const newStage: PipelineStageItem = {
         type: config.type,
         title: config.title,
@@ -125,219 +124,421 @@ export function PipelineCanvas({
     onChange(reordered);
   };
 
-  // ── EMPTY STATE: Centered Plus Icon Canvas ────────────────────────────
+  // ── EMPTY STATE ──
   if (stages.length === 0) {
     return (
-      <div className="rounded-3xl p-1 bg-white/[0.04] ring-1 ring-[#8FB6E8]/20 backdrop-blur-2xl shadow-xl">
-        <div className="rounded-[calc(1.5rem-4px)] bg-[#0A1228]/90 p-8 sm:p-14 border border-white/10 flex flex-col items-center justify-center text-center space-y-6 min-h-[320px]">
-          {/* Centered Plus Icon Button */}
-          <button
-            type="button"
-            onClick={handleOpenCreateModal}
-            className="group relative flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-[#60A5FA]/20 via-[#3B82F6]/10 to-[#8FB6E8]/20 border border-[#60A5FA]/40 hover:border-[#60A5FA] shadow-[0_0_30px_rgba(96,165,250,0.25)] hover:shadow-[0_0_50px_rgba(96,165,250,0.5)] transition-all transform hover:scale-105 active:scale-95"
-            title="Configure First Node"
+      <div
+        style={{
+          background: "var(--surface-high)",
+          border: "1px dashed var(--outline)",
+          borderRadius: "24px",
+          padding: "48px 24px",
+          textAlign: "center",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "16px",
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleOpenCreateModal}
+          style={{
+            width: "64px",
+            height: "64px",
+            borderRadius: "20px",
+            background: "var(--surface-purple)",
+            border: "1px solid var(--outline)",
+            color: "var(--primary-deep)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            transition: "transform 0.15s",
+          }}
+          title="Configure First Node"
+        >
+          <Plus size={28} />
+        </button>
+
+        <div>
+          <h3
+            style={{
+              fontSize: "17px",
+              fontWeight: 600,
+              color: "var(--ink)",
+              margin: "0 0 6px",
+            }}
           >
-            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#60A5FA] opacity-75" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-[#60A5FA]" />
-            </span>
-            <Plus
-              size={36}
-              weight="bold"
-              className="text-[#60A5FA] group-hover:text-white transition-colors"
-            />
-          </button>
-
-          <div className="space-y-1 max-w-md">
-            <h3 className="text-base sm:text-lg font-display font-semibold text-white">
-              Configure First Connector Stage
-            </h3>
-            <p className="text-xs text-[#7C91B4] leading-relaxed">
-              Click the center plus icon to select your initial pipeline round (Resume Screening, Aptitude, DSA, Technical, HR, or Custom).
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-            <span className="text-[10px] font-mono px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[#8FB6E8]">
-              6 Modular Round Types
-            </span>
-            <span className="text-[10px] font-mono px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[#8FB6E8]">
-              Input &amp; Output Specs
-            </span>
-            <span className="text-[10px] font-mono px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[#8FB6E8]">
-              Cutoff &amp; Comparative Matching
-            </span>
-          </div>
-
-          <ConnectorNodeModal
-            isOpen={modalOpen}
-            onClose={() => setModalOpen(false)}
-            onSave={handleSaveStage}
-            mode="create"
-          />
+            Configure First Connector Stage
+          </h3>
+          <p
+            style={{
+              fontSize: "13px",
+              color: "var(--muted)",
+              margin: 0,
+              maxWidth: "420px",
+            }}
+          >
+            Select your initial pipeline round (Resume Screening, Aptitude, DSA, Technical, HR, or Custom).
+          </p>
         </div>
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center" }}>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 500,
+              padding: "4px 12px",
+              borderRadius: "999px",
+              background: "var(--surface)",
+              color: "var(--muted)",
+            }}
+          >
+            6 Modular Round Types
+          </span>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 500,
+              padding: "4px 12px",
+              borderRadius: "999px",
+              background: "var(--surface)",
+              color: "var(--muted)",
+            }}
+          >
+            Input &amp; Output Specs
+          </span>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 500,
+              padding: "4px 12px",
+              borderRadius: "999px",
+              background: "var(--surface)",
+              color: "var(--muted)",
+            }}
+          >
+            Cutoff &amp; Comparative Matching
+          </span>
+        </div>
+
+        <ConnectorNodeModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onSave={handleSaveStage}
+          mode="create"
+        />
       </div>
     );
   }
 
-  // ── ACTIVE STAGES CANVAS: Connected Nodes with Cables ───────────────────
+  // ── ACTIVE STAGES CANVAS ──
   return (
-    <div className="rounded-3xl p-1 bg-white/[0.04] ring-1 ring-[#8FB6E8]/20 backdrop-blur-2xl shadow-xl">
-      <div className="rounded-[calc(1.5rem-4px)] bg-[#070D1E] p-6 sm:p-8 border border-white/10 space-y-6">
-        {/* Header Strip */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
-          <div>
-            <h2 className="text-base font-display font-semibold text-white flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#60A5FA] animate-pulse" />
-              Connector Pipeline Stages ({stages.length})
-            </h2>
-            <p className="text-xs text-[#7C91B4] mt-0.5">
-              configure rounds
-            </p>
-          </div>
+    <div
+      style={{
+        background: "var(--surface-high)",
+        border: "1px solid var(--outline)",
+        borderRadius: "24px",
+        padding: "28px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "20px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: "1px solid var(--outline)",
+          paddingBottom: "16px",
+        }}
+      >
+        <div>
+          <h2
+            style={{
+              fontSize: "16px",
+              fontWeight: 600,
+              color: "var(--ink)",
+              margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <span
+              style={{
+                width: "8px",
+                height: "8px",
+                borderRadius: "999px",
+                background: "var(--primary)",
+              }}
+            />
+            Connector Pipeline Stages ({stages.length})
+          </h2>
+          <p style={{ fontSize: "12px", color: "var(--muted)", margin: "3px 0 0" }}>
+            Modular sequence of screening &amp; evaluation rounds
+          </p>
         </div>
+      </div>
 
-        {/* Connected Stages Sequence */}
-        <div className="space-y-0">
-          {stages.map((stage, idx) => {
-            const Icon = getRoundIcon(stage.type);
-            const isLast = idx === stages.length - 1;
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {stages.map((stage, idx) => {
+          const Icon = getRoundIcon(stage.type);
+          const isLast = idx === stages.length - 1;
 
-            let cutoffVal = stage.cutoff || 50;
-            if (stage.config) {
-              try {
-                const parsed = JSON.parse(stage.config);
-                if (parsed.cutoff) cutoffVal = parsed.cutoff;
-              } catch (e) {}
-            }
-
-            return (
-              <div key={stage.id || idx} className="relative group">
-                {/* Node Card */}
-                <div className="rounded-2xl p-5 bg-[#0D1633] border border-[#8FB6E8]/20 hover:border-[#60A5FA]/50 transition-all shadow-lg hover:shadow-[0_0_25px_rgba(96,165,250,0.15)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 min-w-0">
-                    {/* Step Number */}
-                    <div className="w-9 h-9 rounded-xl bg-[#60A5FA]/10 border border-[#60A5FA]/30 text-[#60A5FA] flex items-center justify-center font-mono text-xs font-bold shrink-0">
-                      0{idx + 1}
-                    </div>
-
-                    {/* Round Icon */}
-                    <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-[#EAF1FB] shrink-0">
-                      <Icon size={20} weight="duotone" />
-                    </div>
-
-                    {/* Details */}
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-sm font-semibold text-white tracking-wide truncate">
-                          {stage.type === "RESUME_SCREENING" ? "RESUME SCREENING" : stage.title}
-                        </h3>
-                        {stage.type !== "RESUME_SCREENING" && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#60A5FA]/10 border border-[#60A5FA]/25 text-[#60A5FA] uppercase">
-                            {stage.type.replace("_", " ")}
-                          </span>
-                        )}
-                      </div>
-                      {stage.type !== "RESUME_SCREENING" && stage.description && (
-                        <p className="text-xs text-[#7C91B4] mt-1 line-clamp-1">
-                          {stage.description}
-                        </p>
-                      )}
-                    </div>
+          return (
+            <motion.div
+              key={stage.id || idx}
+              layout
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+            >
+              {/* Node Card */}
+              <motion.div
+                whileHover={{ y: -2, transition: { duration: 0.15 } }}
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid var(--outline)",
+                  borderRadius: "18px",
+                  padding: "18px 20px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "16px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
+                  {/* Step Number */}
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "10px",
+                      background: "var(--surface-purple)",
+                      color: "var(--primary-deep)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                  >
+                    0{idx + 1}
                   </div>
 
-                  {/* Actions & Stage Controls */}
-                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                    {onExecuteStage && stage.type === "RESUME_SCREENING" && (
-                      <button
-                        type="button"
-                        onClick={() => onExecuteStage(stage)}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-mono transition-colors flex items-center gap-1.5"
-                      >
-                        <TrayArrowUp size={14} /> Execute Stage
-                      </button>
-                    )}
+                  {/* Icon */}
+                  <div
+                    style={{
+                      width: "38px",
+                      height: "38px",
+                      borderRadius: "10px",
+                      background: "var(--surface-high)",
+                      border: "1px solid var(--outline)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--ink)",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon size={18} />
+                  </div>
 
-                    {isEditable && (
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditModal(idx)}
-                          className="p-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-[#7C91B4] hover:text-white transition-colors"
-                          title="Edit Stage Configuration"
+                  {/* Details */}
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      <h3
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: 600,
+                          color: "var(--ink)",
+                          margin: 0,
+                        }}
+                      >
+                        {stage.type === "RESUME_SCREENING" ? "RESUME SCREENING" : stage.title}
+                      </h3>
+                      {stage.type !== "RESUME_SCREENING" && (
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 600,
+                            padding: "2px 8px",
+                            borderRadius: "999px",
+                            background: "var(--surface-blue)",
+                            color: "#1a6098",
+                            textTransform: "uppercase",
+                          }}
                         >
-                          <PencilSimple size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleMove(idx, "up")}
-                          disabled={idx === 0}
-                          className="p-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-[#7C91B4] hover:text-white disabled:opacity-30 transition-colors"
-                          title="Move Earlier"
-                        >
-                          <ArrowUp size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleMove(idx, "down")}
-                          disabled={isLast}
-                          className="p-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-[#7C91B4] hover:text-white disabled:opacity-30 transition-colors"
-                          title="Move Later"
-                        >
-                          <ArrowDown size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(idx)}
-                          disabled={stages.length <= 1}
-                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 disabled:opacity-30 transition-colors ml-1"
-                          title="Remove Stage"
-                        >
-                          <Trash size={14} />
-                        </button>
-                      </div>
+                          {stage.type.replace("_", " ")}
+                        </span>
+                      )}
+                    </div>
+                    {stage.type !== "RESUME_SCREENING" && stage.description && (
+                      <p
+                        style={{
+                          fontSize: "12px",
+                          color: "var(--muted)",
+                          margin: "3px 0 0",
+                        }}
+                      >
+                        {stage.description}
+                      </p>
                     )}
                   </div>
                 </div>
 
-                {/* Glowing Connector Cable between stages */}
-                {!isLast && (
-                  <div className="h-8 flex items-center justify-center my-1 relative">
-                    <div className="w-0.5 h-full bg-gradient-to-b from-[#60A5FA] via-[#3B82F6] to-[#60A5FA] opacity-70" />
-                    <div className="absolute w-2 h-2 rounded-full bg-[#60A5FA] shadow-[0_0_8px_#60A5FA]" />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                {/* Actions */}
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {onExecuteStage && stage.type === "RESUME_SCREENING" && (
+                    <button
+                      type="button"
+                      onClick={() => onExecuteStage(stage)}
+                      className="md-button md-button--tonal"
+                      style={{ fontSize: "12px", padding: "6px 14px", gap: "5px" }}
+                    >
+                      <Upload size={14} /> Execute Stage
+                    </button>
+                  )}
 
-        {/* Plus Adder Button at the bottom of the active pipeline */}
-        {isEditable && (
-          <div className="flex justify-center pt-2">
-            <button
-              type="button"
-              onClick={handleOpenCreateModal}
-              className="px-4 py-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-dashed border-[#60A5FA]/40 hover:border-[#60A5FA] text-[#60A5FA] text-xs font-mono transition-all flex items-center gap-2"
-            >
-              <Plus size={14} /> Add Connector Stage
-            </button>
-          </div>
-        )}
+                  {isEditable && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditModal(idx)}
+                        style={{
+                          background: "var(--surface-high)",
+                          border: "1px solid var(--outline)",
+                          borderRadius: "8px",
+                          padding: "6px",
+                          cursor: "pointer",
+                          color: "var(--muted)",
+                          display: "flex",
+                        }}
+                        title="Edit Stage"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMove(idx, "up")}
+                        disabled={idx === 0}
+                        style={{
+                          background: "var(--surface-high)",
+                          border: "1px solid var(--outline)",
+                          borderRadius: "8px",
+                          padding: "6px",
+                          cursor: idx === 0 ? "not-allowed" : "pointer",
+                          color: "var(--muted)",
+                          opacity: idx === 0 ? 0.3 : 1,
+                          display: "flex",
+                        }}
+                        title="Move Up"
+                      >
+                        <ArrowUp size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMove(idx, "down")}
+                        disabled={isLast}
+                        style={{
+                          background: "var(--surface-high)",
+                          border: "1px solid var(--outline)",
+                          borderRadius: "8px",
+                          padding: "6px",
+                          cursor: isLast ? "not-allowed" : "pointer",
+                          color: "var(--muted)",
+                          opacity: isLast ? 0.3 : 1,
+                          display: "flex",
+                        }}
+                        title="Move Down"
+                      >
+                        <ArrowDown size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(idx)}
+                        disabled={stages.length <= 1}
+                        style={{
+                          background: "#fde8e8",
+                          border: "none",
+                          borderRadius: "8px",
+                          padding: "6px",
+                          cursor: stages.length <= 1 ? "not-allowed" : "pointer",
+                          color: "#c0392b",
+                          opacity: stages.length <= 1 ? 0.3 : 1,
+                          display: "flex",
+                        }}
+                        title="Remove Stage"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
 
-        {/* Modal */}
-        <ConnectorNodeModal
-          isOpen={modalOpen}
-          onClose={() => {
-            setModalOpen(false);
-            setEditIndex(null);
-          }}
-          onSave={handleSaveStage}
-          initialStage={editIndex !== null ? stages[editIndex] : undefined}
-          mode={editIndex !== null ? "edit" : "create"}
-        />
+              {/* Connecting line */}
+              {!isLast && (
+                <div
+                  style={{
+                    height: "24px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    position: "relative",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "2px",
+                      height: "100%",
+                      background: "var(--outline)",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      width: "6px",
+                      height: "6px",
+                      borderRadius: "999px",
+                      background: "var(--primary)",
+                    }}
+                  />
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
       </div>
+
+      {isEditable && (
+        <div style={{ display: "flex", justifyContent: "center", paddingTop: "4px" }}>
+          <button
+            type="button"
+            onClick={handleOpenCreateModal}
+            className="md-button md-button--tonal"
+            style={{ fontSize: "12px", padding: "8px 18px" }}
+          >
+            <Plus size={14} /> Add Connector Stage
+          </button>
+        </div>
+      )}
+
+      <ConnectorNodeModal
+        isOpen={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setEditIndex(null);
+        }}
+        onSave={handleSaveStage}
+        initialStage={editIndex !== null ? stages[editIndex] : undefined}
+        mode={editIndex !== null ? "edit" : "create"}
+      />
     </div>
   );
 }
-

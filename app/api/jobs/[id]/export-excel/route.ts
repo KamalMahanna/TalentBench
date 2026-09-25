@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import * as XLSX from "xlsx";
+import { extractCandidateNameFromResume, sanitizeMailBodyGreeting } from "@/lib/utils";
 
 export async function GET(
   req: Request,
@@ -34,14 +35,15 @@ export async function GET(
     // Sheet 1: Shortlisted candidates
     const shortlistedRows = shortlisted.map((c, idx) => {
       const result = c.roundResults[0];
+      const realName = extractCandidateNameFromResume(c.resumeText || "", c.email, c.name);
       return {
         "Rank": idx + 1,
         "Student Email ID": c.email,
-        "Candidate Name": c.name,
+        "Candidate Name": realName,
         "Experience (Years)": c.experienceYears,
         "Match Score (%)": result?.score ?? 80,
         "Status": "SHORTLISTED",
-        "Promotion Note": c.isOverridden ? `HR Manual Override (${c.overrideReason || "Approved"})` : "AI Qualified (>= 50% Match / Benchmark Top Tier)",
+        "Promotion Note": c.isOverridden ? `HR Manual Override (${c.overrideReason || "Approved"})` : "AI Qualified (>= 30% Match / Benchmark Top Tier)",
         "Screening Date": c.createdAt.toISOString().replace("T", " ").slice(0, 19),
       };
     });
@@ -49,15 +51,19 @@ export async function GET(
     // Sheet 2: Not Shortlisted candidates with Email Body Text
     const notShortlistedRows = notShortlisted.map((c, idx) => {
       const result = c.roundResults[0];
+      const realName = extractCandidateNameFromResume(c.resumeText || "", c.email, c.name);
       return {
         "Rank": idx + 1,
         "Student Email ID": c.email,
-        "Candidate Name": c.name,
+        "Candidate Name": realName,
         "Experience (Years)": c.experienceYears,
         "Match Score (%)": result?.score ?? 35,
         "Status": "NOT SHORTLISTED",
-        "Feedback Summary": result?.feedback || "Did not fulfill 50% core requirement threshold",
-        "Mail Body Text (For Rejection Feedback)": c.personalizedReply || "Thank you for applying. Currently your profile did not meet the core technical thresholds for this role.",
+        "Feedback Summary": result?.feedback || "Did not fulfill 30% core requirement threshold",
+        "Mail Body Text (For Rejection Feedback)": sanitizeMailBodyGreeting(
+          c.personalizedReply || `Dear ${realName},\n\nThank you for applying. Currently your profile did not meet the core technical thresholds for this role.`,
+          realName
+        ),
         "Screening Date": c.createdAt.toISOString().replace("T", " ").slice(0, 19),
       };
     });

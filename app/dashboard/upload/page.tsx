@@ -2,29 +2,30 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { GlassButton } from "@/components/ui/glass-button";
 import { Badge } from "@/components/ui/badge";
 import {
-  TrayArrowUp,
+  Upload,
   FileText,
-  FilePdf,
-  FileDoc,
-  Trash,
+  File,
+  Trash2,
   CheckCircle,
   Clock,
-  Sparkle,
+  Sparkles,
   ArrowRight,
   Briefcase,
-  Warning,
-  ArrowsClockwise,
-  UsersThree,
-  EnvelopeSimple,
+  AlertTriangle,
+  RefreshCw,
+  Users,
+  Mail,
   Eye,
   X,
   HardDrive,
-} from "@phosphor-icons/react";
+  ChevronDown,
+  Check,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useTheme } from "@/context/theme-context";
+import { motion, AnimatePresence } from "motion/react";
 import { parseResumeFileInBrowser, extractEmailFromText } from "@/lib/client/resume-parser";
 import {
   saveCachedResume,
@@ -114,6 +115,32 @@ export default function BulkUploadPage() {
 
   // Preview Modal
   const [previewItem, setPreviewItem] = useState<QueuedFile | null>(null);
+
+  // Custom Requisition Popover Dropdown
+  const [isJobDropdownOpen, setIsJobDropdownOpen] = useState(false);
+  const jobDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        jobDropdownRef.current &&
+        !jobDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsJobDropdownOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsJobDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -371,9 +398,9 @@ export default function BulkUploadPage() {
 
   const getFileIcon = (fileName: string) => {
     const ext = fileName.split(".").pop()?.toLowerCase();
-    if (ext === "pdf") return <FilePdf size={22} weight="duotone" className="text-rose-400" />;
-    if (ext === "docx" || ext === "doc") return <FileDoc size={22} weight="duotone" className="text-blue-400" />;
-    return <FileText size={22} weight="duotone" className="text-[#8FB6E8]" />;
+    if (ext === "pdf") return <File size={22} className="text-rose-400" />;
+    if (ext === "docx" || ext === "doc") return <File size={22} className="text-blue-400" />;
+    return <FileText size={22} style={{ color: "var(--primary)" }} />;
   };
 
   return (
@@ -382,51 +409,137 @@ export default function BulkUploadPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className={`text-2xl sm:text-3xl font-display font-bold tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
+            <h1 style={{ color: "var(--ink)" }} className="text-2xl sm:text-3xl font-bold tracking-tight">
               Bulk Resume Ingestion Center
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 flex items-center gap-1.5">
-              <HardDrive size={13} weight="fill" /> In-Browser Scraping &amp; Cache Active
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-500 border border-emerald-500/25 flex items-center gap-1.5">
+              <HardDrive size={13} /> In-Browser Scraping &amp; Cache Active
             </span>
           </div>
-          <p className={`text-xs sm:text-sm mt-1 ${isLight ? "text-slate-600" : "text-[#7C91B4]"}`}>
+          <p style={{ color: "var(--muted)" }} className="text-xs sm:text-sm mt-1">
             Resumes are scraped locally in your browser with automatic Gmail regex extraction and IndexedDB caching.
           </p>
         </div>
 
-        <GlassButton variant="secondary" onClick={handleLoadSampleBatch} className="text-xs">
-          <Sparkle size={16} />
+        <button
+          className="md-button md-button--tonal inline-flex items-center gap-2 text-xs"
+          onClick={handleLoadSampleBatch}
+        >
+          <Sparkles size={16} />
           Load Sample Cohort
-        </GlassButton>
+        </button>
       </div>
 
       {/* Requisition Selector & Options Card */}
       <div
-        className={`p-6 rounded-3xl border shadow-lg ${
-          isLight ? "bg-white border-slate-200" : "bg-[#0D1633] border-white/15"
-        }`}
+        className="p-6 rounded-3xl border shadow-sm"
+        style={{ background: "var(--surface)", borderColor: "var(--outline)" }}
       >
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center">
           <div className="sm:col-span-8">
-            <label className="block text-xs font-mono uppercase text-[#7C91B4] mb-2">
+            <label className="block text-xs uppercase tracking-wider mb-2" style={{ color: "var(--muted)" }}>
               Target Job Requisition *
             </label>
-            <div className="relative">
-              <select
-                value={selectedJobId}
-                onChange={(e) => setSelectedJobId(e.target.value)}
-                className={`w-full py-2.5 px-4 rounded-xl text-sm border focus:outline-none focus:ring-1 focus:ring-[#8FB6E8] cursor-pointer ${
-                  isLight
-                    ? "bg-slate-50 border-slate-300 text-slate-900"
-                    : "bg-[#060B18] border-white/20 text-[#EAF1FB]"
-                }`}
+            <div className="relative" ref={jobDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsJobDropdownOpen(!isJobDropdownOpen)}
+                className="w-full py-2.5 px-4 rounded-xl text-sm transition-all flex items-center justify-between shadow-sm focus:outline-none select-none text-left cursor-pointer"
+                style={{
+                  background: isJobDropdownOpen ? "var(--surface-purple)" : "var(--canvas)",
+                  border: `1px solid ${isJobDropdownOpen ? "var(--primary)" : "var(--outline)"}`,
+                  color: "var(--ink)",
+                  boxShadow: isJobDropdownOpen ? "0 0 0 2px rgba(103, 80, 164, 0.15)" : undefined,
+                }}
               >
-                {jobs.map((j) => (
-                  <option key={j.id} value={j.id}>
-                    {j.title} (Tier: {j.minExperience}–{j.maxExperience} yrs)
-                  </option>
-                ))}
-              </select>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Briefcase size={15} style={{ color: "var(--primary)" }} className="shrink-0" />
+                  <div className="truncate">
+                    <span className="font-semibold">
+                      {jobs.find((j) => j.id === selectedJobId)?.title || "Select Requisition"}
+                    </span>
+                    {jobs.find((j) => j.id === selectedJobId) && (
+                      <span className="text-xs ml-2 font-mono" style={{ color: "var(--muted)" }}>
+                        (Tier: {jobs.find((j) => j.id === selectedJobId)?.minExperience}–{jobs.find((j) => j.id === selectedJobId)?.maxExperience} yrs)
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <ChevronDown
+                  size={16}
+                  className="transition-transform duration-200 shrink-0 ml-2"
+                  style={{
+                    transform: isJobDropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    color: "var(--muted)",
+                  }}
+                />
+              </button>
+
+              <AnimatePresence>
+                {isJobDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="absolute left-0 top-full mt-2 w-full rounded-2xl border shadow-2xl z-50 overflow-hidden"
+                    style={{
+                      background: "var(--surface-high)",
+                      borderColor: "var(--outline)",
+                      boxShadow: "0 16px 40px -6px rgba(0, 0, 0, 0.16), 0 4px 16px -2px rgba(0, 0, 0, 0.08)",
+                    }}
+                  >
+                    <div className="p-1.5 max-h-64 overflow-y-auto space-y-1">
+                      {jobs.map((j) => {
+                        const isSelected = selectedJobId === j.id;
+                        return (
+                          <button
+                            key={j.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedJobId(j.id);
+                              setIsJobDropdownOpen(false);
+                            }}
+                            className="w-full text-left p-2.5 rounded-xl transition-all flex items-center justify-between group cursor-pointer"
+                            style={{
+                              background: isSelected ? "var(--surface-purple)" : "transparent",
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSelected) e.currentTarget.style.background = "var(--surface)";
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isSelected) e.currentTarget.style.background = "transparent";
+                            }}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div
+                                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors"
+                                style={{
+                                  background: isSelected ? "var(--primary)" : "var(--surface)",
+                                  color: isSelected ? "var(--on-primary)" : "var(--primary)",
+                                }}
+                              >
+                                <Briefcase size={15} />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-semibold truncate" style={{ color: "var(--ink)" }}>
+                                  {j.title}
+                                </div>
+                                <div className="text-[11px]" style={{ color: "var(--muted)" }}>
+                                  Experience Tier: {j.minExperience}–{j.maxExperience} years
+                                </div>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <Check size={16} style={{ color: "var(--primary)" }} className="shrink-0 ml-2" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
@@ -436,9 +549,10 @@ export default function BulkUploadPage() {
                 type="checkbox"
                 checked={autoScreen}
                 onChange={(e) => setAutoScreen(e.target.checked)}
-                className="w-4 h-4 rounded text-[#8FB6E8] focus:ring-[#8FB6E8] border-white/20 cursor-pointer"
+                className="w-4 h-4 rounded cursor-pointer"
+                style={{ accentColor: "var(--primary)" }}
               />
-              <span className={isLight ? "text-slate-700" : "text-slate-300"}>
+              <span style={{ color: "var(--muted)" }}>
                 Trigger Autonomous AI Screen immediately
               </span>
             </label>
@@ -452,13 +566,19 @@ export default function BulkUploadPage() {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onClick={() => fileInputRef.current?.click()}
-        className={`p-10 sm:p-14 rounded-3xl border-2 border-dashed text-center transition-all cursor-pointer relative overflow-hidden ${
+        className="p-10 sm:p-14 rounded-3xl border-2 border-dashed text-center transition-all cursor-pointer relative overflow-hidden"
+        style={
           isDragging
-            ? "border-[#8FB6E8] bg-[#8FB6E8]/10 scale-[1.01]"
-            : isLight
-            ? "border-slate-300 bg-white hover:border-blue-400 hover:bg-slate-50/50"
-            : "border-white/15 bg-white/[0.01] hover:border-[#8FB6E8]/40 hover:bg-white/[0.03]"
-        }`}
+            ? {
+                borderColor: "var(--primary)",
+                background: "var(--surface-purple)",
+                transform: "scale(1.01)",
+              }
+            : {
+                borderColor: "var(--outline)",
+                background: "var(--surface)",
+              }
+        }
       >
         <input
           ref={fileInputRef}
@@ -469,22 +589,32 @@ export default function BulkUploadPage() {
           className="hidden"
         />
 
-        <div className="w-16 h-16 mx-auto rounded-2xl bg-[#8FB6E8]/10 text-[#8FB6E8] flex items-center justify-center mb-4">
-          <TrayArrowUp size={32} weight="duotone" />
+        <div
+          className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4"
+          style={{ background: "var(--surface-purple)", color: "var(--primary)" }}
+        >
+          <Upload size={32} />
         </div>
 
-        <h3 className={`text-lg sm:text-xl font-display font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>
+        <h3 style={{ color: "var(--ink)" }} className="text-lg sm:text-xl font-semibold">
           Drag &amp; Drop Resumes Here
         </h3>
-        <p className={`text-xs sm:text-sm mt-1.5 max-w-md mx-auto ${isLight ? "text-slate-600" : "text-[#7C91B4]"}`}>
-          Supports PDF, DOCX, TXT. Files are <span className="text-emerald-400 font-medium">scraped locally in your browser</span> and cached in IndexedDB before uploading.
+        <p style={{ color: "var(--muted)" }} className="text-xs sm:text-sm mt-1.5 max-w-md mx-auto">
+          Supports PDF, DOCX, TXT. Files are <span className="text-emerald-500 font-medium">scraped locally in your browser</span> and cached in IndexedDB before uploading.
         </p>
 
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-          <span className="text-xs font-mono px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[#8FB6E8]">
+          <span
+            className="text-xs px-3 py-1 rounded-full"
+            style={{
+              background: "var(--surface-purple)",
+              border: "1px solid var(--outline)",
+              color: "var(--primary)",
+            }}
+          >
             Click to Browse Files
           </span>
-          <span className="text-xs font-mono px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+          <span className="text-xs px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
             Gmail Regex Auto-Detect
           </span>
         </div>
@@ -493,17 +623,16 @@ export default function BulkUploadPage() {
       {/* Ingestion Queue Table */}
       {queue.length > 0 && (
         <div
-          className={`p-6 sm:p-8 rounded-3xl border shadow-xl space-y-6 ${
-            isLight ? "bg-white border-slate-200" : "bg-[#0D1633] border-white/15"
-          }`}
+          className="p-6 sm:p-8 rounded-3xl border shadow-sm space-y-6"
+          style={{ background: "var(--surface)", borderColor: "var(--outline)" }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h3 className={`text-base sm:text-lg font-display font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+              <h3 style={{ color: "var(--ink)" }} className="text-base sm:text-lg font-bold">
                 Ingestion Queue ({queue.length})
               </h3>
               {completedCount !== null && (
-                <span className="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+                <span className="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-500">
                   {completedCount} Ingested
                 </span>
               )}
@@ -511,7 +640,10 @@ export default function BulkUploadPage() {
 
             <button
               onClick={clearQueue}
-              className="text-xs font-mono text-[#7C91B4] hover:text-rose-400 transition-colors cursor-pointer"
+              className="text-xs transition-colors cursor-pointer"
+              style={{ color: "var(--muted)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#f87171")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted)")}
             >
               Clear Queue &amp; Cache
             </button>
@@ -521,21 +653,23 @@ export default function BulkUploadPage() {
             {queue.map((item) => (
               <div
                 key={item.id}
-                className={`p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                  isLight ? "bg-slate-50 border-slate-200" : "bg-white/[0.02] border-white/10"
-                }`}
+                className="p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4"
+                style={{ background: "var(--canvas)", borderColor: "var(--outline)" }}
               >
                 <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: "var(--surface-purple)" }}
+                  >
                     {getFileIcon(item.name)}
                   </div>
 
                   <div className="min-w-0 space-y-1 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h4 className={`text-sm font-semibold truncate ${isLight ? "text-slate-900" : "text-white"}`}>
+                      <h4 style={{ color: "var(--ink)" }} className="text-sm font-semibold truncate">
                         {item.name}
                       </h4>
-                      <span className="text-xs font-mono text-[#7C91B4]">
+                      <span style={{ color: "var(--muted)" }} className="text-xs">
                         {(item.size / 1024).toFixed(1)} KB
                       </span>
                     </div>
@@ -546,11 +680,11 @@ export default function BulkUploadPage() {
                         <span
                           className={`inline-flex items-center gap-1 text-[11px] font-mono px-2.5 py-0.5 rounded-full border ${
                             item.isGmail
-                              ? "bg-rose-500/15 text-rose-300 border-rose-500/30"
-                              : "bg-blue-500/15 text-blue-300 border-blue-500/30"
+                              ? "bg-rose-500/15 text-rose-400 border-rose-500/30"
+                              : "bg-blue-500/15 text-blue-400 border-blue-500/30"
                           }`}
                         >
-                          <EnvelopeSimple size={13} weight="fill" />
+                          <Mail size={13} />
                           {item.extractedEmail}
                           {item.isGmail && (
                             <span className="text-[9px] font-bold uppercase tracking-wider bg-rose-500/25 px-1 rounded ml-0.5">
@@ -559,13 +693,16 @@ export default function BulkUploadPage() {
                           )}
                         </span>
                       ) : item.status === "parsed" ? (
-                        <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] font-mono text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
                           No email detected
                         </span>
                       ) : null}
 
                       {item.charCount !== undefined && (
-                        <span className="text-[10px] font-mono text-[#7C91B4] bg-white/5 px-2 py-0.5 rounded-full">
+                        <span
+                          className="text-[10px] font-mono px-2 py-0.5 rounded-full"
+                          style={{ background: "var(--surface-purple)", color: "var(--muted)" }}
+                        >
                           {item.charCount.toLocaleString()} chars · {item.wordCount} words
                         </span>
                       )}
@@ -579,7 +716,12 @@ export default function BulkUploadPage() {
                     <button
                       type="button"
                       onClick={() => setPreviewItem(item)}
-                      className="px-2.5 py-1 rounded-xl text-xs font-mono flex items-center gap-1.5 text-[#8FB6E8] bg-[#8FB6E8]/10 hover:bg-[#8FB6E8]/20 transition-all cursor-pointer"
+                      className="px-2.5 py-1 rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      style={{
+                        color: "var(--primary)",
+                        background: "var(--surface-purple)",
+                        border: "1px solid var(--outline)",
+                      }}
                     >
                       <Eye size={14} />
                       Preview Text
@@ -588,27 +730,33 @@ export default function BulkUploadPage() {
 
                   {/* Status Badges */}
                   {item.status === "completed" && (
-                    <span className="inline-flex items-center gap-1 text-xs font-mono text-emerald-400 bg-emerald-500/15 px-2.5 py-1 rounded-full">
-                      <CheckCircle size={14} weight="fill" /> Ingested
+                    <span className="inline-flex items-center gap-1 text-xs font-mono text-emerald-500 bg-emerald-500/15 px-2.5 py-1 rounded-full">
+                      <CheckCircle size={14} /> Ingested
                     </span>
                   )}
                   {item.status === "processing" && (
-                    <span className="inline-flex items-center gap-1 text-xs font-mono text-[#8FB6E8] bg-[#8FB6E8]/15 px-2.5 py-1 rounded-full animate-pulse">
-                      <ArrowsClockwise size={14} className="animate-spin" /> Ingesting...
+                    <span
+                      className="inline-flex items-center gap-1 text-xs font-mono px-2.5 py-1 rounded-full animate-pulse"
+                      style={{ color: "var(--primary)", background: "var(--surface-purple)" }}
+                    >
+                      <RefreshCw size={14} className="animate-spin" /> Ingesting...
                     </span>
                   )}
                   {item.status === "parsing" && (
-                    <span className="inline-flex items-center gap-1 text-xs font-mono text-amber-300 bg-amber-500/15 px-2.5 py-1 rounded-full animate-pulse">
-                      <ArrowsClockwise size={14} className="animate-spin" /> Scraping...
+                    <span className="inline-flex items-center gap-1 text-xs font-mono text-amber-500 bg-amber-500/15 px-2.5 py-1 rounded-full animate-pulse">
+                      <RefreshCw size={14} className="animate-spin" /> Scraping...
                     </span>
                   )}
                   {item.status === "parsed" && (
-                    <span className="inline-flex items-center gap-1 text-xs font-mono text-emerald-400 bg-emerald-500/15 px-2.5 py-1 rounded-full">
-                      <CheckCircle size={14} weight="fill" /> Ready (Cached)
+                    <span className="inline-flex items-center gap-1 text-xs font-mono text-emerald-500 bg-emerald-500/15 px-2.5 py-1 rounded-full">
+                      <CheckCircle size={14} /> Ready (Cached)
                     </span>
                   )}
                   {item.status === "pending" && (
-                    <span className="inline-flex items-center gap-1 text-xs font-mono text-[#7C91B4] bg-white/5 px-2.5 py-1 rounded-full">
+                    <span
+                      className="inline-flex items-center gap-1 text-xs font-mono px-2.5 py-1 rounded-full"
+                      style={{ color: "var(--muted)", background: "var(--surface-purple)" }}
+                    >
                       <Clock size={14} /> Queued
                     </span>
                   )}
@@ -616,9 +764,18 @@ export default function BulkUploadPage() {
                   {!isIngesting && (
                     <button
                       onClick={() => removeFile(item.id)}
-                      className="p-1.5 rounded-lg text-[#7C91B4] hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                      className="p-1.5 rounded-lg transition-colors cursor-pointer"
+                      style={{ color: "var(--muted)" }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = "#f87171";
+                        e.currentTarget.style.background = "rgba(239,68,68,0.1)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = "var(--muted)";
+                        e.currentTarget.style.background = "transparent";
+                      }}
                     >
-                      <Trash size={16} />
+                      <Trash2 size={16} />
                     </button>
                   )}
                 </div>
@@ -627,27 +784,32 @@ export default function BulkUploadPage() {
           </div>
 
           {/* Action Bar */}
-          <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-xs font-mono text-[#7C91B4]">
+          <div
+            className="pt-4 border-t flex flex-col sm:flex-row items-center justify-between gap-4"
+            style={{ borderColor: "var(--outline)" }}
+          >
+            <div className="text-xs" style={{ color: "var(--muted)" }}>
               {queue.filter((q) => q.status === "parsed" || q.status === "completed").length} of {queue.length} resume(s) scraped &amp; cached locally.
             </div>
 
             <div className="flex items-center gap-3">
               {completedCount !== null && (
-                <GlassButton variant="secondary" href="/dashboard/candidates">
-                  <UsersThree size={16} />
-                  View in Candidate Pool
-                </GlassButton>
+                <Link href="/dashboard/candidates">
+                  <button className="md-button md-button--tonal inline-flex items-center gap-2">
+                    <Users size={16} />
+                    View in Candidate Pool
+                  </button>
+                </Link>
               )}
 
-              <GlassButton
-                variant="primary"
+              <button
+                className="md-button md-button--filled inline-flex items-center gap-2 disabled:opacity-60"
                 onClick={handleStartIngestion}
                 disabled={isIngesting || queue.some((q) => q.status === "parsing")}
-                withArrow
               >
                 {isIngesting ? "Ingesting Cohort..." : "Execute Ingestion"}
-              </GlassButton>
+                {!isIngesting && <ArrowRight size={16} />}
+              </button>
             </div>
           </div>
         </div>
@@ -655,15 +817,17 @@ export default function BulkUploadPage() {
 
       {/* Extracted Text Preview Modal */}
       {previewItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
           <div
-            className={`w-full max-w-2xl max-h-[85vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden ${
-              isLight ? "bg-white border-slate-300" : "bg-[#0D1633] border-white/20 text-white"
-            }`}
+            className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden"
+            style={{ background: "var(--surface)", borderColor: "var(--outline)" }}
           >
-            <div className="p-6 border-b border-white/10 flex items-center justify-between">
+            <div
+              className="p-6 border-b flex items-center justify-between"
+              style={{ borderColor: "var(--outline)" }}
+            >
               <div>
-                <h3 className="text-base font-display font-bold truncate">
+                <h3 style={{ color: "var(--ink)" }} className="text-base font-bold truncate">
                   {previewItem.name}
                 </h3>
                 <div className="flex items-center gap-2 mt-1">
@@ -671,14 +835,14 @@ export default function BulkUploadPage() {
                     <span
                       className={`text-xs font-mono px-2 py-0.5 rounded-full border ${
                         previewItem.isGmail
-                          ? "bg-rose-500/15 text-rose-300 border-rose-500/30"
-                          : "bg-blue-500/15 text-blue-300 border-blue-500/30"
+                          ? "bg-rose-500/15 text-rose-400 border-rose-500/30"
+                          : "bg-blue-500/15 text-blue-400 border-blue-500/30"
                       }`}
                     >
                       {previewItem.extractedEmail} ({previewItem.isGmail ? "Gmail" : "Email"})
                     </span>
                   )}
-                  <span className="text-xs font-mono text-[#7C91B4]">
+                  <span style={{ color: "var(--muted)" }} className="text-xs font-mono">
                     {previewItem.charCount?.toLocaleString()} characters
                   </span>
                 </div>
@@ -686,21 +850,42 @@ export default function BulkUploadPage() {
 
               <button
                 onClick={() => setPreviewItem(null)}
-                className="p-2 rounded-xl text-[#7C91B4] hover:text-white hover:bg-white/10 transition-colors"
+                className="p-2 rounded-xl transition-colors"
+                style={{ color: "var(--muted)" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "var(--ink)";
+                  e.currentTarget.style.background = "var(--surface-purple)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "var(--muted)";
+                  e.currentTarget.style.background = "transparent";
+                }}
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto flex-1 font-mono text-xs leading-relaxed text-slate-300 whitespace-pre-wrap bg-[#060B18]/60 selection:bg-[#8FB6E8]/30">
+            <div
+              className="p-6 overflow-y-auto flex-1 font-mono text-xs leading-relaxed whitespace-pre-wrap"
+              style={{
+                background: "var(--canvas)",
+                color: "var(--muted)",
+              }}
+            >
               {previewItem.resumeText || "No text could be extracted from this document."}
             </div>
 
-            <div className="p-4 border-t border-white/10 flex items-center justify-between text-xs text-[#7C91B4]">
+            <div
+              className="p-4 border-t flex items-center justify-between text-xs"
+              style={{ borderColor: "var(--outline)", color: "var(--muted)" }}
+            >
               <span>Scraped locally in-browser · Zero server upload for parsing</span>
-              <GlassButton variant="secondary" onClick={() => setPreviewItem(null)} className="text-xs">
+              <button
+                className="md-button md-button--tonal text-xs"
+                onClick={() => setPreviewItem(null)}
+              >
                 Close Preview
-              </GlassButton>
+              </button>
             </div>
           </div>
         </div>

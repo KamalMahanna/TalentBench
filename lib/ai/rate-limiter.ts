@@ -1,7 +1,6 @@
 /**
  * Sliding-window rate limiter & retry engine for LLM API calls.
  * Enforces strict quotas:
- * - gemma-4-31b-it: 30 requests/min, 16,000 tokens/min
  * - gemini-3.5-flash-lite: 15 requests/min, 250,000 tokens/min
  */
 
@@ -11,10 +10,6 @@ export interface ModelQuota {
 }
 
 export const MODEL_QUOTAS: Record<string, ModelQuota> = {
-  "gemma-4-31b-it": {
-    rpm: 30,
-    tpm: 16000,
-  },
   "gemini-3.5-flash-lite": {
     rpm: 15,
     tpm: 250000,
@@ -108,29 +103,19 @@ class SlidingWindowLimiter {
   }
 }
 
-// Global singletons per model to ensure strict sliding window quota across requests
-const gemmaLimiter = new SlidingWindowLimiter(
-  "gemma-4-31b-it",
-  MODEL_QUOTAS["gemma-4-31b-it"].rpm,
-  MODEL_QUOTAS["gemma-4-31b-it"].tpm
-);
-
+// Global singleton for Gemini Flash-Lite to ensure strict sliding window quota across requests
 const flashLiteLimiter = new SlidingWindowLimiter(
   "gemini-3.5-flash-lite",
   MODEL_QUOTAS["gemini-3.5-flash-lite"].rpm,
   MODEL_QUOTAS["gemini-3.5-flash-lite"].tpm
 );
 
-export function getRateLimiterForModel(modelName: string): SlidingWindowLimiter {
-  if (modelName.includes("gemma")) {
-    return gemmaLimiter;
-  }
+export function getRateLimiterForModel(_modelName?: string): SlidingWindowLimiter {
   return flashLiteLimiter;
 }
 
 export function getAllRateLimiterStatuses() {
   return {
-    gemma: gemmaLimiter.getStatus(),
     flashLite: flashLiteLimiter.getStatus(),
   };
 }

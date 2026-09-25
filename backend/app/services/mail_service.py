@@ -54,6 +54,7 @@ class MailService:
         candidate_skills: list[str],
         company_name: str = "TalentBench Demo Co.",
         custom_template: str | None = None,
+        custom_instructions: str = "",
     ) -> dict[str, str]:
         # Generate personalized note only via LLM (cost efficient)
         prompt = (

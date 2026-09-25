@@ -1,34 +1,12 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Space_Grotesk, JetBrains_Mono } from "next/font/google";
-import { LenisProvider } from "@/lib/animations/lenis-provider";
 import { ThemeProvider } from "@/context/theme-context";
-import { GlobalParticleBackground } from "@/components/ui/global-particle-background";
-import { ChromaticGlassAura } from "@/components/ui/chromatic-aura";
-import { TopAtmosphericSheen } from "@/components/ui/background-sheen";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const sansFont = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-satoshi",
-  display: "swap",
-});
-
-const displayFont = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-clash",
-  display: "swap",
-});
-
-const monoFont = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
-  title: "TalentBench | Awwwards-Tier AI Recruitment & Pipeline Architecture",
-  description: "High-precision recruitment infrastructure with customizable pipelines, automated AI resume screening, auditable agent traces, and hyper-personalized candidate communication.",
+  title: "TalentBench — Score every candidate fairly.",
+  description:
+    "One friendly workspace for reviewing candidates, calibrating your team, and turning every interview into useful signal.",
   icons: {
     icon: "/favicon.png",
     shortcut: "/favicon.png",
@@ -42,34 +20,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${sansFont.variable} ${displayFont.variable} ${monoFont.variable}`}
-      suppressHydrationWarning
-    >
-      <body className="min-h-screen transition-colors duration-300">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body>
         <ThemeProvider>
-          {/* Global Interactive Floating Constellation Particle Network (from talentbench_00001 (2)) */}
-          <GlobalParticleBackground />
-
-          {/* Atmospheric Chromatic Iridescent Glassmorphism Aura (from talentbench_00001 (2)) */}
-          <ChromaticGlassAura />
-
-          {/* Subtle Ethereal Top Atmospheric Sheen (from talentbench_00001 (2)) */}
-          <TopAtmosphericSheen />
-
-          <div className="noise-overlay pointer-events-none" aria-hidden="true" />
-          <LenisProvider>
-            <div className="relative z-10">
-              {children}
-            </div>
-          </LenisProvider>
+          {children}
           <Toaster
             position="bottom-right"
             toastOptions={{
               style: {
-                backdropFilter: "blur(24px)",
-                borderRadius: "1rem",
+                borderRadius: "16px",
+                fontFamily: "DM Sans, system-ui, sans-serif",
               },
             }}
           />

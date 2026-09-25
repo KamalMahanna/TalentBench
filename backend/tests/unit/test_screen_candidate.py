@@ -59,14 +59,12 @@ async def test_screen_text_api_endpoint():
 
 
 @pytest.mark.asyncio
-async def test_omniroute_screen_candidate_match():
-    from app.llm.providers.omniroute_provider import LangChainOmniRouteProvider
-    from app.config import settings
+async def test_gemini_screen_candidate_match():
+    from app.llm.providers.gemini_provider import LangChainGeminiProvider
 
-    provider = LangChainOmniRouteProvider(
-        base_url=settings.OMNIROUTE_BASE_URL,
-        api_key=settings.OMNIROUTE_API_KEY,
-        model=settings.OMNIROUTE_MODEL,
+    provider = LangChainGeminiProvider(
+        api_key="test-key",
+        model="gemini-3.5-flash-lite",
     )
     jd = "Role: Senior Backend Engineer\nRequirements: 5 years experience in Python and PostgreSQL."
     resume = "Candidate: Bob Smith\nExperience: 5 years full-time Senior Backend Engineer at TechCorp.\nSkills: Python, PostgreSQL, AWS, Git.\nProjects: Distributed payment system."
@@ -78,14 +76,12 @@ async def test_omniroute_screen_candidate_match():
 
 
 @pytest.mark.asyncio
-async def test_omniroute_screen_candidate_internship_rejection():
-    from app.llm.providers.omniroute_provider import LangChainOmniRouteProvider
-    from app.config import settings
+async def test_gemini_screen_candidate_internship_rejection():
+    from app.llm.providers.gemini_provider import LangChainGeminiProvider
 
-    provider = LangChainOmniRouteProvider(
-        base_url=settings.OMNIROUTE_BASE_URL,
-        api_key=settings.OMNIROUTE_API_KEY,
-        model=settings.OMNIROUTE_MODEL,
+    provider = LangChainGeminiProvider(
+        api_key="test-key",
+        model="gemini-3.5-flash-lite",
     )
     jd = "Role: Senior Backend Engineer\nRequirements: Minimum 5 years of full-time professional backend engineering experience. Proficient in Python, PostgreSQL, and distributed systems."
     resume = "Candidate: Jane Doe\nExperience: 1 year full-time Backend Developer at Acme Corp. Previously 6-month Software Engineering Intern.\nSkills: Python, Django, PostgreSQL, Docker.\nProjects: Built scalable microservice."

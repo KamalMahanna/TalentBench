@@ -3,8 +3,10 @@ import hashlib
 import json
 import math
 import random
+import re
 from typing import Any, AsyncIterator
 import httpx
+import numpy as np
 import structlog
 from app.config import settings
 from app.llm.gateway import (
@@ -58,10 +60,8 @@ def _format_model_tag(model_name: str) -> str:
 
 class LangChainGeminiProvider(LLMGateway):
     """
-    Production Google Gemini & Gemma Provider with Dynamic Token Routing:
-    - Automatically routes prompt by token size:
-        * Prompt < 12,000 tokens  => gemma-4-31b-it (Strict limit: 30 RPM, 16,000 TPM)
-        * Prompt >= 12,000 tokens => gemini-3.5-flash-lite (Strict limit: 15 RPM, 250,000 TPM)
+    Production Google Gemini Provider:
+    - Exclusively routes requests to gemini-3.5-flash-lite
     - Enforces proactive sliding-window rate limits and backoff with jitter on timeouts / 429
     - Graceful fallback for offline, testing, or failed requests
     """
@@ -69,27 +69,32 @@ class LangChainGeminiProvider(LLMGateway):
     def __init__(
         self,
         api_key: str | None = None,
-        gemma_model: str | None = None,
+        model: str | None = None,
         flash_lite_model: str | None = None,
-        token_threshold: int | None = None,
         timeout: float | None = None,
         max_retries: int | None = None,
         rate_limiter: GeminiRateLimiter | None = None,
+        **kwargs: Any,
     ):
         self.api_key = api_key or settings.GEMINI_API_KEY
-        self.gemma_model = gemma_model or settings.GEMMA_MODEL
-        self.flash_lite_model = flash_lite_model or settings.GEMINI_FLASH_LITE_MODEL
-        self.token_threshold = token_threshold or settings.GEMINI_TOKEN_THRESHOLD
+        self.model = (
+            model
+            or flash_lite_model
+            or getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite")
+        )
+        self.flash_lite_model = self.model
         self.timeout = timeout or settings.GEMINI_TIMEOUT
         self.max_retries = max_retries or settings.GEMINI_MAX_RETRIES
 
         self.rate_limiter = rate_limiter or GeminiRateLimiter(
-            gemma_rpm_limit=settings.GEMMA_RPM_LIMIT,
-            gemma_tpm_limit=settings.GEMMA_TPM_LIMIT,
             flash_lite_rpm_limit=settings.GEMINI_FLASH_LITE_RPM_LIMIT,
             flash_lite_tpm_limit=settings.GEMINI_FLASH_LITE_TPM_LIMIT,
             max_retries=self.max_retries,
         )
+
+    def set_model(self, model: str) -> None:
+        self.model = model
+        self.flash_lite_model = model
 
     def estimate_tokens(self, text: str) -> int:
         """Estimate token count (~3.8 characters per token for typical technical text)."""
@@ -101,15 +106,11 @@ class LangChainGeminiProvider(LLMGateway):
         self, prompt: str, system_prompt: str = ""
     ) -> tuple[str, int]:
         """
-        Dynamic token routing rule:
-        - prompt < 12,000 tokens  -> gemma-4-31b-it
-        - prompt >= 12,000 tokens -> gemini-3.5-flash-lite
+        Model routing rule: Exclusively use gemini-3.5-flash-lite
         """
         combined = f"{system_prompt}\n{prompt}" if system_prompt else prompt
         estimated_tokens = self.estimate_tokens(combined)
-        if estimated_tokens < self.token_threshold:
-            return self.gemma_model, estimated_tokens
-        return self.flash_lite_model, estimated_tokens
+        return self.model, estimated_tokens
 
     async def _execute_with_retry(
         self,
@@ -340,13 +341,35 @@ class LangChainGeminiProvider(LLMGateway):
                 pass
 
         # Deterministic check for fallback
-        has_exp = "experience" in resume_text.lower()
+        lower_resume = resume_text.lower()
+        lower_jd = jd_text.lower()
+
+        req_match = re.search(r"(\d+)\+?\s*years?", lower_jd)
+        req_years = int(req_match.group(1)) if req_match else 0
+
+        cand_match = re.search(r"(\d+)\+?\s*years?", lower_resume)
+        cand_years = (
+            int(cand_match.group(1))
+            if cand_match
+            else (0 if "intern" in lower_resume else 3)
+        )
+
+        if req_years > 0 and cand_years < req_years:
+            return ScreenResult(
+                matched=False,
+                verdict=(
+                    f"Thank you for applying for this role. After reviewing your resume against the Job Description, "
+                    f"we noted that your professional full-time experience does not satisfy the minimum required {req_years}+ years of experience. "
+                    f"Please note that internship experience cannot be counted toward the required professional full-time experience level."
+                ),
+                reason="Candidate does not satisfy minimum professional full-time experience requirements.",
+                model_name=_format_model_tag(f"{model}-fallback"),
+            )
+
         return ScreenResult(
-            matched=has_exp,
-            verdict="yes"
-            if has_exp
-            else f"Dear {candidate_name},\nThank you for applying. Unfortunately, required full-time experience is not demonstrated.",
-            reason="Heuristic evaluation based on experience markers.",
+            matched=True,
+            verdict="yes",
+            reason="Candidate meets required experience level and technical requirements.",
             model_name=_format_model_tag(f"{model}-fallback"),
         )
 
@@ -510,11 +533,15 @@ class LangChainGeminiProvider(LLMGateway):
         )
 
     async def embed(self, text: str) -> list[float]:
-        """Deterministic fallback embedding vector."""
-        h = hashlib.sha256(text.encode("utf-8")).digest()
-        vec = [(b / 255.0) * 2.0 - 1.0 for b in h[:64]]
-        norm = math.sqrt(sum(x * x for x in vec)) or 1.0
-        return [x / norm for x in vec]
+        """Deterministic normalized embedding vector matching EMBEDDING_DIMENSION (1536)."""
+        dim = getattr(settings, "EMBEDDING_DIMENSION", 1536)
+        seed = int(hashlib.sha256(text.encode("utf-8")).hexdigest()[:8], 16)
+        rng = np.random.default_rng(seed)
+        vec = rng.standard_normal(dim)
+        norm = np.linalg.norm(vec)
+        if norm > 0:
+            vec = vec / norm
+        return vec.tolist()
 
     async def stream(
         self,

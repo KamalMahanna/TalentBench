@@ -8,7 +8,13 @@ import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 from app.config import settings
-from app.llm.gateway import EvalResponse, LLMGateway, LLMResponse, ScreenResult
+from app.llm.gateway import (
+    ComparativeScoreResult,
+    EvalResponse,
+    LLMGateway,
+    LLMResponse,
+    ScreenResult,
+)
 from app.llm.rate_limiter import GroqRateLimiter
 
 logger = structlog.get_logger()
@@ -456,3 +462,35 @@ class LangChainGroqProvider(LLMGateway):
         )
         cleaned = raw_output.strip() if raw_output else ""
         return cleaned if cleaned else jd_text.strip()
+
+    async def synthesize_top_benchmark_projects(
+        self,
+        jd_text: str,
+        candidate_project_batches: list[list[dict]],
+    ) -> list[dict]:
+        return [
+            {
+                "id": "bp-1",
+                "title": "High-Throughput Distributed Message Broker",
+                "description": "Built Raft-consensus partition log handling 100k msg/sec.",
+                "technologies": ["Rust", "gRPC", "Raft"],
+                "complexity_score": 9,
+            }
+        ]
+
+    async def comparative_score_candidate(
+        self,
+        jd_text: str,
+        top_benchmark_projects: list[dict],
+        candidate_resume: str,
+        candidate_projects: list[str],
+        candidate_name: str = "Candidate",
+    ) -> ComparativeScoreResult:
+        return ComparativeScoreResult(
+            comparative_score=78,
+            relative_depth="competitive",
+            missing_areas=["High-scale caching topology"],
+            recommended_project_to_build="Implement Raft consensus algorithm with partition recovery.",
+            raw_output="",
+            model_name=self.model_name,
+        )

@@ -6,15 +6,13 @@ import {
   FileText,
   Brain,
   Code,
-  TerminalWindow,
-  UsersThree,
-  Gear,
+  Terminal,
+  Users,
+  Settings,
   X,
-  Sparkle,
+  Sparkles,
   Info,
-} from "@phosphor-icons/react";
-import { GlassButton } from "@/components/ui/glass-button";
-import { useLenis } from "@/lib/animations/lenis-provider";
+} from "lucide-react";
 
 export interface ConnectorStageConfig {
   type: string;
@@ -48,7 +46,6 @@ const ROUND_TYPES = [
     name: "Resume Screening",
     icon: FileText,
     badge: "Active",
-    badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
     isUpcoming: false,
     defaultTitle: "RESUME SCREENING",
     defaultDesc: "",
@@ -61,7 +58,6 @@ const ROUND_TYPES = [
     name: "Aptitude and Reasoning",
     icon: Brain,
     badge: "Upcoming",
-    badgeColor: "bg-amber-400/10 text-amber-300 border-amber-400/20",
     isUpcoming: true,
     defaultTitle: "Cognitive Logic & Reasoning Assessment",
     defaultDesc: "Timed quantitative aptitude, analytical reasoning, and data interpretation challenges.",
@@ -74,20 +70,18 @@ const ROUND_TYPES = [
     name: "DSA Round",
     icon: Code,
     badge: "Upcoming",
-    badgeColor: "bg-amber-400/10 text-amber-300 border-amber-400/20",
     isUpcoming: true,
     defaultTitle: "Live DSA & System Algorithms",
     defaultDesc: "Interactive algorithmic challenges, time/space complexity evaluation, and test suite execution.",
     inputType: "CODING_SANDBOX" as const,
-    inputSpecText: "Curated problem set (LeetCode/HackerRank style) with unit test boundaries.",
+    inputSpecText: "Curated problem set with unit test boundaries.",
     outputSpecText: "Automated test case pass rate, memory usage, runtime complexity analysis, and code quality score.",
   },
   {
     type: "TECHNICAL",
     name: "Technical Interview",
-    icon: TerminalWindow,
+    icon: Terminal,
     badge: "Upcoming",
-    badgeColor: "bg-amber-400/10 text-amber-300 border-amber-400/20",
     isUpcoming: true,
     defaultTitle: "Deep Technical & System Design Round",
     defaultDesc: "Comprehensive architectural discussion, concurrency, database design, and framework mastery.",
@@ -98,9 +92,8 @@ const ROUND_TYPES = [
   {
     type: "HR_ROUND",
     name: "HR Interview",
-    icon: UsersThree,
+    icon: Users,
     badge: "Upcoming",
-    badgeColor: "bg-amber-400/10 text-amber-300 border-amber-400/20",
     isUpcoming: true,
     defaultTitle: "Executive HR & Cultural Alignment",
     defaultDesc: "Values alignment, compensation expectations, behavioral traits, and team fit verification.",
@@ -111,9 +104,8 @@ const ROUND_TYPES = [
   {
     type: "CUSTOM",
     name: "Custom Round",
-    icon: Gear,
+    icon: Settings,
     badge: "Upcoming",
-    badgeColor: "bg-amber-400/10 text-amber-300 border-amber-400/20",
     isUpcoming: true,
     defaultTitle: "Custom Evaluation Gate",
     defaultDesc: "Tailored recruiter stage configured with proprietary company requirements.",
@@ -131,19 +123,14 @@ export function ConnectorNodeModal({
   mode = "create",
 }: ConnectorNodeModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [selectedType, setSelectedType] = useState(
-    initialStage?.type || "RESUME_SCREENING"
-  );
+  const [selectedType, setSelectedType] = useState(initialStage?.type || "RESUME_SCREENING");
   const [title, setTitle] = useState(initialStage?.title || "");
   const [description, setDescription] = useState(initialStage?.description || "");
   const [cutoff, setCutoff] = useState<number>(initialStage?.cutoff || 50);
 
-  const currentTypeInfo =
-    ROUND_TYPES.find((r) => r.type === selectedType) || ROUND_TYPES[0];
+  const currentTypeInfo = ROUND_TYPES.find((r) => r.type === selectedType) || ROUND_TYPES[0];
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (initialStage?.type) {
@@ -160,30 +147,18 @@ export function ConnectorNodeModal({
     }
   }, [initialStage, isOpen]);
 
-  const { lenis } = useLenis();
-
-  // Lock body scroll, pause Lenis smooth scroll, and listen for Escape key
+  // Lock body scroll and listen for Escape key
   useEffect(() => {
     if (!isOpen) return;
-
-    // Pause global Lenis scroll so modal wheel events are not swallowed
-    lenis?.stop();
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-
+    const handleKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = originalOverflow;
       window.removeEventListener("keydown", handleKeyDown);
-      lenis?.start();
     };
-  }, [isOpen, onClose, lenis]);
+  }, [isOpen, onClose]);
 
   const handleSelectRoundType = (type: string) => {
     const info = ROUND_TYPES.find((r) => r.type === type);
@@ -197,7 +172,6 @@ export function ConnectorNodeModal({
     e.preventDefault();
     const finalTitle = (selectedType === "CUSTOM" ? title : title || currentTypeInfo.defaultTitle).trim();
     if (!finalTitle) return;
-
     onSave({
       type: selectedType,
       title: finalTitle,
@@ -212,210 +186,189 @@ export function ConnectorNodeModal({
 
   if (!isOpen || !mounted) return null;
 
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    boxSizing: "border-box",
+    borderRadius: "10px",
+    background: "var(--surface)",
+    border: "1px solid var(--outline)",
+    padding: "9px 12px",
+    fontSize: "13px",
+    color: "var(--ink)",
+    fontFamily: "DM Sans, system-ui, sans-serif",
+    outline: "none",
+  };
+
   return createPortal(
     <div
-      data-lenis-prevent
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 99999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+        background: "rgba(0,0,0,0.5)",
+        backdropFilter: "blur(6px)",
       }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
       aria-modal="true"
     >
       <div
-        data-lenis-prevent
-        className="w-full max-w-2xl rounded-3xl p-1 bg-white/[0.04] ring-1 ring-[#8FB6E8]/30 shadow-2xl flex flex-col max-h-[85vh] min-h-0"
+        style={{
+          width: "100%",
+          maxWidth: "640px",
+          background: "var(--surface-high)",
+          border: "1px solid var(--outline)",
+          borderRadius: "28px",
+          boxShadow: "0 22px 55px rgba(60,48,83,0.2)",
+          display: "flex",
+          flexDirection: "column",
+          maxHeight: "88vh",
+          overflow: "hidden",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="rounded-[calc(1.5rem-2px)] bg-[#070D1E] border border-white/10 flex flex-col overflow-hidden max-h-[calc(85vh-8px)] flex-1 min-h-0">
-          {/* Fixed Header */}
-          <div className="flex items-center justify-between p-6 sm:p-7 pb-4 border-b border-white/10 shrink-0 bg-[#070D1E]">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#60A5FA] animate-pulse" />
-                <h3 className="text-lg font-display font-bold text-white">
-                  {mode === "create" ? "Configure Connector Stage Node" : "Edit Connector Stage"}
-                </h3>
-              </div>
-              <p className="text-xs text-[#7C91B4] mt-1">
-                Select your round type, configure input/output specifications, and set candidate shortlist cutoffs.
-              </p>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "22px 24px 16px", borderBottom: "1px solid var(--outline)", flexShrink: 0 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ width: "7px", height: "7px", borderRadius: "999px", background: "var(--primary)", display: "inline-block" }} />
+              <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--ink)", margin: 0 }}>
+                {mode === "create" ? "Configure Connector Stage" : "Edit Connector Stage"}
+              </h3>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 rounded-xl text-[#7C91B4] hover:text-white hover:bg-white/5 transition-colors"
-              title="Close modal (Esc)"
-            >
-              <X size={20} />
-            </button>
+            <p style={{ fontSize: "12px", color: "var(--muted)", margin: "4px 0 0" }}>
+              Select a round type, configure input/output specs, and set shortlist cutoffs.
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "4px", borderRadius: "8px", display: "flex" }}
+            title="Close (Esc)"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-          {/* Form with Scrollable Body and Fixed Footer */}
-          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            {/* Scrollable Body */}
-            <div
-              data-lenis-prevent
-              className="p-6 sm:p-7 overflow-y-auto space-y-6 flex-1 min-h-0 overscroll-contain touch-pan-y [scrollbar-width:thin] [scrollbar-color:#3B82F6_transparent]"
-            >
-              {/* 1. Select Round Type Grid */}
-              <div>
-                <label className="block text-xs font-mono text-[#8FB6E8] uppercase tracking-wider mb-2.5">
-                  1. Select Round Type
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {ROUND_TYPES.map((rt) => {
-                    const Icon = rt.icon;
-                    const isSelected = selectedType === rt.type;
-                    const isUpcoming = rt.isUpcoming;
-                    return (
-                      <button
-                        key={rt.type}
-                        type="button"
-                        disabled={isUpcoming}
-                        onClick={() => handleSelectRoundType(rt.type)}
-                        className={`p-3 rounded-xl border text-left transition-all relative ${
-                          isUpcoming
-                            ? "bg-[#0A1228]/40 border-white/5 opacity-40 cursor-not-allowed select-none"
-                            : isSelected
-                            ? "bg-[#60A5FA]/15 border-[#60A5FA] shadow-[0_0_15px_rgba(96,165,250,0.2)]"
-                            : "bg-[#0A1228] border-white/5 hover:border-white/15"
-                        }`}
-                        title={isUpcoming ? `${rt.name} is upcoming and cannot be selected` : undefined}
-                      >
-                        <div className="flex items-start justify-between gap-1 mb-2">
-                          <div
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                              isUpcoming
-                                ? "bg-white/[0.03] text-white/30"
-                                : isSelected
-                                ? "bg-[#60A5FA]/20 text-[#60A5FA]"
-                                : "bg-white/5 text-[#7C91B4]"
-                            }`}
-                          >
-                            <Icon size={18} weight="duotone" />
-                          </div>
-                          <span
-                            className={`text-[9px] font-mono px-1.5 py-0.5 rounded border uppercase ${rt.badgeColor}`}
-                          >
-                            {rt.badge}
-                          </span>
+        {/* Form */}
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+          <div style={{ padding: "20px 24px", overflow: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "20px" }}>
+            {/* Round type selection */}
+            <div>
+              <label style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--primary)", marginBottom: "10px", display: "block" }}>
+                1. Select Round Type
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+                {ROUND_TYPES.map((rt) => {
+                  const Icon = rt.icon;
+                  const isSelected = selectedType === rt.type;
+                  return (
+                    <button
+                      key={rt.type}
+                      type="button"
+                      disabled={rt.isUpcoming}
+                      onClick={() => handleSelectRoundType(rt.type)}
+                      style={{
+                        padding: "12px",
+                        borderRadius: "14px",
+                        border: `1px solid ${isSelected ? "var(--primary)" : "var(--outline)"}`,
+                        background: isSelected ? "var(--surface-purple)" : rt.isUpcoming ? "var(--surface)" : "var(--surface-high)",
+                        cursor: rt.isUpcoming ? "not-allowed" : "pointer",
+                        textAlign: "left",
+                        opacity: rt.isUpcoming ? 0.45 : 1,
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                        <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: isSelected ? "var(--primary)" : "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", color: isSelected ? "var(--on-primary)" : "var(--muted)" }}>
+                          <Icon size={16} />
                         </div>
-                        <div
-                          className={`text-xs font-semibold leading-tight ${
-                            isUpcoming ? "text-white/40" : "text-white"
-                          }`}
-                        >
-                          {rt.name}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                        <span style={{ fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "999px", background: rt.isUpcoming ? "var(--surface-peach)" : "var(--surface-blue)", color: rt.isUpcoming ? "#a0440d" : "#1a6098", textTransform: "uppercase" }}>
+                          {rt.badge}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--ink)" }}>{rt.name}</div>
+                    </button>
+                  );
+                })}
               </div>
+            </div>
 
-              {/* 2. Stage Title & Cutoff */}
-              {selectedType === "CUSTOM" && (
-                <div>
-                  <label className="block text-xs font-mono text-[#7C91B4] uppercase mb-1.5">
-                    Stage Display Title
-                  </label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#040814] border border-white/10 text-white text-xs focus:outline-none focus:border-[#60A5FA]"
-                    placeholder="e.g. Custom Evaluation Gate"
-                    required
-                  />
-                </div>
-              )}
+            {/* Custom title */}
+            {selectedType === "CUSTOM" && (
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "6px" }}>Stage Display Title</label>
+                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} placeholder="e.g. Custom Evaluation Gate" required />
+              </div>
+            )}
 
-              {selectedType === "RESUME_SCREENING" && (
+            {/* Cutoff for resume screening */}
+            {selectedType === "RESUME_SCREENING" && (
+              <>
                 <div>
-                  <label className="block text-xs font-mono text-[#7C91B4] uppercase mb-1.5">
-                    Candidate Shortlist Cutoff
-                  </label>
+                  <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "6px" }}>Candidate Shortlist Cutoff</label>
                   <input
                     type="number"
                     min={1}
                     max={5000}
                     value={cutoff}
                     onChange={(e) => setCutoff(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#040814] border border-white/10 text-white text-xs focus:outline-none focus:border-[#60A5FA]"
+                    style={inputStyle}
                     placeholder="50"
                     required
                   />
                 </div>
-              )}
-
-              {/* Explanatory banner for Cutoff and Comparative Matching - ONLY shown for Resume Screening */}
-              {selectedType === "RESUME_SCREENING" && (
-                <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-start gap-2.5 text-xs text-[#8FB6E8]">
-                  <Sparkle size={18} weight="fill" className="text-[#60A5FA] shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold text-white">Cutoff &amp; Comparative Tournament Rule:</span>
-                    <p className="text-[11px] text-[#A6C5EE] mt-0.5 leading-relaxed">
-                      HR can select how many candidates to shortlist for Round 2. If the number of matching resumes (&ge; 50% match) exceeds this cutoff ({cutoff}), the <strong>Comparative Resume Matching</strong> tournament will automatically rank candidates and advance the top {cutoff}.
-                    </p>
+                <div style={{ padding: "12px 14px", borderRadius: "14px", background: "var(--surface-blue)", border: "1px solid var(--outline)", display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                  <Sparkles size={16} style={{ color: "var(--primary)", flexShrink: 0, marginTop: "1px" }} />
+                  <div style={{ fontSize: "12px" }}>
+                    <strong style={{ color: "var(--ink)" }}>Cutoff & Comparative Tournament Rule: </strong>
+                    <span style={{ color: "var(--muted)" }}>
+                      If matching resumes exceed {cutoff}, the Comparative Resume Matching tournament automatically ranks candidates and advances the top {cutoff}.
+                    </span>
                   </div>
                 </div>
-              )}
+              </>
+            )}
 
-              {/* 3. Input & Output Specification (What is needed during execution) */}
-              <div className="space-y-3 p-4 rounded-2xl bg-[#030712]/80 border border-white/5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-[#8FB6E8] uppercase tracking-wider flex items-center gap-1.5">
-                    <Info size={14} /> Pipeline Input &amp; Output Specification
-                  </span>
-                  <span className="text-[10px] font-mono text-[#7C91B4] bg-white/5 px-2 py-0.5 rounded">
-                    Supplied at Execution
-                  </span>
+            {/* I/O Spec */}
+            <div style={{ background: "var(--surface)", border: "1px solid var(--outline)", borderRadius: "16px", padding: "14px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--primary)", display: "flex", alignItems: "center", gap: "5px" }}>
+                  <Info size={13} /> Pipeline Input & Output Specification
+                </span>
+                <span style={{ fontSize: "10px", color: "var(--muted)", background: "var(--surface-high)", padding: "2px 8px", borderRadius: "999px" }}>Supplied at execution</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div style={{ background: "var(--surface-high)", borderRadius: "12px", padding: "10px 12px", border: "1px solid var(--outline)" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--green)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "5px" }}>
+                    <span style={{ width: "5px", height: "5px", borderRadius: "999px", background: "var(--green)", display: "inline-block" }} />
+                    Input Option:
+                  </div>
+                  <p style={{ fontSize: "11px", color: "var(--muted)", margin: 0, lineHeight: 1.5 }}>{currentTypeInfo.inputSpecText}</p>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  {/* Input Option */}
-                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                    <div className="font-semibold text-white flex items-center gap-1.5 mb-1 text-[11px]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      Input Option (When Executing):
-                    </div>
-                    <p className="text-[#7C91B4] text-[11px] leading-relaxed">
-                      {currentTypeInfo.inputSpecText}
-                    </p>
+                <div style={{ background: "var(--surface-high)", borderRadius: "12px", padding: "10px 12px", border: "1px solid var(--outline)" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--primary)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "5px" }}>
+                    <span style={{ width: "5px", height: "5px", borderRadius: "999px", background: "var(--primary)", display: "inline-block" }} />
+                    Output Generated:
                   </div>
-
-                  {/* Output Option */}
-                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                    <div className="font-semibold text-white flex items-center gap-1.5 mb-1 text-[11px]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                      Output Generated:
-                    </div>
-                    <p className="text-[#7C91B4] text-[11px] leading-relaxed">
-                      {currentTypeInfo.outputSpecText}
-                    </p>
-                  </div>
+                  <p style={{ fontSize: "11px", color: "var(--muted)", margin: 0, lineHeight: 1.5 }}>{currentTypeInfo.outputSpecText}</p>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Fixed Footer */}
-            <div className="flex items-center justify-end gap-3 p-4 sm:p-6 border-t border-white/10 shrink-0 bg-[#040814]/90 backdrop-blur-md">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-[#7C91B4] hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-              <GlassButton variant="primary" size="md" type="submit">
-                {mode === "create" ? "Add Connector Stage" : "Save Changes"}
-              </GlassButton>
-            </div>
-          </form>
-        </div>
+          {/* Footer */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "10px", padding: "16px 24px", borderTop: "1px solid var(--outline)", flexShrink: 0, background: "var(--surface-high)" }}>
+            <button type="button" onClick={onClose} className="md-button md-button--text">Cancel</button>
+            <button type="submit" className="md-button md-button--filled">
+              {mode === "create" ? "Add Connector Stage" : "Save Changes"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>,
     document.body

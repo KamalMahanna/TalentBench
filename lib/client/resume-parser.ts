@@ -14,6 +14,7 @@ export interface ExtractedEmailResult {
 export interface ParseResult {
   text: string;
   emailResult: ExtractedEmailResult;
+  extractedName: string;
   wordCount: number;
   charCount: number;
   fileName: string;
@@ -59,6 +60,106 @@ export function extractEmailFromText(text: string): ExtractedEmailResult {
     isGmail,
     allEmails: uniqueEmails,
   };
+}
+
+/**
+ * Extract Candidate Actual Personal Name from Resume Text
+ * 1. Checks first 6 non-empty lines for typical name patterns (2-4 capitalized words)
+ * 2. Fallback: extracts from personal email handle (e.g. rachel.kowalski.tech@gmail.com -> Rachel Kowalski)
+ * 3. Fallback: aggressively strips file markers, numbers, and trailing job titles from fileName
+ */
+export function extractCandidateNameFromResume(
+  text: string,
+  email?: string | null,
+  fileName?: string
+): string {
+  if (text) {
+    const lines = text
+      .slice(0, 1000)
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    for (let i = 0; i < Math.min(lines.length, 6); i++) {
+      let line = lines[i];
+
+      // Remove leading bullets or formatting marks
+      line = line.replace(/^[•\-\*–—\s]+/, "").trim();
+
+      // Disqualify lines with contact info, URLs, sections, dates, or file markers
+      if (
+        line.includes("@") ||
+        line.includes("http") ||
+        line.includes("linkedin") ||
+        line.includes("github") ||
+        line.includes("www.") ||
+        /\b(resume|curriculum|vitae|summary|profile|experience|skills|education|contact|page|phone|tel|email|address|objective|projects)\b/i.test(line) ||
+        /\d{3}[-\s]?\d{3}[-\s]?\d{4}/.test(line) ||
+        /\b\d{4}\b/.test(line) || // year
+        line.length > 40 ||
+        line.length < 3
+      ) {
+        continue;
+      }
+
+      // Check if line contains 2-4 capitalized words (or honorifics like Dr.)
+      const words = line.split(/\s+/).filter(Boolean);
+      if (
+        words.length >= 2 &&
+        words.length <= 4 &&
+        words.every(
+          (w) =>
+            /^[A-Z][a-zA-Z.'-]*$/.test(w) ||
+            /^(dr|mr|ms|mrs|prof)\.?$/i.test(w)
+        )
+      ) {
+        return line;
+      }
+    }
+  }
+
+  // Fallback 1: Derive from personal email (e.g. rachel.kowalski.tech@gmail.com -> Rachel Kowalski)
+  if (email && email.includes("@")) {
+    const localPart = email.split("@")[0].replace(/[0-9]/g, "");
+    const emailParts = localPart
+      .split(/[._-]/)
+      .filter(
+        (p) =>
+          p.length > 1 &&
+          ![
+            "tech", "ds", "ml", "dev", "eng", "work", "job", "candidate", "mail", "contact",
+            "frontend", "backend", "fullstack", "ai", "lead"
+          ].includes(p.toLowerCase())
+      );
+    if (emailParts.length >= 2) {
+      return emailParts
+        .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+        .join(" ");
+    }
+  }
+
+  // Fallback 2: Clean fileName aggressively to extract the actual name
+  if (fileName) {
+    let clean = fileName
+      .replace(/\.[^/.]+$/, "") // remove extension
+      .replace(/^(?:resume|cv|profile|candidate)[\s_-]*/gi, "") // remove resume_ / cv_
+      .replace(/^\d+[\s_-]*/, "") // remove leading numbers like 16_
+      .replace(/[_-]/g, " ")
+      .replace(
+        /\b(vp of engineering|staff frontend lead|senior|junior|lead|developer|engineer|data scientist|director|architect|manager|intern)\b.*$/gi,
+        ""
+      ) // strip trailing job title
+      .trim();
+
+    if (clean && clean.length >= 2) {
+      return clean
+        .split(/\s+/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ");
+    }
+  }
+
+  return "Candidate";
 }
 
 /**
@@ -278,12 +379,16 @@ export async function parseResumeFileInBrowser(file: File): Promise<ParseResult>
   // Extract Email & Gmail
   const emailResult = extractEmailFromText(text);
 
+  // Extract Candidate Name
+  const extractedName = extractCandidateNameFromResume(text, emailResult.email, file.name);
+
   const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
   const chars = text.length;
 
   return {
     text,
     emailResult,
+    extractedName,
     wordCount: words,
     charCount: chars,
     fileName: file.name,

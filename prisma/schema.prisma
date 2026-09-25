@@ -58,6 +58,9 @@ model Candidate {
   personalizedReply String?
   isOverridden      Boolean       @default(false)
   overrideReason    String?
+  emailStatus       String?       @default("NOT_SENT") // "NOT_SENT", "SENT", "FAILED"
+  emailSentAt       DateTime?
+  emailError        String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   roundResults      RoundResult[]

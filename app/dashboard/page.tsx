@@ -1,16 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { GlassButton } from "@/components/ui/glass-button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Briefcase,
-  UsersThree,
-  Cpu,
-  ArrowUpRight,
-  TreeStructure,
-} from "@phosphor-icons/react";
+import { BarChart3, Briefcase, Cpu, Plus, Users } from "lucide-react";
 import Link from "next/link";
+import { motion } from "motion/react";
 
 interface JobSummary {
   id: string;
@@ -25,6 +19,39 @@ interface JobSummary {
   createdAt: string;
 }
 
+const statCards = [
+  {
+    key: "jobs",
+    label: "Active Profiles",
+    sublabel: "Job requisitions open",
+    icon: Briefcase,
+    tone: "purple",
+  },
+  {
+    key: "candidates",
+    label: "Active Candidates",
+    sublabel: "Tracked across stages",
+    icon: Users,
+    tone: "blue",
+  },
+  {
+    key: "stages",
+    label: "Pipeline Connectors",
+    sublabel: "Total active rounds",
+    icon: BarChart3,
+    tone: "peach",
+  },
+  {
+    key: "ai",
+    label: "AI Trace Status",
+    sublabel: "Zero black-box verdicts",
+    icon: Cpu,
+    tone: "purple",
+    fixed: "100%",
+    fixedSub: "Auditable",
+  },
+];
+
 export default function DashboardOverview() {
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,9 +60,7 @@ export default function DashboardOverview() {
     fetch("/api/jobs")
       .then((res) => res.json())
       .then((data) => {
-        if (data.jobs) {
-          setJobs(data.jobs);
-        }
+        if (data.jobs) setJobs(data.jobs);
         setLoading(false);
       })
       .catch((err) => {
@@ -44,175 +69,343 @@ export default function DashboardOverview() {
       });
   }, []);
 
-  const totalCandidates = jobs.reduce((acc, job) => acc + (job._count?.candidates || 0), 0);
-  const totalStages = jobs.reduce((acc, job) => acc + (job._count?.pipeline || 0), 0);
+  const totalCandidates = jobs.reduce(
+    (acc, job) => acc + (job._count?.candidates || 0),
+    0
+  );
+  const totalStages = jobs.reduce(
+    (acc, job) => acc + (job._count?.pipeline || 0),
+    0
+  );
+
+  const statValues: Record<string, string | number> = {
+    jobs: loading ? "—" : jobs.length,
+    candidates: loading ? "—" : totalCandidates,
+    stages: loading ? "—" : totalStages,
+    ai: "100%",
+  };
+
+  const toneStyle = (tone: string) => {
+    const map: Record<string, { background: string; color: string }> = {
+      purple: { background: "var(--surface-purple)", color: "var(--primary-deep)" },
+      blue: { background: "var(--surface-blue)", color: "#1a6098" },
+      peach: { background: "var(--surface-peach)", color: "#a0440d" },
+    };
+    return map[tone] || map.purple;
+  };
 
   return (
-    <div className="space-y-10">
-      {/* Header with Title and Create CTA */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div style={{ display: "flex", flexDirection: "column", gap: "40px" }}>
+      {/* Page Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
+        }}
+      >
         <div>
-          <h1 className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
-            Recruitment Command Center
+          <h1
+            style={{
+              fontSize: "28px",
+              fontWeight: 700,
+              letterSpacing: "-0.04em",
+              color: "var(--ink)",
+              margin: 0,
+            }}
+          >
+            Recruitment Overview
           </h1>
-          <p className="text-xs sm:text-sm text-[#7C91B4] mt-1">
-            Monitor active candidate pipelines, review AI screening traces, and customize evaluation stages.
+          <p
+            style={{
+              fontSize: "14px",
+              color: "var(--muted)",
+              marginTop: "6px",
+            }}
+          >
+            Monitor active candidate pipelines, review AI screening traces, and
+            customize evaluation stages.
           </p>
         </div>
-        <GlassButton variant="primary" withArrow href="/dashboard/jobs/new">
-          New Job Profile
-        </GlassButton>
+        <Link
+          href="/dashboard/jobs/new"
+          className="md-button md-button--filled"
+        >
+          <Plus size={16} /> New Job Profile
+        </Link>
       </div>
 
-      {/* Metric Cards Grid in Deep Navy and Ice Blue */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-2xl p-5 bg-[#0D1633] border border-[#8FB6E8]/20 shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono text-[#7C91B4] uppercase">Active Profiles</span>
-            <div className="w-7 h-7 rounded-lg bg-[#8FB6E8]/10 text-[#8FB6E8] flex items-center justify-center">
-              <Briefcase size={16} weight="duotone" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-display font-bold text-white">
-            {loading ? "..." : jobs.length}
-          </div>
-          <div className="mt-1 text-[11px] font-mono text-[#8FB6E8]">
-            Mandatory ranges verified
-          </div>
-        </div>
-
-        <div className="rounded-2xl p-5 bg-[#0D1633] border border-[#8FB6E8]/20 shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono text-[#7C91B4] uppercase">Active Candidates</span>
-            <div className="w-7 h-7 rounded-lg bg-[#60A5FA]/10 text-[#60A5FA] flex items-center justify-center">
-              <UsersThree size={16} weight="duotone" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-display font-bold text-white">
-            {loading ? "..." : totalCandidates}
-          </div>
-          <div className="mt-1 text-[11px] font-mono text-[#60A5FA]">
-            Tracked across stages
-          </div>
-        </div>
-
-        <div className="rounded-2xl p-5 bg-[#0D1633] border border-[#8FB6E8]/20 shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono text-[#7C91B4] uppercase">Pipeline Connectors</span>
-            <div className="w-7 h-7 rounded-lg bg-[#A78BFA]/10 text-[#A78BFA] flex items-center justify-center">
-              <TreeStructure size={16} weight="duotone" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-display font-bold text-white">
-            {loading ? "..." : totalStages}
-          </div>
-          <div className="mt-1 text-[11px] font-mono text-[#A78BFA]">
-            Total active rounds
-          </div>
-        </div>
-
-        <div className="rounded-2xl p-5 bg-[#0D1633] border border-[#8FB6E8]/20 shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono text-[#7C91B4] uppercase">AI Trace Status</span>
-            <div className="w-7 h-7 rounded-lg bg-[#8FB6E8]/10 text-[#8FB6E8] flex items-center justify-center">
-              <Cpu size={16} weight="duotone" />
-            </div>
-          </div>
-          <div className="mt-3 text-2xl font-display font-bold text-[#8FB6E8] flex items-center gap-2">
-            <span>100%</span>
-            <span className="text-xs font-normal text-[#7C91B4] font-mono">Auditable</span>
-          </div>
-          <div className="mt-1 text-[11px] font-mono text-[#8FB6E8]">
-            Zero black-box verdicts
-          </div>
-        </div>
+      {/* Stat Cards */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+          gap: "16px",
+        }}
+      >
+        {statCards.map(({ key, label, sublabel, icon: Icon, tone, fixed, fixedSub }, i) => {
+          const style = toneStyle(tone);
+          return (
+            <motion.div
+              key={key}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -4, transition: { duration: 0.2 } }}
+              transition={{ delay: i * 0.07, duration: 0.4, ease: "easeOut" }}
+              style={{
+                background: style.background,
+                borderRadius: "20px",
+                padding: "22px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                cursor: "default",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    color: style.color,
+                  }}
+                >
+                  {label}
+                </span>
+                <div
+                  style={{
+                    width: "30px",
+                    height: "30px",
+                    background: "rgba(255,255,255,0.55)",
+                    borderRadius: "999px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "var(--primary)",
+                  }}
+                >
+                  <Icon size={16} />
+                </div>
+              </div>
+              <div
+                style={{
+                  fontSize: "32px",
+                  fontWeight: 700,
+                  letterSpacing: "-0.06em",
+                  color: "var(--ink)",
+                  lineHeight: 1,
+                }}
+              >
+                {fixed || statValues[key]}
+              </div>
+              <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+                {fixedSub || sublabel}
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
 
-      {/* Active Job Profiles List */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-display font-semibold text-white">
-            Active Job Profiles &amp; Pipelines
+      {/* Active Jobs List */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <h2
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              letterSpacing: "-0.03em",
+              color: "var(--ink)",
+              margin: 0,
+            }}
+          >
+            Active Job Profiles
           </h2>
           <Link
             href="/dashboard/jobs"
-            className="text-xs font-mono text-[#8FB6E8] hover:underline flex items-center gap-1"
+            style={{
+              fontSize: "13px",
+              color: "var(--primary)",
+              textDecoration: "none",
+              fontWeight: 500,
+            }}
           >
-            View all ({jobs.length})
-            <ArrowUpRight size={14} />
+            View all ({jobs.length}) →
           </Link>
         </div>
 
         {loading ? (
-          <div className="p-12 text-center text-xs font-mono text-[#7C91B4] rounded-2xl border border-white/5">
+          <div
+            style={{
+              padding: "48px",
+              textAlign: "center",
+              color: "var(--muted)",
+              fontSize: "14px",
+              background: "var(--surface)",
+              borderRadius: "20px",
+            }}
+          >
             Loading job profiles...
           </div>
         ) : jobs.length === 0 ? (
-          <div className="p-12 text-center rounded-2xl border border-dashed border-white/10 bg-white/[0.01]">
-            <Briefcase size={36} className="mx-auto text-[#7C91B4] mb-3" weight="duotone" />
-            <h3 className="text-base font-display font-semibold text-white">
-              No job profiles created yet
+          <div
+            style={{
+              padding: "48px",
+              textAlign: "center",
+              background: "var(--surface)",
+              borderRadius: "20px",
+              border: "1px dashed var(--outline)",
+            }}
+          >
+            <Briefcase
+              size={36}
+              style={{ color: "var(--muted)", margin: "0 auto 12px" }}
+            />
+            <h3
+              style={{
+                fontSize: "16px",
+                fontWeight: 600,
+                color: "var(--ink)",
+                margin: "0 0 8px",
+              }}
+            >
+              No job profiles yet
             </h3>
-            <p className="text-xs text-[#7C91B4] mt-1 max-w-sm mx-auto">
-              Create your first job profile with job description and experience boundaries to set up your pipeline.
+            <p style={{ fontSize: "13px", color: "var(--muted)", margin: "0 0 20px" }}>
+              Create your first job profile with a description and pipeline to
+              start screening candidates.
             </p>
-            <div className="mt-6">
-              <GlassButton variant="primary" withArrow href="/dashboard/jobs/new">
-                Create First Profile
-              </GlassButton>
-            </div>
+            <Link href="/dashboard/jobs/new" className="md-button md-button--filled">
+              Create First Profile
+            </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {jobs.map((job) => (
-              <div
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {jobs.map((job, i) => (
+              <motion.div
                 key={job.id}
-                className="rounded-2xl p-6 bg-[#0D1633] border border-[#8FB6E8]/15 hover:border-[#8FB6E8]/40 transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between gap-6 group shadow-lg"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ y: -2, transition: { duration: 0.15 } }}
+                transition={{ delay: 0.2 + i * 0.05, duration: 0.35, ease: "easeOut" }}
+                style={{
+                  background: "var(--surface-high)",
+                  border: "1px solid var(--outline)",
+                  borderRadius: "20px",
+                  padding: "22px 24px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "24px",
+                  flexWrap: "wrap",
+                }}
               >
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <h3 className="text-lg font-display font-semibold text-white group-hover:text-[#8FB6E8] transition-colors">
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: "10px",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    <h3
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: 600,
+                        color: "var(--ink)",
+                        margin: 0,
+                        letterSpacing: "-0.02em",
+                      }}
+                    >
                       {job.title}
                     </h3>
-                    <Badge variant="ice">
-                      {job.minExperience} - {job.maxExperience} yrs experience
+                    <Badge variant="default">
+                      {job.minExperience}–{job.maxExperience} yrs
                     </Badge>
                   </div>
-
-                  {/* Pipeline Preview Tags */}
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <span className="text-[11px] font-mono text-[#7C91B4]">Pipeline:</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--muted)",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Pipeline:
+                    </span>
                     {job.pipeline.map((r, rIdx) => (
                       <span
                         key={r.id}
-                        className="text-[11px] font-mono px-2.5 py-0.5 rounded-md bg-white/[0.04] border border-white/10 text-[#EAF1FB] flex items-center gap-1.5"
+                        style={{
+                          fontSize: "11px",
+                          padding: "2px 10px",
+                          borderRadius: "999px",
+                          background: "var(--surface-purple)",
+                          color: "var(--primary-deep)",
+                          fontWeight: 500,
+                        }}
                       >
-                        <span className="text-[9px] text-[#7C91B4]">#{rIdx + 1}</span>
-                        {r.title}
+                        {rIdx + 1}. {r.title}
                       </span>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 shrink-0">
-                  <div className="text-right">
-                    <div className="text-sm font-semibold text-white">
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "16px",
+                    flexShrink: 0,
+                  }}
+                >
+                  <div style={{ textAlign: "right" }}>
+                    <div
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 600,
+                        color: "var(--ink)",
+                      }}
+                    >
                       {job._count.candidates} Candidates
                     </div>
-                    <div className="text-[11px] font-mono text-[#7C91B4]">
-                      {job._count.pipeline} connector rounds
+                    <div style={{ fontSize: "11px", color: "var(--muted)" }}>
+                      {job._count.pipeline} pipeline stages
                     </div>
                   </div>
-                  <GlassButton
-                    size="sm"
-                    variant="secondary"
-                    withArrow
+                  <Link
                     href={`/dashboard/jobs/${job.id}`}
+                    className="md-button md-button--tonal"
+                    style={{ fontSize: "13px", padding: "8px 18px" }}
                   >
                     Open Workspace
-                  </GlassButton>
+                  </Link>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         )}

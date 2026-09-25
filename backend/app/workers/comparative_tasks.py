@@ -217,7 +217,7 @@ def run_comparative_resume_matching(self, role_id: str):
                 actor_type="ai",
                 detail=f"Score: {score} | Qualified: {is_qualified} | Recommended: {rec_proj[:120]}",
                 prompt_template_id="comparative_eval_v1",
-                model_name="omniroute",
+                model_name="gemini-3.5-flash-lite",
                 model_input_snapshot=f"Role: {role.title} | Rank: {rank}",
                 model_output_raw=rec_proj,
                 final_decision="passed" if is_qualified else "failed",

@@ -10,7 +10,35 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#0A1228",
+        // M3 semantic tokens (mirrors CSS vars for Tailwind usage)
+        canvas: "var(--canvas)",
+        surface: {
+          DEFAULT: "var(--surface)",
+          high: "var(--surface-high)",
+          purple: "var(--surface-purple)",
+          blue: "var(--surface-blue)",
+          peach: "var(--surface-peach)",
+        },
+        tonal: {
+          lavender: "var(--tonal-lavender)",
+          blue: "var(--tonal-blue)",
+          peach: "var(--tonal-peach)",
+        },
+        ink: "var(--ink)",
+        text: "var(--text)",
+        muted: {
+          DEFAULT: "var(--muted)",
+          text: "var(--muted-text)",
+        },
+        outline: "var(--outline)",
+        primary: {
+          DEFAULT: "var(--primary)",
+          deep: "var(--primary-deep)",
+          on: "var(--on-primary)",
+        },
+        green: "var(--green)",
+        success: "var(--success)",
+        // Keep legacy names for dashboard pages that use them
         navy: {
           base: "#0A1228",
           surface: "#10162E",
@@ -23,32 +51,12 @@ const config: Config = {
           pure: "#F5F9FF",
           accent: "#8FB6E8",
           dim: "#7C91B4",
-          border: "rgba(143, 182, 232, 0.25)",
         },
-        surface: {
-          DEFAULT: "#10162E",
-          card: "#0D1633",
-          glass: "rgba(255, 255, 255, 0.05)",
-          hover: "rgba(255, 255, 255, 0.09)",
-        },
-        accent: {
-          DEFAULT: "#8FB6E8",
-          glow: "rgba(143, 182, 232, 0.25)",
-          secondary: "#60A5FA",
-          violet: "#A78BFA",
-          indigo: "#6366F1",
-          emerald: "#10B981",
-        },
-        glass: {
-          border: "rgba(255, 255, 255, 0.22)",
-          highlight: "rgba(255, 255, 255, 0.35)",
-          shade: "rgba(4, 8, 20, 0.75)",
-        }
       },
       fontFamily: {
-        sans: ["var(--font-satoshi)", "-apple-system", "sans-serif"],
-        display: ["var(--font-clash)", "Space Grotesk", "sans-serif"],
-        mono: ["var(--font-jetbrains-mono)", "monospace"],
+        sans: ["DM Sans", "system-ui", "sans-serif"],
+        display: ["DM Sans", "system-ui", "sans-serif"],
+        mono: ["ui-monospace", "SFMono-Regular", "monospace"],
       },
       borderRadius: {
         "2xl": "1.25rem",
@@ -56,23 +64,29 @@ const config: Config = {
         "4xl": "2rem",
       },
       transitionTimingFunction: {
-        "out-expo": "cubic-bezier(0.23, 1, 0.32, 1)",
-        "in-out-smooth": "cubic-bezier(0.77, 0, 0.175, 1)",
-        "drawer": "cubic-bezier(0.32, 0.72, 0, 1)",
+        "standard": "cubic-bezier(0.2, 0, 0, 1)",
+        "decelerate": "cubic-bezier(0, 0, 0, 1)",
+        "accelerate": "cubic-bezier(0.3, 0, 1, 1)",
       },
       boxShadow: {
-        "glass": "0 24px 60px -15px rgba(4, 8, 20, 0.75)",
-        "glass-inner": "inset 0 1px 0 0 rgba(255, 255, 255, 0.35), inset 0 0 24px 0 rgba(255, 255, 255, 0.06)",
-        "ice-glow": "0 0 35px -5px rgba(143, 182, 232, 0.3)",
+        "m3-1": "0 3px 8px rgba(108, 76, 220, 0.2)",
+        "m3-2": "0 6px 13px rgba(108, 76, 220, 0.25)",
+        "card": "0 14px 30px rgba(27, 26, 34, 0.08)",
+        "window": "0 22px 55px rgba(27, 26, 34, 0.12)",
       },
       keyframes: {
         marquee: {
           "0%": { transform: "translateX(0%)" },
           "100%": { transform: "translateX(-50%)" },
         },
+        "fade-in": {
+          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         marquee: "marquee 35s linear infinite",
+        "fade-in": "fade-in 0.4s ease forwards",
       },
     },
   },

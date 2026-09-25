@@ -4,6 +4,7 @@ import random
 import re
 import time
 from collections import deque
+from typing import Any
 import redis.asyncio as aioredis
 import structlog
 from app.config import settings
@@ -237,24 +238,21 @@ class GroqRateLimiter:
 
 class GeminiRateLimiter:
     """
-    Sliding-window proactive & reactive rate limiter for Google Gemini & Gemma models:
+    Sliding-window proactive & reactive rate limiter for Google Gemini models:
     Quotas:
-      - gemma-4-31b-it: 30 RPM (requests/min), 16,000 TPM (tokens/min)
       - gemini-3.5-flash-lite: 15 RPM (requests/min), 250,000 TPM (tokens/min)
     """
 
     def __init__(
         self,
-        gemma_rpm_limit: int = 30,
-        gemma_tpm_limit: int = 16000,
         flash_lite_rpm_limit: int = 15,
         flash_lite_tpm_limit: int = 250000,
         max_retries: int = 3,
         base_delay: float = 1.5,
         max_delay: float = 30.0,
+        **kwargs: Any,
     ):
         self.quotas = {
-            "gemma": {"rpm": gemma_rpm_limit, "tpm": gemma_tpm_limit},
             "flash_lite": {
                 "rpm": flash_lite_rpm_limit,
                 "tpm": flash_lite_tpm_limit,
@@ -266,18 +264,16 @@ class GeminiRateLimiter:
 
         # Sliding window deques (60s)
         self._timestamps: dict[str, deque[float]] = {
-            "gemma": deque(),
             "flash_lite": deque(),
         }
         self._token_logs: dict[str, deque[tuple[float, int]]] = {
-            "gemma": deque(),
             "flash_lite": deque(),
         }
         self._lock = asyncio.Lock()
         self._redis_client: aioredis.Redis | None = None
 
     def _get_key(self, model: str) -> str:
-        return "gemma" if "gemma" in model.lower() else "flash_lite"
+        return "flash_lite"
 
     async def _get_redis(self) -> aioredis.Redis | None:
         if self._redis_client is None:

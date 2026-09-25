@@ -1,31 +1,32 @@
 "use client";
 
 import React, { useEffect, useState, use } from "react";
-import { GlassButton } from "@/components/ui/glass-button";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
-  Trash,
-  ArrowUp,
-  ArrowDown,
+  Trash2,
   Cpu,
   CheckCircle,
   XCircle,
   Clock,
-  ChatCircleText,
-  TreeStructure,
-  UsersThree,
+  MessageSquare,
+  GitBranch,
+  Users,
   FileText,
   Brain,
   Code,
-  ChatTeardropDots,
-  TrayArrowUp,
-  Sparkle,
-} from "@phosphor-icons/react";
+  Upload,
+  Sparkles,
+  Mail,
+  Send,
+} from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { PipelineCanvas, PipelineStageItem } from "@/components/pipeline/pipeline-canvas";
 import { ResumeScreeningConsole } from "@/components/pipeline/resume-screening-console";
+import { EmailStatusBadge } from "@/components/email/email-status-badge";
+import { SingleEmailModal } from "@/components/email/single-email-modal";
+import { BulkEmailModal } from "@/components/email/bulk-email-modal";
 
 interface PipelineRound {
   id: string;
@@ -59,6 +60,9 @@ interface Candidate {
   personalizedReply: string | null;
   isOverridden?: boolean;
   overrideReason?: string | null;
+  emailStatus?: string | null;
+  emailSentAt?: string | null;
+  emailError?: string | null;
   roundResults: RoundResult[];
 }
 
@@ -72,6 +76,29 @@ interface JobDetail {
   candidates: Candidate[];
 }
 
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  borderRadius: "10px",
+  background: "var(--surface)",
+  border: "1px solid var(--outline)",
+  padding: "9px 12px",
+  fontSize: "13px",
+  color: "var(--ink)",
+  fontFamily: "DM Sans, system-ui, sans-serif",
+  outline: "none",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: "11px",
+  fontWeight: 600,
+  color: "var(--muted)",
+  marginBottom: "5px",
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
+};
+
 export default function JobWorkspacePage({
   params,
 }: {
@@ -83,12 +110,10 @@ export default function JobWorkspacePage({
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"pipeline" | "screening" | "candidates">("pipeline");
 
-  // Pipeline builder modal state
   const [showAddRoundModal, setShowAddRoundModal] = useState(false);
   const [newRoundType, setNewRoundType] = useState("DSA");
   const [newRoundTitle, setNewRoundTitle] = useState("");
 
-  // Candidate add modal state
   const [showAddCandidateModal, setShowAddCandidateModal] = useState(false);
   const [candName, setCandName] = useState("");
   const [candEmail, setCandEmail] = useState("");
@@ -96,9 +121,10 @@ export default function JobWorkspacePage({
   const [candSkills, setCandSkills] = useState("");
   const [candResume, setCandResume] = useState("");
 
-  // Active candidate for agent trace inspection
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [screeningLoading, setScreeningLoading] = useState(false);
+  const [emailCandidate, setEmailCandidate] = useState<Candidate | null>(null);
+  const [isBulkEmailOpen, setIsBulkEmailOpen] = useState(false);
 
   const fetchJob = async () => {
     try {
@@ -117,53 +143,27 @@ export default function JobWorkspacePage({
     }
   };
 
-  useEffect(() => {
-    fetchJob();
-  }, [id]);
+  useEffect(() => { fetchJob(); }, [id]);
 
   const handleSyncPipeline = async (newStages: PipelineStageItem[]) => {
     if (!job) return;
-
-    // Check for deleted stages
     const newStageIds = new Set(newStages.map((s) => s.id).filter(Boolean));
     const deletedStages = job.pipeline.filter((p) => !newStageIds.has(p.id));
-
     for (const d of deletedStages) {
-      try {
-        await fetch(`/api/jobs/${id}/pipeline?roundId=${d.id}`, { method: "DELETE" });
-      } catch (e) {}
+      try { await fetch(`/api/jobs/${id}/pipeline?roundId=${d.id}`, { method: "DELETE" }); } catch {}
     }
-
-    // For new stages without ID
     for (const s of newStages) {
       if (!s.id) {
         try {
           await fetch(`/api/jobs/${id}/pipeline`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: s.type,
-              title: s.title,
-              description: s.description || null,
-              config: s.config || null,
-            }),
+            body: JSON.stringify({ type: s.type, title: s.title, description: s.description || null, config: s.config || null }),
           });
-        } catch (e) {}
+        } catch {}
       }
     }
-
-    // For existing stages: update order and config
-    const existingToUpdate = newStages
-      .filter((s) => Boolean(s.id))
-      .map((s, idx) => ({
-        id: s.id!,
-        order: idx,
-        title: s.title,
-        type: s.type,
-        description: s.description || null,
-        config: s.config || null,
-      }));
-
+    const existingToUpdate = newStages.filter((s) => Boolean(s.id)).map((s, idx) => ({ id: s.id!, order: idx, title: s.title, type: s.type, description: s.description || null, config: s.config || null }));
     if (existingToUpdate.length > 0) {
       try {
         await fetch(`/api/jobs/${id}/pipeline`, {
@@ -171,406 +171,275 @@ export default function JobWorkspacePage({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ rounds: existingToUpdate }),
         });
-      } catch (e) {}
+      } catch {}
     }
-
     toast.success("Pipeline configuration updated.");
     await fetchJob();
   };
 
-  const getRoundIcon = (type: string) => {
-    switch (type) {
-      case "RESUME_SCREENING":
-        return FileText;
-      case "APTITUDE":
-        return Brain;
-      case "DSA":
-        return Code;
-      case "COMMUNICATION":
-        return ChatTeardropDots;
-      case "HR_ROUND":
-      case "CULTURE_FIT":
-        return UsersThree;
-      default:
-        return TreeStructure;
-    }
-  };
-
   const handleAddRound = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRoundTitle.trim()) {
-      toast.error("Please enter a title for the round.");
-      return;
-    }
-
+    if (!newRoundTitle.trim()) { toast.error("Please enter a title for the round."); return; }
     try {
       const res = await fetch(`/api/jobs/${id}/pipeline`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: newRoundType,
-          title: newRoundTitle.trim(),
-        }),
+        body: JSON.stringify({ type: newRoundType, title: newRoundTitle.trim() }),
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Failed to add round");
-        return;
-      }
-
+      if (!res.ok) { toast.error(data.error || "Failed to add round"); return; }
       toast.success(`Connector added: ${newRoundTitle}`);
       setShowAddRoundModal(false);
       setNewRoundTitle("");
       fetchJob();
-    } catch (err) {
-      toast.error("Error adding round");
-    }
-  };
-
-  const moveRound = async (index: number, direction: "up" | "down") => {
-    if (!job) return;
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= job.pipeline.length) return;
-
-    const newPipeline = [...job.pipeline];
-    const temp = newPipeline[index];
-    newPipeline[index] = newPipeline[targetIndex];
-    newPipeline[targetIndex] = temp;
-
-    const formatted = newPipeline.map((r, i) => ({ id: r.id, order: i }));
-
-    try {
-      const res = await fetch(`/api/jobs/${id}/pipeline`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rounds: formatted }),
-      });
-
-      if (res.ok) {
-        setJob({ ...job, pipeline: newPipeline });
-        toast.success("Pipeline reordered.");
-      }
-    } catch (err) {
-      toast.error("Failed to reorder pipeline.");
-    }
-  };
-
-  const handleDeleteRound = async (roundId: string) => {
-    if (!job || job.pipeline.length <= 1) {
-      toast.error("Pipeline must have at least one round.");
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/jobs/${id}/pipeline?roundId=${roundId}`, {
-        method: "DELETE",
-      });
-
-      if (res.ok) {
-        toast.success("Round removed from pipeline.");
-        fetchJob();
-      }
-    } catch (err) {
-      toast.error("Error deleting round");
-    }
+    } catch { toast.error("Error adding round"); }
   };
 
   const handleAddCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!candName.trim() || !candEmail.trim()) {
-      toast.error("Candidate name and email are required.");
-      return;
-    }
-
+    if (!candName.trim() || !candEmail.trim()) { toast.error("Candidate name and email are required."); return; }
     try {
       const res = await fetch(`/api/jobs/${id}/candidates`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: candName.trim(),
-          email: candEmail.trim(),
-          experienceYears: Number(candExp) || 0,
-          skills: candSkills.trim(),
-          resumeText: candResume.trim(),
-        }),
+        body: JSON.stringify({ name: candName.trim(), email: candEmail.trim(), experienceYears: Number(candExp) || 0, skills: candSkills.trim(), resumeText: candResume.trim() }),
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Failed to add candidate");
-        return;
-      }
-
+      if (!res.ok) { toast.error(data.error || "Failed to add candidate"); return; }
       toast.success(`Candidate ${candName} registered.`);
       setShowAddCandidateModal(false);
-      setCandName("");
-      setCandEmail("");
-      setCandSkills("");
-      setCandResume("");
+      setCandName(""); setCandEmail(""); setCandSkills(""); setCandResume("");
       fetchJob();
-    } catch (err) {
-      toast.error("Error adding candidate");
-    }
+    } catch { toast.error("Error adding candidate"); }
   };
 
   const handleRunScreening = async (candidateId: string) => {
     setScreeningLoading(true);
-    toast.loading("AI Agent parsing resume against requirements...", { id: "screening-toast" });
-
+    toast.loading("AI Agent evaluating resume...", { id: "screening-toast" });
     try {
       const res = await fetch("/api/screen", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidateId }),
       });
-
       const data = await res.json();
-
-      if (!res.ok) {
-        toast.error(data.error || "AI screening failed.", { id: "screening-toast" });
-        setScreeningLoading(false);
-        return;
-      }
-
-      toast.success(
-        `Screening Complete: Verdict ${data.screening.status} (${data.screening.score}/100)`,
-        { id: "screening-toast" }
-      );
-
+      if (!res.ok) { toast.error(data.error || "AI screening failed.", { id: "screening-toast" }); setScreeningLoading(false); return; }
+      toast.success(`Screening Complete: ${data.screening.status} (${data.screening.score}/100)`, { id: "screening-toast" });
       setScreeningLoading(false);
       await fetchJob();
-      if (data.candidate) {
-        setSelectedCandidate(data.candidate);
-      }
-    } catch (err) {
-      toast.error("Error communicating with AI agent.", { id: "screening-toast" });
-      setScreeningLoading(false);
-    }
+      if (data.candidate) setSelectedCandidate(data.candidate);
+    } catch { toast.error("Error communicating with AI agent.", { id: "screening-toast" }); setScreeningLoading(false); }
   };
 
   if (loading) {
-    return (
-      <div className="p-16 text-center text-xs font-mono text-[#7C91B4]">
-        Loading Job Workspace...
-      </div>
-    );
+    return <div style={{ padding: "64px", textAlign: "center", color: "var(--muted)" }}>Loading job workspace…</div>;
   }
 
   if (!job) {
     return (
-      <div className="p-16 text-center text-[#7C91B4]">
+      <div style={{ padding: "64px", textAlign: "center", color: "var(--muted)" }}>
         <p>Job profile not found.</p>
-        <Link href="/dashboard/jobs" className="text-[#8FB6E8] underline text-xs mt-2 block">
-          Return to jobs list
-        </Link>
+        <Link href="/dashboard/jobs" style={{ color: "var(--primary)", textDecoration: "none" }}>Return to jobs list</Link>
       </div>
     );
   }
 
-  let parsedTrace: any[] = [];
+  let parsedTrace: { stepName: string; status: string; reasoning: string; metric?: string }[] = [];
   const latestResult = selectedCandidate?.roundResults?.[0];
   if (latestResult?.agentTrace) {
-    try {
-      parsedTrace = JSON.parse(latestResult.agentTrace);
-    } catch (e) {
-      console.error(e);
-    }
+    try { parsedTrace = JSON.parse(latestResult.agentTrace); } catch {}
   }
 
+  const tabStyle = (active: boolean, color?: string): React.CSSProperties => ({
+    padding: "8px 16px",
+    borderRadius: "10px",
+    border: "none",
+    cursor: "pointer",
+    fontSize: "13px",
+    fontWeight: active ? 600 : 500,
+    fontFamily: "DM Sans, system-ui, sans-serif",
+    transition: "all 0.15s",
+    background: active ? (color || "var(--surface-purple)") : "transparent",
+    color: active ? (color ? "var(--on-primary)" : "var(--primary-deep)") : "var(--muted)",
+  });
+
+  const modalOverlay: React.CSSProperties = {
+    position: "fixed",
+    inset: 0,
+    zIndex: 50,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "16px",
+    background: "rgba(0,0,0,0.4)",
+    backdropFilter: "blur(4px)",
+  };
+
+  const modalCard: React.CSSProperties = {
+    width: "100%",
+    maxWidth: "440px",
+    background: "var(--surface-high)",
+    border: "1px solid var(--outline)",
+    borderRadius: "24px",
+    padding: "28px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+    boxShadow: "0 22px 55px rgba(60,48,83,0.15)",
+  };
+
+  const statusBadgeStyle = (status: string): React.CSSProperties => ({
+    fontSize: "10px",
+    fontWeight: 700,
+    padding: "2px 8px",
+    borderRadius: "999px",
+    textTransform: "uppercase",
+    background: status === "SHORTLISTED" ? "#d5f0e0" : status === "REJECTED" ? "#fde8e8" : "var(--surface-peach)",
+    color: status === "SHORTLISTED" ? "var(--green)" : status === "REJECTED" ? "#c0392b" : "#a0440d",
+  });
+
   return (
-    <div className="space-y-8">
-      {/* Top Breadcrumb & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
         <div>
-          <Link
-            href="/dashboard/jobs"
-            className="inline-flex items-center gap-1.5 text-xs font-mono text-[#7C91B4] hover:text-[#EAF1FB] transition-colors mb-2"
-          >
+          <Link href="/dashboard/jobs" style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "var(--muted)", textDecoration: "none", marginBottom: "8px" }}>
             <ArrowLeft size={14} /> Back to Job Profiles
           </Link>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
-              {job.title}
-            </h1>
-            <Badge variant="ice">
-              Mandatory Experience: {job.minExperience} - {job.maxExperience} yrs
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px" }}>
+            <h1 style={{ fontSize: "24px", fontWeight: 700, letterSpacing: "-0.04em", color: "var(--ink)", margin: 0 }}>{job.title}</h1>
+            <Badge variant="default">
+              {job.minExperience}–{job.maxExperience} yrs
             </Badge>
           </div>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex items-center p-1 rounded-xl bg-[#060B18]/70 border border-[#8FB6E8]/20 shrink-0">
-          <button
-            onClick={() => setActiveTab("pipeline")}
-            className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-              activeTab === "pipeline"
-                ? "bg-[#8FB6E8]/20 text-white border border-[#8FB6E8]/40 shadow-[0_0_15px_rgba(143,182,232,0.2)]"
-                : "text-[#7C91B4] hover:text-[#EAF1FB]"
-            }`}
-          >
-            Pipeline Stages ({job.pipeline.length})
+        {/* Tab switcher */}
+        <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "var(--surface)", borderRadius: "14px", padding: "4px" }}>
+          <button onClick={() => setActiveTab("pipeline")} style={tabStyle(activeTab === "pipeline")}>
+            Pipeline ({job.pipeline.length})
           </button>
-          <button
-            onClick={() => setActiveTab("screening")}
-            className={`px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
-              activeTab === "screening"
-                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.2)] font-semibold"
-                : "text-[#7C91B4] hover:text-[#EAF1FB]"
-            }`}
-          >
-            <TrayArrowUp size={14} /> Resume Screening ({job.candidates.length})
+          <button onClick={() => setActiveTab("screening")} style={tabStyle(activeTab === "screening", "var(--green)")}>
+            <Upload size={13} style={{ display: "inline", marginRight: "4px" }} />
+            Screening ({job.candidates.length})
           </button>
-          <button
-            onClick={() => setActiveTab("candidates")}
-            className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-              activeTab === "candidates"
-                ? "bg-[#8FB6E8]/20 text-white border border-[#8FB6E8]/40 shadow-[0_0_15px_rgba(143,182,232,0.2)]"
-                : "text-[#7C91B4] hover:text-[#EAF1FB]"
-            }`}
-          >
+          <button onClick={() => setActiveTab("candidates")} style={tabStyle(activeTab === "candidates")}>
             AI Traces ({job.candidates.length})
           </button>
         </div>
       </div>
 
-      {/* TAB 1: VISUAL CONNECTOR PIPELINE BUILDER */}
+      {/* TAB 1: Pipeline Builder */}
       {activeTab === "pipeline" && (
-        <div className="space-y-6">
-          <PipelineCanvas
-            stages={job.pipeline.map((p) => {
-              let cutoff = 50;
-              if (p.config) {
-                try {
-                  const parsed = JSON.parse(p.config);
-                  if (parsed.cutoff) cutoff = Number(parsed.cutoff);
-                } catch (e) {}
-              }
-              return {
-                id: p.id,
-                type: p.type,
-                title: p.title,
-                description: p.description,
-                order: p.order,
-                cutoff,
-                config: p.config,
-              };
-            })}
-            onChange={handleSyncPipeline}
-            onExecuteStage={(stage) => {
-              setActiveTab("screening");
-            }}
-            isEditable={true}
-          />
-        </div>
+        <PipelineCanvas
+          stages={job.pipeline.map((p) => {
+            let cutoff = 50;
+            if (p.config) { try { const parsed = JSON.parse(p.config); if (parsed.cutoff) cutoff = Number(parsed.cutoff); } catch {} }
+            return { id: p.id, type: p.type, title: p.title, description: p.description, order: p.order, cutoff, config: p.config };
+          })}
+          onChange={handleSyncPipeline}
+          onExecuteStage={() => setActiveTab("screening")}
+          isEditable={true}
+        />
       )}
 
-      {/* TAB 2: RESUME SCREENING STAGE EXECUTION CONSOLE */}
+      {/* TAB 2: Resume Screening */}
       {activeTab === "screening" && (
         <ResumeScreeningConsole
           jobId={job.id}
           jobTitle={job.title}
           jobDescription={job.description}
-          cutoff={
-            (() => {
-              const resumeRound =
-                job.pipeline.find((r) => r.type === "RESUME_SCREENING") || job.pipeline[0];
-              if (resumeRound?.config) {
-                try {
-                  return JSON.parse(resumeRound.config).cutoff || 50;
-                } catch (e) {}
-              }
-              return 50;
-            })()
-          }
+          cutoff={(() => {
+            const r = job.pipeline.find((r) => r.type === "RESUME_SCREENING") || job.pipeline[0];
+            if (r?.config) { try { return JSON.parse(r.config).cutoff || 50; } catch {} }
+            return 50;
+          })()}
           candidates={job.candidates}
           onRefresh={fetchJob}
         />
       )}
 
-      {/* TAB 2: CANDIDATES & AI AGENT TRACE VERIFICATION */}
+      {/* TAB 3: AI Traces */}
       {activeTab === "candidates" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Candidates List (col-span-5) */}
-          <div className="lg:col-span-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-display font-semibold text-white">
-                Candidate Applications ({job.candidates.length})
+        <div style={{ display: "grid", gridTemplateColumns: "5fr 7fr", gap: "24px", alignItems: "start" }}>
+          {/* Left: Candidate list */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+              <h2 style={{ fontSize: "15px", fontWeight: 600, color: "var(--ink)", margin: 0 }}>
+                Candidates ({job.candidates.length})
               </h2>
-              <GlassButton
-                size="sm"
-                variant="secondary"
-                onClick={() => setShowAddCandidateModal(true)}
-              >
-                + Register Candidate
-              </GlassButton>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => setIsBulkEmailOpen(true)}
+                  disabled={job.candidates.length === 0}
+                  className="md-button md-button--filled inline-flex items-center gap-1.5"
+                  style={{ fontSize: "12px", padding: "6px 14px" }}
+                >
+                  <Send size={12} /> Email All
+                </button>
+                <button onClick={() => setShowAddCandidateModal(true)} className="md-button md-button--tonal" style={{ fontSize: "12px", padding: "6px 14px" }}>
+                  + Register
+                </button>
+              </div>
             </div>
 
             {job.candidates.length === 0 ? (
-              <div className="p-8 text-center rounded-2xl border border-dashed border-white/10 bg-white/[0.01]">
-                <p className="text-xs text-[#7C91B4]">No candidate applications registered yet.</p>
-                <div className="mt-4">
-                  <GlassButton
-                    size="sm"
-                    variant="primary"
-                    onClick={() => setShowAddCandidateModal(true)}
-                  >
-                    Add Test Candidate
-                  </GlassButton>
-                </div>
+              <div style={{ padding: "32px", textAlign: "center", background: "var(--surface)", borderRadius: "16px", border: "1px dashed var(--outline)" }}>
+                <p style={{ fontSize: "13px", color: "var(--muted)", margin: "0 0 12px" }}>No candidates yet.</p>
+                <button onClick={() => setShowAddCandidateModal(true)} className="md-button md-button--tonal" style={{ fontSize: "12px" }}>Add Candidate</button>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {job.candidates.map((cand) => {
                   const isSelected = selectedCandidate?.id === cand.id;
-                  const isShortlisted = cand.status === "SHORTLISTED";
-                  const isRejected = cand.status === "REJECTED";
-
                   return (
                     <div
                       key={cand.id}
                       onClick={() => setSelectedCandidate(cand)}
-                      className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-[#0D1633] border-[#8FB6E8]/50 shadow-[0_0_25px_rgba(143,182,232,0.2)]"
-                          : "bg-[#0A1228] border-white/5 hover:border-white/15"
-                      }`}
+                      style={{
+                        padding: "14px 16px",
+                        borderRadius: "16px",
+                        border: `1px solid ${isSelected ? "var(--primary)" : "var(--outline)"}`,
+                        background: isSelected ? "var(--surface-purple)" : "var(--surface-high)",
+                        cursor: "pointer",
+                        transition: "all 0.15s",
+                      }}
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
                         <div>
-                          <div className="text-sm font-semibold text-white">{cand.name}</div>
-                          <div className="text-xs text-[#7C91B4] font-mono mt-0.5">
-                            {cand.email}
-                          </div>
-                          <div className="text-[11px] font-mono text-[#8FB6E8] mt-1">
-                            {cand.experienceYears} Years Experience
-                          </div>
+                          <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--ink)" }}>{cand.name}</div>
+                          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>{cand.email}</div>
+                          <div style={{ fontSize: "11px", color: "var(--primary)", marginTop: "3px" }}>{cand.experienceYears} yrs exp</div>
                         </div>
-
-                        <div className="flex flex-col items-end gap-2">
-                          <span
-                            className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full font-bold uppercase ${
-                              isShortlisted
-                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                : isRejected
-                                ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                                : "bg-amber-400/20 text-amber-300 border border-amber-400/30"
-                            }`}
-                          >
-                            {cand.status}
-                          </span>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRunScreening(cand.id);
-                            }}
-                            disabled={screeningLoading}
-                            className="text-[10px] font-mono text-[#8FB6E8] hover:text-white underline underline-offset-2 flex items-center gap-1"
-                          >
-                            <Cpu size={12} />
-                            {cand.roundResults?.length > 0 ? "Re-Screen" : "Run AI Screener"}
-                          </button>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                          <span style={statusBadgeStyle(cand.status)}>{cand.status}</span>
+                          <EmailStatusBadge
+                            status={cand.emailStatus}
+                            sentAt={cand.emailSentAt}
+                            error={cand.emailError}
+                            onRetry={() => setEmailCandidate(cand)}
+                            size="sm"
+                          />
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "2px" }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEmailCandidate(cand);
+                              }}
+                              style={{ background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: "var(--primary)", display: "flex", alignItems: "center", gap: "3px", fontFamily: "DM Sans, system-ui, sans-serif" }}
+                            >
+                              <Mail size={11} /> Email
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleRunScreening(cand.id); }}
+                              disabled={screeningLoading}
+                              style={{ background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: "var(--primary)", display: "flex", alignItems: "center", gap: "3px", fontFamily: "DM Sans, system-ui, sans-serif" }}
+                            >
+                              <Cpu size={11} />
+                              {cand.roundResults?.length > 0 ? "Re-Screen" : "Run AI Screener"}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -580,297 +449,243 @@ export default function JobWorkspacePage({
             )}
           </div>
 
-          {/* AI Agent Trace & Verification Panel (col-span-7) */}
-          <div className="lg:col-span-7">
+          {/* Right: AI Trace panel */}
+          <div>
             {selectedCandidate ? (
-              <div className="rounded-3xl p-1.5 bg-white/[0.04] ring-1 ring-[#8FB6E8]/25 shadow-2xl backdrop-blur-2xl">
-                <div className="rounded-[calc(1.5rem-4px)] bg-[#070D1E] p-6 sm:p-8 border border-white/10 space-y-6">
-                  {/* Candidate Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/10">
-                    <div>
-                      <div className="text-[10px] font-mono text-[#7C91B4] uppercase tracking-wider">
-                        AUDITABLE AI SCREENING CONSOLE
-                      </div>
-                      <h3 className="text-xl font-display font-bold text-white mt-1">
-                        {selectedCandidate.name}
-                      </h3>
-                      <div className="text-xs text-[#7C91B4] font-mono mt-0.5">
-                        {selectedCandidate.experienceYears} Years Verified Exp · Target Range [
-                        {job.minExperience} - {job.maxExperience} yrs]
-                      </div>
+              <div style={{ background: "var(--surface-high)", border: "1px solid var(--outline)", borderRadius: "22px", padding: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
+                {/* Candidate header */}
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", paddingBottom: "16px", borderBottom: "1px solid var(--outline)" }}>
+                  <div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted)" }}>AI Screening Console</div>
+                    <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--ink)", margin: "4px 0 2px", letterSpacing: "-0.03em" }}>{selectedCandidate.name}</h3>
+                    <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+                      {selectedCandidate.experienceYears} yrs · Target [{job.minExperience}–{job.maxExperience} yrs]
                     </div>
-
-                    <GlassButton
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <EmailStatusBadge
+                      status={selectedCandidate.emailStatus}
+                      sentAt={selectedCandidate.emailSentAt}
+                      error={selectedCandidate.emailError}
+                      onRetry={() => setEmailCandidate(selectedCandidate)}
                       size="sm"
-                      variant="primary"
+                    />
+                    <button
+                      onClick={() => setEmailCandidate(selectedCandidate)}
+                      className="md-button md-button--tonal inline-flex items-center gap-1.5"
+                      style={{ fontSize: "12px", padding: "8px 14px" }}
+                    >
+                      <Mail size={13} /> Send Email
+                    </button>
+                    <button
                       onClick={() => handleRunScreening(selectedCandidate.id)}
                       disabled={screeningLoading}
+                      className="md-button md-button--filled"
+                      style={{ fontSize: "12px", padding: "8px 16px" }}
                     >
-                      <Cpu size={14} className="mr-1.5" />
-                      {screeningLoading ? "Auditing Resume..." : "Trigger AI Screening"}
-                    </GlassButton>
+                      <Cpu size={13} /> {screeningLoading ? "Evaluating…" : "Trigger AI Screening"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Trace steps */}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "12px" }}>
+                    <span style={{ width: "7px", height: "7px", borderRadius: "999px", background: "var(--primary)", display: "inline-block" }} />
+                    <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--primary)" }}>Live Agent Inference Steps</span>
                   </div>
 
-                  {/* AI Agent Step-by-Step Reasoning Trace (Auditable) */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-mono text-[#8FB6E8] uppercase tracking-wider flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-[#8FB6E8] animate-pulse" />
-                        Live Agent Inference Steps
-                      </span>
-                      <span className="text-[11px] font-mono text-[#7C91B4]">
-                        HR Verification Mode
-                      </span>
-                    </div>
-
-                    {parsedTrace.length > 0 ? (
-                      <div className="space-y-2.5 font-mono text-xs">
-                        {parsedTrace.map((t: any, idx: number) => (
-                          <div
-                            key={idx}
-                            className="p-3.5 rounded-xl bg-[#040814]/70 border border-white/5 flex items-start gap-3"
-                          >
-                            {t.status === "PASSED" ? (
-                              <CheckCircle size={16} weight="bold" className="text-[#8FB6E8] shrink-0 mt-0.5" />
-                            ) : t.status === "FAILED" ? (
-                              <XCircle size={16} weight="bold" className="text-rose-400 shrink-0 mt-0.5" />
-                            ) : (
-                              <Clock size={16} weight="bold" className="text-amber-400 shrink-0 mt-0.5" />
-                            )}
-                            <div>
-                              <div className="text-[#EAF1FB] font-semibold flex items-center gap-2">
-                                <span>{t.stepName}</span>
-                                {t.metric && (
-                                  <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-[#8FB6E8] font-normal">
-                                    {t.metric}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[#7C91B4] text-[11px] mt-1 leading-relaxed">
-                                {t.reasoning}
-                              </p>
+                  {parsedTrace.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {parsedTrace.map((t, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            padding: "12px 14px",
+                            borderRadius: "14px",
+                            background: "var(--surface)",
+                            border: "1px solid var(--outline)",
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "10px",
+                          }}
+                        >
+                          {t.status === "PASSED" ? (
+                            <CheckCircle size={15} style={{ color: "var(--green)", flexShrink: 0, marginTop: "1px" }} />
+                          ) : t.status === "FAILED" ? (
+                            <XCircle size={15} style={{ color: "#c0392b", flexShrink: 0, marginTop: "1px" }} />
+                          ) : (
+                            <Clock size={15} style={{ color: "#a0440d", flexShrink: 0, marginTop: "1px" }} />
+                          )}
+                          <div>
+                            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                              {t.stepName}
+                              {t.metric && (
+                                <span style={{ fontSize: "10px", padding: "1px 7px", borderRadius: "999px", background: "var(--surface-purple)", color: "var(--primary-deep)", fontWeight: 500 }}>
+                                  {t.metric}
+                                </span>
+                              )}
                             </div>
+                            <p style={{ fontSize: "12px", color: "var(--muted)", margin: "3px 0 0", lineHeight: 1.5 }}>{t.reasoning}</p>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-8 text-center rounded-xl bg-white/[0.02] border border-white/5 text-xs text-[#7C91B4] font-mono">
-                        No screening run yet for this candidate. Click &quot;Trigger AI Screening&quot; above to watch the agent evaluate resume data.
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Generated Personalized Candidate Reply */}
-                  {selectedCandidate.personalizedReply && (
-                    <div className="p-5 rounded-2xl bg-[#0E1736] border border-[#8FB6E8]/30 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-mono text-[#8FB6E8] font-semibold flex items-center gap-1.5">
-                          <ChatCircleText size={16} weight="bold" />
-                          Generated Personalized Reply
-                        </span>
-                        <span className="text-[10px] font-mono text-[#7C91B4]">
-                          Auto-personalized to strengths &amp; gaps
-                        </span>
-                      </div>
-                      <p className="text-xs text-[#EAF1FB] whitespace-pre-line leading-relaxed italic bg-[#060B18]/50 p-4 rounded-xl border border-white/5">
-                        {selectedCandidate.personalizedReply}
-                      </p>
+                        </div>
+                      ))}
                     </div>
-                  )}
-
-                  {/* Candidate Resume Snippet */}
-                  {selectedCandidate.resumeText && (
-                    <div className="pt-4 border-t border-white/5">
-                      <span className="text-xs font-mono text-[#7C91B4] uppercase block mb-2">
-                        Parsed Resume Credentials
-                      </span>
-                      <p className="text-xs text-[#7C91B4] leading-relaxed font-sans bg-white/[0.01] p-4 rounded-xl border border-white/5 max-h-36 overflow-y-auto">
-                        {selectedCandidate.resumeText}
-                      </p>
+                  ) : (
+                    <div style={{ padding: "32px", textAlign: "center", background: "var(--surface)", borderRadius: "14px", fontSize: "13px", color: "var(--muted)" }}>
+                      No screening run yet. Click &quot;Trigger AI Screening&quot; above to evaluate this candidate.
                     </div>
                   )}
                 </div>
+
+                {/* Personalized reply */}
+                {selectedCandidate.personalizedReply && (
+                  <div style={{ background: "var(--surface-blue)", borderRadius: "16px", padding: "16px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#1a6098", marginBottom: "8px", display: "flex", alignItems: "center", gap: "5px" }}>
+                      <MessageSquare size={13} /> Generated Personalized Reply
+                    </div>
+                    <p style={{ fontSize: "12px", color: "var(--ink)", lineHeight: 1.6, margin: 0, whiteSpace: "pre-line", fontStyle: "italic" }}>
+                      {selectedCandidate.personalizedReply}
+                    </p>
+                  </div>
+                )}
+
+                {/* Resume snippet */}
+                {selectedCandidate.resumeText && (
+                  <div style={{ borderTop: "1px solid var(--outline)", paddingTop: "16px" }}>
+                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted)", marginBottom: "8px" }}>Parsed Resume</div>
+                    <p style={{ fontSize: "12px", color: "var(--muted)", lineHeight: 1.6, margin: 0, maxHeight: "120px", overflowY: "auto", background: "var(--surface)", borderRadius: "10px", padding: "10px 12px" }}>
+                      {selectedCandidate.resumeText}
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="p-16 text-center text-xs font-mono text-[#7C91B4] rounded-3xl border border-white/5">
-                Select a candidate from the left panel to inspect their screening trace.
+              <div style={{ padding: "64px", textAlign: "center", color: "var(--muted)", fontSize: "13px", background: "var(--surface)", borderRadius: "22px" }}>
+                Select a candidate to inspect their AI trace.
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* MODAL: ADD CONNECTOR STAGE */}
+      {/* MODAL: Add Connector Stage */}
       {showAddRoundModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="w-full max-w-md rounded-3xl p-1.5 bg-white/[0.04] ring-1 ring-[#8FB6E8]/30 shadow-2xl">
-            <div className="rounded-[calc(1.5rem-4px)] bg-[#0D1633] p-6 sm:p-8 border border-white/10 space-y-5">
-              <h3 className="text-lg font-display font-bold text-white">
-                Add Connector Stage
-              </h3>
-
-              <form onSubmit={handleAddRound} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-mono text-[#7C91B4] mb-1.5 uppercase">
-                    Stage Type
-                  </label>
-                  <select
-                    value={newRoundType}
-                    onChange={(e) => {
-                      setNewRoundType(e.target.value);
-                      const defaults: Record<string, string> = {
-                        RESUME_SCREENING: "AI Resume Screening Round",
-                        APTITUDE: "Cognitive Aptitude Assessment",
-                        DSA: "Data Structures & Algorithms Challenge",
-                        COMMUNICATION: "Architecture & Communication Interview",
-                        HR_ROUND: "Executive HR & Culture Alignment",
-                        TECHNICAL: "In-Depth Systems Engineering Review",
-                        CULTURE_FIT: "Team Dynamic & Leadership Fit",
-                        CUSTOM: "Specialized Custom Evaluation Round",
-                      };
-                      setNewRoundTitle(defaults[e.target.value] || "Custom Round");
-                    }}
-                    className="w-full rounded-xl bg-[#0A1228] border border-[#8FB6E8]/20 px-4 py-2.5 text-sm text-[#EAF1FB] focus:outline-none focus:border-[#8FB6E8]"
-                  >
-                    <option value="DSA" className="bg-[#0A1228]">DSA &amp; Coding Round</option>
-                    <option value="APTITUDE" className="bg-[#0A1228]">Aptitude &amp; Logic Round</option>
-                    <option value="COMMUNICATION" className="bg-[#0A1228]">Communication &amp; Architecture Round</option>
-                    <option value="HR_ROUND" className="bg-[#0A1228]">Executive HR Round</option>
-                    <option value="RESUME_SCREENING" className="bg-[#0A1228]">AI Resume Screening Round</option>
-                    <option value="TECHNICAL" className="bg-[#0A1228]">Technical Deep Dive</option>
-                    <option value="CULTURE_FIT" className="bg-[#0A1228]">Culture Fit Round</option>
-                    <option value="CUSTOM" className="bg-[#0A1228]">Custom Stage</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono text-[#7C91B4] mb-1.5 uppercase">
-                    Stage Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newRoundTitle}
-                    onChange={(e) => setNewRoundTitle(e.target.value)}
-                    placeholder="e.g. Distributed Consensus DSA"
-                    className="w-full rounded-xl bg-[#0A1228] border border-[#8FB6E8]/20 px-4 py-2.5 text-sm text-[#EAF1FB] focus:outline-none focus:border-[#8FB6E8]"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-3 pt-3">
-                  <GlassButton
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setShowAddRoundModal(false)}
-                  >
-                    Cancel
-                  </GlassButton>
-                  <GlassButton type="submit" variant="primary">
-                    Attach Connector
-                  </GlassButton>
-                </div>
-              </form>
-            </div>
+        <div style={modalOverlay}>
+          <div style={modalCard}>
+            <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--ink)", margin: 0 }}>Add Connector Stage</h3>
+            <form onSubmit={handleAddRound} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div>
+                <label style={labelStyle}>Stage Type</label>
+                <select
+                  value={newRoundType}
+                  onChange={(e) => {
+                    setNewRoundType(e.target.value);
+                    const defaults: Record<string, string> = {
+                      RESUME_SCREENING: "AI Resume Screening Round", APTITUDE: "Cognitive Aptitude Assessment",
+                      DSA: "Data Structures & Algorithms Challenge", COMMUNICATION: "Architecture & Communication Interview",
+                      HR_ROUND: "Executive HR & Culture Alignment", TECHNICAL: "Systems Engineering Review",
+                      CULTURE_FIT: "Team Fit Round", CUSTOM: "Custom Evaluation Round",
+                    };
+                    setNewRoundTitle(defaults[e.target.value] || "Custom Round");
+                  }}
+                  style={inputStyle}
+                >
+                  <option value="DSA">DSA & Coding Round</option>
+                  <option value="APTITUDE">Aptitude & Logic</option>
+                  <option value="COMMUNICATION">Communication & Architecture</option>
+                  <option value="HR_ROUND">Executive HR Round</option>
+                  <option value="RESUME_SCREENING">AI Resume Screening</option>
+                  <option value="TECHNICAL">Technical Deep Dive</option>
+                  <option value="CULTURE_FIT">Culture Fit Round</option>
+                  <option value="CUSTOM">Custom Stage</option>
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Stage Name</label>
+                <input type="text" required value={newRoundTitle} onChange={(e) => setNewRoundTitle(e.target.value)} placeholder="e.g. Distributed Systems DSA" style={inputStyle} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+                <button type="button" onClick={() => setShowAddRoundModal(false)} className="md-button md-button--text">Cancel</button>
+                <button type="submit" className="md-button md-button--filled">Attach Connector</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* MODAL: REGISTER CANDIDATE */}
+      {/* MODAL: Register Candidate */}
       {showAddCandidateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="w-full max-w-lg rounded-3xl p-1.5 bg-white/[0.04] ring-1 ring-[#8FB6E8]/30 shadow-2xl">
-            <div className="rounded-[calc(1.5rem-4px)] bg-[#0D1633] p-6 sm:p-8 border border-white/10 space-y-4">
-              <h3 className="text-lg font-display font-bold text-white">
-                Register Candidate Application
-              </h3>
-
-              <form onSubmit={handleAddCandidate} className="space-y-4">
+        <div style={modalOverlay}>
+          <div style={{ ...modalCard, maxWidth: "520px" }}>
+            <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--ink)", margin: 0 }}>Register Candidate</h3>
+            <form onSubmit={handleAddCandidate} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div>
+                <label style={labelStyle}>Full Name</label>
+                <input type="text" required value={candName} onChange={(e) => setCandName(e.target.value)} placeholder="e.g. Rachel Sterling" style={inputStyle} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <div>
-                  <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={candName}
-                    onChange={(e) => setCandName(e.target.value)}
-                    placeholder="e.g. Rachel Sterling"
-                    className="w-full rounded-xl bg-[#0A1228] border border-[#8FB6E8]/20 px-4 py-2.5 text-sm text-[#EAF1FB] focus:outline-none focus:border-[#8FB6E8]"
-                  />
+                  <label style={labelStyle}>Email</label>
+                  <input type="email" required value={candEmail} onChange={(e) => setCandEmail(e.target.value)} placeholder="rachel@domain.com" style={inputStyle} />
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-mono text-[#7C91B4] mb-1.5 uppercase">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={candEmail}
-                      onChange={(e) => setCandEmail(e.target.value)}
-                      placeholder="rachel@domain.com"
-                      className="w-full rounded-xl bg-[#0A1228] border border-[#8FB6E8]/20 px-4 py-2.5 text-sm text-[#EAF1FB] focus:outline-none focus:border-[#8FB6E8]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-mono text-[#7C91B4] mb-1.5 uppercase">
-                      Years of Experience
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={40}
-                      value={candExp}
-                      onChange={(e) => setCandExp(parseInt(e.target.value) || 0)}
-                      className="w-full rounded-xl bg-[#0A1228] border border-[#8FB6E8]/20 px-4 py-2.5 text-sm text-[#8FB6E8] focus:outline-none focus:border-[#8FB6E8] font-mono"
-                    />
-                  </div>
-                </div>
-
                 <div>
-                  <label className="block text-xs font-mono text-[#7C91B4] mb-1.5 uppercase">
-                    Skills / Tech Stack
-                  </label>
-                  <input
-                    type="text"
-                    value={candSkills}
-                    onChange={(e) => setCandSkills(e.target.value)}
-                    placeholder="e.g. Rust, Go, Raft, Kubernetes, gRPC"
-                    className="w-full rounded-xl bg-[#0A1228] border border-[#8FB6E8]/20 px-4 py-2.5 text-sm text-[#EAF1FB] focus:outline-none focus:border-[#8FB6E8]"
-                  />
+                  <label style={labelStyle}>Years of Experience</label>
+                  <input type="number" min={0} max={40} value={candExp} onChange={(e) => setCandExp(parseInt(e.target.value) || 0)} style={inputStyle} />
                 </div>
-
-                <div>
-                  <label className="block text-xs font-mono text-[#7C91B4] mb-1.5 uppercase">
-                    Resume Bio / Content Snippet
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={candResume}
-                    onChange={(e) => setCandResume(e.target.value)}
-                    placeholder="Paste resume text or summary for AI agent parsing..."
-                    className="w-full rounded-xl bg-[#0A1228] border border-[#8FB6E8]/20 p-3 text-sm text-[#EAF1FB] focus:outline-none focus:border-[#8FB6E8]"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-3 pt-2">
-                  <GlassButton
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setShowAddCandidateModal(false)}
-                  >
-                    Cancel
-                  </GlassButton>
-                  <GlassButton type="submit" variant="primary">
-                    Save Candidate
-                  </GlassButton>
-                </div>
-              </form>
-            </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Skills / Tech Stack</label>
+                <input type="text" value={candSkills} onChange={(e) => setCandSkills(e.target.value)} placeholder="e.g. React, Node.js, PostgreSQL" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Resume Bio / Content</label>
+                <textarea rows={3} value={candResume} onChange={(e) => setCandResume(e.target.value)} placeholder="Paste resume text for AI evaluation..." style={{ ...inputStyle, resize: "vertical" }} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+                <button type="button" onClick={() => setShowAddCandidateModal(false)} className="md-button md-button--text">Cancel</button>
+                <button type="submit" className="md-button md-button--filled">Save Candidate</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
+
+      {/* Candidate Email Modals */}
+      {emailCandidate && (
+        <SingleEmailModal
+          isOpen={Boolean(emailCandidate)}
+          onClose={() => setEmailCandidate(null)}
+          candidate={{
+            id: emailCandidate.id,
+            name: emailCandidate.name,
+            email: emailCandidate.email,
+            status: emailCandidate.status,
+            jobTitle: job.title,
+            personalizedReply: emailCandidate.personalizedReply,
+          }}
+          onSuccess={async () => {
+            await fetchJob();
+          }}
+        />
+      )}
+
+      <BulkEmailModal
+        isOpen={isBulkEmailOpen}
+        onClose={() => setIsBulkEmailOpen(false)}
+        candidates={job.candidates.map((c) => ({
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          status: c.status,
+          jobTitle: job.title,
+          personalizedReply: c.personalizedReply,
+        }))}
+        jobTitle={job.title}
+        onComplete={async () => {
+          await fetchJob();
+        }}
+      />
     </div>
   );
 }

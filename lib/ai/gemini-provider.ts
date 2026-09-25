@@ -6,6 +6,7 @@ export interface GeminiCallOptions {
   temperature?: number;
   maxTokens?: number;
   jsonMode?: boolean;
+  allowFallback?: boolean;
 }
 
 export interface GeminiResponse {
@@ -20,24 +21,26 @@ export interface GeminiResponse {
 
 export class GeminiProvider {
   private apiKey: string;
-  private tokenThreshold: number;
-  private gemmaModel: string;
-  private flashLiteModel: string;
+  private model: string;
 
   constructor(options?: {
     apiKey?: string;
-    tokenThreshold?: number;
-    gemmaModel?: string;
-    flashLiteModel?: string;
+    model?: string;
   }) {
     this.apiKey = options?.apiKey || process.env.GEMINI_API_KEY || "";
-    this.tokenThreshold = options?.tokenThreshold || 12000;
-    this.gemmaModel = options?.gemmaModel || "gemma-4-31b-it";
-    this.flashLiteModel = options?.flashLiteModel || "gemini-3.5-flash-lite";
+    this.model = options?.model || process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
   }
 
   public setApiKey(key: string) {
     this.apiKey = key;
+  }
+
+  public setModel(model: string) {
+    this.model = model;
+  }
+
+  public getModel(): string {
+    return this.model;
   }
 
   /**
@@ -49,15 +52,12 @@ export class GeminiProvider {
   }
 
   /**
-   * Strict token routing rule:
-   * - Tokens < 12,000  => gemma-4-31b-it
-   * - Tokens >= 12,000 => gemini-3.5-flash-lite
+   * Standardized model selection: Always uses gemini-3.5-flash-lite
    */
   public selectModel(prompt: string, systemPrompt?: string): { model: string; estimatedTokens: number } {
     const fullText = (systemPrompt ? systemPrompt + "\n" : "") + prompt;
     const estimatedTokens = this.estimateTokens(fullText);
-    const model = estimatedTokens < this.tokenThreshold ? this.gemmaModel : this.flashLiteModel;
-    return { model, estimatedTokens };
+    return { model: this.model, estimatedTokens };
   }
 
   /**
@@ -68,11 +68,16 @@ export class GeminiProvider {
     const { model, estimatedTokens } = this.selectModel(prompt, options.systemPrompt);
     const limiter = getRateLimiterForModel(model);
 
+    const allowFallback = options.allowFallback ?? true;
+
     // 1. Sliding-window throttle check
     await limiter.acquire(estimatedTokens);
 
     // 2. If no API key configured, use simulated response with exact model tag
     if (!this.apiKey || this.apiKey === "mock" || this.apiKey === "test-key") {
+      if (!allowFallback) {
+        throw new Error("Missing or unconfigured Gemini API Key. Please provide a valid Gemini API Key.");
+      }
       const completion = this.generateSimulatedCompletion(prompt, options);
       const completionTokens = this.estimateTokens(completion);
       return {
@@ -122,8 +127,13 @@ export class GeminiProvider {
 
         if (!res.ok) {
           const errText = await res.text().catch(() => "");
+          let parsedMsg = "";
+          try {
+            const parsed = JSON.parse(errText);
+            parsedMsg = parsed.error?.message;
+          } catch {}
           const error: any = new Error(
-            `Google API error ${res.status} for model ${model}: ${errText.slice(0, 300)}`
+            parsedMsg || `Google API error ${res.status} for model ${model}: ${errText.slice(0, 300)}`
           );
           error.status = res.status;
           error.headers = res.headers;
@@ -159,6 +169,10 @@ export class GeminiProvider {
         `[GeminiProvider] Remote request failed after retries for model ${model}:`,
         err.message || err
       );
+
+      if (!allowFallback) {
+        throw err;
+      }
 
       // Graceful fallback on network or permanent API failure
       const fallbackText = this.generateSimulatedCompletion(prompt, options);

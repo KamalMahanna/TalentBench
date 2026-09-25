@@ -9,7 +9,7 @@ export async function GET() {
       user = await getOrCreateDemoUser();
     }
 
-    const jobs = await prisma.jobProfile.findMany({
+    const allJobs = await prisma.jobProfile.findMany({
       where: { userId: user.id },
       include: {
         _count: {
@@ -25,6 +25,35 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
+    // Deduplicate any exact duplicate rows that might already exist in the database
+    const seenMap = new Map<string, (typeof allJobs)[0]>();
+    const duplicateIdsToDelete: string[] = [];
+
+    for (const j of allJobs) {
+      const sig = `${j.title.trim().toLowerCase()}|${j.minExperience}|${j.maxExperience}|${j.description.trim().slice(0, 80).toLowerCase()}`;
+      if (seenMap.has(sig)) {
+        const existing = seenMap.get(sig)!;
+        // Keep the one with candidates; if equal, keep the first (newer) one
+        if (j._count.candidates > 0 && existing._count.candidates === 0) {
+          duplicateIdsToDelete.push(existing.id);
+          seenMap.set(sig, j);
+        } else {
+          duplicateIdsToDelete.push(j.id);
+        }
+      } else {
+        seenMap.set(sig, j);
+      }
+    }
+
+    if (duplicateIdsToDelete.length > 0) {
+      prisma.jobProfile
+        .deleteMany({
+          where: { id: { in: duplicateIdsToDelete } },
+        })
+        .catch((e) => console.warn("Failed to delete server duplicate jobs:", e));
+    }
+
+    const jobs = Array.from(seenMap.values());
     return NextResponse.json({ jobs });
   } catch (err: any) {
     console.error("Error fetching jobs:", err);
@@ -58,12 +87,31 @@ export async function POST(req: Request) {
 
     if (isNaN(minExp) || isNaN(maxExp) || minExp < 0 || maxExp < minExp) {
       return NextResponse.json(
-        {
-          error:
-            "Required years of experience range is mandatory (minimum must be >= 0, maximum must be >= minimum).",
-        },
+        { error: "Experience range must be non-negative with min <= max." },
         { status: 400 }
       );
+    }
+
+    // Guard against duplicate creation (e.g. double submission or rapid retry within 15 seconds)
+    const recentDuplicate = await prisma.jobProfile.findFirst({
+      where: {
+        userId: user.id,
+        title: title.trim(),
+        minExperience: minExp,
+        maxExperience: maxExp,
+        createdAt: {
+          gte: new Date(Date.now() - 15000),
+        },
+      },
+      include: {
+        pipeline: {
+          orderBy: { order: "asc" },
+        },
+      },
+    });
+
+    if (recentDuplicate) {
+      return NextResponse.json({ success: true, job: recentDuplicate }, { status: 200 });
     }
 
     // Default connector stages if none specified

@@ -52,8 +52,12 @@ class Settings(BaseSettings):
     @property
     def sync_database_url(self) -> str:
         if self.DATABASE_URL:
+            if self.DATABASE_URL.startswith("postgresql://"):
+                return self.DATABASE_URL.replace(
+                    "postgresql://", "postgresql+psycopg2://", 1
+                )
             return self.DATABASE_URL
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     @property
     def get_async_database_url(self) -> str:
@@ -98,9 +102,7 @@ class Settings(BaseSettings):
     S3_USE_SSL: bool = False
 
     # LLM Configuration
-    LLM_PROVIDER: str = (
-        "groq"  # "groq", "omniroute", "mock", "openai", "anthropic", "gemini"
-    )
+    LLM_PROVIDER: str = "gemini"  # "gemini", "groq", "mock"
 
     # Groq Provider Configuration
     GROQ_API_KEY: str | None = None
@@ -113,27 +115,10 @@ class Settings(BaseSettings):
     GROQ_RETRY_BASE_DELAY: float = 2.0
     GROQ_RETRY_MAX_DELAY: float = 60.0
 
-    # OmniRoute Gateway Configuration
-    OMNIROUTE_BASE_URL: str = "http://localhost:20128/v1"
-    OMNIROUTE_API_KEY: str = "sk-omniroute-key"
-    OMNIROUTE_MODEL: str = Field(
-        default="kamalai",
-        validation_alias=AliasChoices("OMNIROUTE_MODEL", "OMNIROUTE_MODEL_NAME"),
-    )
-    OMNIROUTE_MODEL_NAME: str | None = None
-    OMNIROUTE_FALLBACK_MODELS: list[str] = []
-    OMNIROUTE_MAX_RETRIES: int = 1
-    OMNIROUTE_TIMEOUT: float = 60.0
-
-    # Google Gemini & Gemma Gateway Configuration
+    # Google Gemini Gateway Configuration
     GEMINI_API_KEY: str | None = None
-    GEMMA_MODEL: str = "gemma-4-31b-it"
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
     GEMINI_FLASH_LITE_MODEL: str = "gemini-3.5-flash-lite"
-    GEMINI_TOKEN_THRESHOLD: int = (
-        12000  # <12k tokens -> gemma-4-31b-it, >=12k -> gemini-3.5-flash-lite
-    )
-    GEMMA_RPM_LIMIT: int = 30  # 30 requests / minute
-    GEMMA_TPM_LIMIT: int = 16000  # 16,000 tokens / minute
     GEMINI_FLASH_LITE_RPM_LIMIT: int = 15  # 15 requests / minute
     GEMINI_FLASH_LITE_TPM_LIMIT: int = 250000  # 250,000 tokens / minute
     GEMINI_MAX_RETRIES: int = 3
