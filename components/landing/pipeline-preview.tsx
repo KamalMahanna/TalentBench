@@ -12,7 +12,6 @@ import {
   MessagesSquare,
   Users,
   Plus,
-  ArrowRight,
 } from "lucide-react";
 
 export function PipelinePreview() {
@@ -28,6 +27,8 @@ export function PipelinePreview() {
       tag: "Autonomous AI",
       color: "border-primary/20 text-primary-deep bg-surface-purple",
       iconBg: "bg-surface-purple text-primary",
+      arrowColor: "text-violet-400 dark:text-[#B9A4FF]",
+      lineBg: "bg-violet-400 dark:bg-[#B9A4FF]",
       rules: ["Min 5+ yrs experience", "Tech stack match > 75%", "No career gap penalty"],
     },
     {
@@ -37,6 +38,8 @@ export function PipelinePreview() {
       tag: "Cognitive Logic",
       color: "border-orange-400/20 text-[#8a481c] dark:text-[#ffdcc6] bg-surface-peach",
       iconBg: "bg-surface-peach text-[#8a481c] dark:text-[#ffdcc6]",
+      arrowColor: "text-orange-400 dark:text-[#ffdcc6]",
+      lineBg: "bg-orange-400 dark:bg-[#ffdcc6]",
       rules: ["Logical deduction (20 Qs)", "Quantitative reasoning", "80% passing threshold"],
     },
     {
@@ -46,6 +49,8 @@ export function PipelinePreview() {
       tag: "Live Sandboxed",
       color: "border-blue-400/20 text-[#1e4a7a] dark:text-[#9bc2f5] bg-surface-blue",
       iconBg: "bg-surface-blue text-[#1e4a7a] dark:text-[#9bc2f5]",
+      arrowColor: "text-blue-400 dark:text-[#9bc2f5]",
+      lineBg: "bg-blue-400 dark:bg-[#9bc2f5]",
       rules: ["Graph traversal algorithms", "Concurrency handling", "Clean code standards"],
     },
     {
@@ -55,6 +60,8 @@ export function PipelinePreview() {
       tag: "Audio / Video",
       color: "border-primary/20 text-primary-deep bg-surface-purple",
       iconBg: "bg-surface-purple text-primary",
+      arrowColor: "text-violet-400 dark:text-[#B9A4FF]",
+      lineBg: "bg-violet-400 dark:bg-[#B9A4FF]",
       rules: ["Articulation clarity", "Cross-team empathy", "Structured problem explanation"],
     },
     {
@@ -64,6 +71,8 @@ export function PipelinePreview() {
       tag: "Values & Ethos",
       color: "border-orange-400/20 text-[#8a481c] dark:text-[#ffdcc6] bg-surface-peach",
       iconBg: "bg-surface-peach text-[#8a481c] dark:text-[#ffdcc6]",
+      arrowColor: "text-orange-400 dark:text-[#ffdcc6]",
+      lineBg: "bg-orange-400 dark:bg-[#ffdcc6]",
       rules: ["Notice period verification", "Team compensation alignment", "Leadership ethos"],
     },
     {
@@ -73,6 +82,8 @@ export function PipelinePreview() {
       tag: "Extensible",
       color: "border border-dashed border-outline text-muted bg-surface",
       iconBg: "bg-surface border border-outline text-primary",
+      arrowColor: "text-violet-400 dark:text-[#B9A4FF]",
+      lineBg: "bg-violet-400 dark:bg-[#B9A4FF]",
       rules: ["Repeat any round type", "Reorder stages effortlessly", "Plug custom webhooks"],
     },
   ];
@@ -121,8 +132,20 @@ export function PipelinePreview() {
       const initialPositions = getPositions();
       gsap.set(track, { x: initialPositions.startX });
 
-      // Horizontal Conveyor Track: start centered on Resume Screening, end centered on Add Custom Connector
-      gsap.fromTo(
+      // Unified GSAP Timeline tied to ScrollTrigger
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: wrapRef.current,
+          start: "top top",
+          end: () => `+=${getPositions().distance}`,
+          pin: true,
+          scrub: 1,
+          invalidateOnRefresh: true,
+        },
+      });
+
+      // 1. Horizontal Conveyor Track: start centered on Resume Screening, end centered on Add Custom Connector
+      tl.fromTo(
         track,
         {
           x: () => getPositions().startX,
@@ -130,19 +153,65 @@ export function PipelinePreview() {
         {
           x: () => getPositions().endX,
           ease: "none",
-          scrollTrigger: {
-            trigger: wrapRef.current,
-            start: "top top",
-            end: () => `+=${getPositions().distance}`,
-            pin: true,
-            scrub: 1,
-            invalidateOnRefresh: true,
-          },
-        }
+          duration: 1,
+        },
+        0
       );
+
+      // 2. Animate connector arrows and line from left to right in lockstep
+      const bridges = track.querySelectorAll<HTMLElement>(".connector-bridge");
+      const numBridges = bridges.length;
+
+      if (numBridges > 0) {
+        bridges.forEach((bridge, bIdx) => {
+          const arrow = bridge.querySelector<HTMLElement>(".connector-arrow");
+          const lineActive = bridge.querySelector<HTMLElement>(".connector-line-active");
+          if (!arrow || !lineActive) return;
+
+          // Each bridge transition is mapped across its active scroll window
+          const segDuration = 1 / numBridges;
+          const startTime = bIdx * segDuration;
+          const duration = segDuration * 0.95;
+
+          const arrowWidth = 20;
+          const startX = 0;
+          const getEndX = () => Math.max(arrowWidth, bridge.clientWidth - arrowWidth);
+
+          // The line extends from left to right behind the moving arrow
+          tl.fromTo(
+            lineActive,
+            { width: startX },
+            {
+              width: () => getEndX() + 2,
+              ease: "none",
+              duration: duration,
+            },
+            startTime
+          );
+
+          // The arrow (tail + head) glides along the line
+          tl.fromTo(
+            arrow,
+            { x: startX },
+            {
+              x: () => getEndX(),
+              ease: "none",
+              duration: duration,
+            },
+            startTime
+          );
+        });
+      }
     }, wrapRef);
 
-    return () => ctx.revert();
+    const refreshTimer = setTimeout(() => {
+      ScrollTrigger.refresh();
+    }, 120);
+
+    return () => {
+      clearTimeout(refreshTimer);
+      ctx.revert();
+    };
   }, [reduce]);
 
   return (
@@ -223,15 +292,52 @@ export function PipelinePreview() {
                 </div>
               </div>
 
-              {/* Animated Connector Arrow between stages */}
-              {idx < pipelineStages.length - 1 && (
-                <div className="flex items-center text-muted">
-                  <div className="w-12 h-0.5 bg-outline relative">
-                    <span className="absolute -top-1 right-0 w-2 h-2 rounded-full bg-primary animate-ping" />
+              {/* Connector Bridge between stages */}
+              {idx < pipelineStages.length - 1 && (() => {
+                const nextStage = pipelineStages[idx + 1];
+                return (
+                  <div className="connector-bridge relative flex items-center w-16 sm:w-20 h-6 shrink-0 mx-2">
+                    {/* 1. Base 2px guide track */}
+                    <div className="w-full h-0.5 bg-outline/70 dark:bg-white/15" />
+
+                    {/* 2. Active line in color of card it is coming from */}
+                    <div
+                      className={`connector-line-active absolute left-0 top-1/2 -mt-[1px] h-0.5 ${stage.lineBg}`}
+                      style={{ width: reduce ? "100%" : "0px" }}
+                    />
+
+                    {/* 3. Arrow with tail & head in color of next card, centered seamlessly on the line */}
+                    <div
+                      className={`connector-arrow absolute left-0 top-1/2 -mt-[1px] h-0.5 flex items-center z-10 pointer-events-none ${nextStage.arrowColor}`}
+                      style={{
+                        transform: reduce
+                          ? "translateX(calc(100% - 20px))"
+                          : "translateX(0px)",
+                      }}
+                    >
+                      {/* Arrow Tail: identical 2px height HTML bar */}
+                      <div className="w-3.5 h-0.5 bg-current shrink-0" />
+
+                      {/* Arrowhead: precision chevron aligned with the 2px bar */}
+                      <svg
+                        width="9"
+                        height="12"
+                        viewBox="0 0 9 12"
+                        fill="none"
+                        className="shrink-0 -ml-[2px] block overflow-visible"
+                      >
+                        <path
+                          d="M 2 1.5 L 7.5 6 L 2 10.5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
                   </div>
-                  <ArrowRight size={16} className="text-primary ml-1" />
-                </div>
-              )}
+                );
+              })()}
             </div>
           );
         })}
