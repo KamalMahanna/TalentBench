@@ -149,7 +149,7 @@ export function PipelinePreview() {
     <section
       id="pipeline"
       ref={wrapRef}
-      className="relative overflow-hidden border-t border-outline bg-canvas transition-colors duration-300 py-24"
+      className="relative overflow-hidden bg-canvas transition-colors duration-300 py-24"
     >
       {/* Material You subtle ambient surface gradient */}
       <div
@@ -203,7 +203,6 @@ export function PipelinePreview() {
                       <h4 className="text-base font-semibold text-ink tracking-tight">
                         {stage.name}
                       </h4>
-                      <p className="text-xs text-muted">Plug-and-play round</p>
                     </div>
                   </div>
 

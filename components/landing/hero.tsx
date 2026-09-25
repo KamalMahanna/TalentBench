@@ -99,15 +99,18 @@ function Button({
   variant = "filled",
   onClick,
   href,
+  className = "",
 }: {
   children: React.ReactNode;
   variant?: "filled" | "tonal" | "text";
   onClick?: () => void;
   href?: string;
+  className?: string;
 }) {
+  const buttonClasses = `md-button md-button--${variant}${className ? ` ${className}` : ""}`;
   if (href) {
     return (
-      <Link href={href} className={`md-button md-button--${variant}`}>
+      <Link href={href} className={buttonClasses}>
         {children}
       </Link>
     );
@@ -118,7 +121,7 @@ function Button({
       whileTap={{ scale: 0.97 }}
       transition={{ duration: 0.15 }}
       onClick={onClick}
-      className={`md-button md-button--${variant}`}
+      className={buttonClasses}
     >
       {children}
     </motion.button>
@@ -599,9 +602,11 @@ export default function Home() {
             <p>
               Share a thoughtful snapshot of performance that helps candidates grow and helps your team build trust.
             </p>
-            <Button onClick={() => scrollTo("reports")}>
-              Explore reports <ArrowRight size={16} />
-            </Button>
+            <div className="report-buttons">
+              <Button onClick={() => scrollTo("reports")}>
+                Explore reports <ArrowRight size={16} />
+              </Button>
+            </div>
           </div>
           <div className="report-card">
             <div className="report-card-header">
