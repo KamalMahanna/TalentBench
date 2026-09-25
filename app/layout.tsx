@@ -4,7 +4,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TalentBench — Score every candidate fairly.",
+  title: "TalentBench",
   description:
     "One friendly workspace for reviewing candidates, calibrating your team, and turning every interview into useful signal.",
   icons: {
