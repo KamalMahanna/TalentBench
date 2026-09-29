@@ -126,7 +126,7 @@ async def get_candidates(
 
 
 @router.get(
-    "/candidates/{candidate_id:path}", response_model=ApiResponse[CandidateSchema]
+    "/candidates/{candidate_id}", response_model=ApiResponse[CandidateSchema]
 )
 async def get_candidate(candidate_id: str, db: AsyncSession = Depends(get_db)):
     import urllib.parse
