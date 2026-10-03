@@ -220,12 +220,6 @@ export function PipelinePreview() {
       ref={wrapRef}
       className="relative overflow-hidden bg-canvas transition-colors duration-300 py-24"
     >
-      {/* Material You subtle ambient surface gradient */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 pointer-events-none z-0 opacity-40 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-surface-purple via-transparent to-transparent"
-      />
-
       <div className="relative z-10 px-6 sm:px-12 max-w-7xl mx-auto flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <div className="section-kicker">Modular connector architecture</div>
