@@ -2,7 +2,6 @@ from sqlalchemy import Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from pgvector.sqlalchemy import Vector
 from app.models.base import Base, TimestampMixin, UUIDMixin
 
 
@@ -36,11 +35,9 @@ class BenchmarkProfile(Base, UUIDMixin, TimestampMixin):
         Float, default=0.0, nullable=False
     )
 
-    # Internal scoring weights and vectors
     skill_weights = mapped_column(
         JSON().with_variant(JSONB, "postgresql"), default=dict, nullable=False
     )
-    profile_embedding = mapped_column(Vector(1536), nullable=True)
 
     # Relationships
     role: Mapped["Role"] = relationship("Role", back_populates="benchmark_profile")

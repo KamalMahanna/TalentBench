@@ -2,7 +2,6 @@ from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from pgvector.sqlalchemy import Vector
 from app.models.base import Base, TimestampMixin, UUIDMixin
 
 
@@ -29,8 +28,6 @@ class Role(Base, UUIDMixin, TimestampMixin):
     )  # draft, active, closed, archived
     applicant_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
-    # Embedding & skill representation
-    jd_embedding = mapped_column(Vector(1536), nullable=True)
     extracted_skills = mapped_column(
         JSON().with_variant(JSONB, "postgresql"), default=list, nullable=False
     )

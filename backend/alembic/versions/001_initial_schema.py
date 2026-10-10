@@ -10,7 +10,6 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import pgvector
 
 revision: str = "001_initial_schema"
 down_revision: Union[str, None] = None
@@ -113,7 +112,6 @@ def upgrade() -> None:
             "status", sa.String(length=50), nullable=False, server_default="draft"
         ),
         sa.Column("applicant_count", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("jd_embedding", pgvector.sqlalchemy.Vector(1536), nullable=True),
         sa.Column("extracted_skills", sa.JSON(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
@@ -169,7 +167,6 @@ def upgrade() -> None:
             "resume_url", sa.String(length=1024), nullable=False, server_default=""
         ),
         sa.Column("resume_text", sa.Text(), nullable=False, server_default=""),
-        sa.Column("resume_embedding", pgvector.sqlalchemy.Vector(1536), nullable=True),
         sa.Column(
             "status", sa.String(length=50), nullable=False, server_default="applied"
         ),
@@ -296,7 +293,6 @@ def upgrade() -> None:
             "avg_experience_years", sa.Float(), nullable=False, server_default="0.0"
         ),
         sa.Column("skill_weights", sa.JSON(), nullable=False),
-        sa.Column("profile_embedding", pgvector.sqlalchemy.Vector(1536), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["role_id"], ["roles.id"], ondelete="CASCADE"),

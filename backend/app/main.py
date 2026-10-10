@@ -21,12 +21,6 @@ async def lifespan(app: FastAPI):
     # Create tables if not existing (especially useful for sqlite/dev)
     try:
         async with async_engine.begin() as conn:
-            # Enable pgvector if postgresql
-            if "postgresql" in settings.get_async_database_url:
-                try:
-                    await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-                except Exception:
-                    pass
             await conn.run_sync(Base.metadata.create_all)
     except Exception:
         pass

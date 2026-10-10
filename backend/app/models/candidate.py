@@ -13,7 +13,6 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from pgvector.sqlalchemy import Vector
 from app.models.base import Base, TimestampMixin, utc_now
 
 
@@ -44,9 +43,6 @@ class Candidate(Base, TimestampMixin):
     avatar_url: Mapped[str] = mapped_column(String(1024), default="", nullable=False)
     resume_url: Mapped[str] = mapped_column(String(1024), default="", nullable=False)
     resume_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
-
-    # Vector embedding
-    resume_embedding = mapped_column(Vector(1536), nullable=True)
 
     status: Mapped[str] = mapped_column(
         String(50), default="applied", nullable=False, index=True

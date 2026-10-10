@@ -20,7 +20,7 @@ Production-ready, horizontally scalable backend for **TalentBench**, an AI-power
              ┌───────────────────────┘            └────────────────────────┐
              ▼                                                             ▼
 ┌─────────────────────────┐                                   ┌─────────────────────────┐
-│ PostgreSQL 16 + pgvector│                                   │   Redis 7 (Broker &     │
+│      PostgreSQL 16      │                                   │   Redis 7 (Broker &     │
 │ (Roles, Candidates,     │                                   │   PubSub & LLM Cache)   │
 │  AuditLogs, JobStatus)  │                                   └────────────┬────────────┘
 └─────────────────────────┘                                                │
@@ -45,7 +45,7 @@ Production-ready, horizontally scalable backend for **TalentBench**, an AI-power
 ## 🚀 Key Highlights & Scale Design (10k–20k Applications / Role)
 
 1. **Dashboard Unaffected by Ingestion Spikes**:
-   - Ingestion, resume parsing, pgvector embedding, rubric evaluation, and mail dispatch are executed asynchronously by dedicated Celery workers in separate isolated containers (`worker-resume`, `worker-scoring`, `worker-mail`).
+   - Ingestion, resume parsing, rubric evaluation, and mail dispatch are executed asynchronously by dedicated Celery workers in separate isolated containers (`worker-resume`, `worker-scoring`, `worker-mail`).
    - The FastAPI API server handles dashboard requests with sub-10ms response times.
 2. **Crash-Safe Checkpointing & Idempotency**:
    - Batch jobs track progress per candidate in the `job_statuses` table with deterministic idempotency keys (`{batch_id}:{candidate_id}:{step}`).
@@ -65,7 +65,7 @@ Production-ready, horizontally scalable backend for **TalentBench**, an AI-power
 ## ⚡ Quickstart
 
 ### Prerequisites
-- Docker & Docker Compose (or Python 3.13+ with `uv`, PostgreSQL 16 with pgvector, Redis 7)
+- Docker & Docker Compose (or Python 3.13+ with `uv`, PostgreSQL 16, Redis 7)
 
 ### 1. Launch with Docker Compose
 ```bash

@@ -78,10 +78,6 @@ def build_benchmark_profile_from_source(
                 )
                 logger.info("benchmark_projects_reduced", count=len(reduced_projects))
 
-            # Embed benchmark profile representation
-            text_rep = f"Role: {role.title}. Skills: {', '.join(profile.top_skills)}. Experience: {profile.avg_experience_years} years."
-            emb = loop.run_until_complete(llm.embed(text_rep))
-            profile.profile_embedding = emb
             db.commit()
 
             return {"status": "success", "role_id": role_id}

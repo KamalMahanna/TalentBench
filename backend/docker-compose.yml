@@ -117,9 +117,9 @@ services:
     networks:
       - talentbench-net
 
-  # ── PostgreSQL 16 with pgvector ───────────────────────────────────────────
+  # ── PostgreSQL 16 ──────────────────────────────────────────────────────────
   postgres:
-    image: pgvector/pgvector:pg16
+    image: postgres:16-alpine
     container_name: talentbench-postgres
     restart: unless-stopped
     environment:
@@ -157,7 +157,7 @@ services:
 
   # ── MinIO (S3-Compatible Object Storage) ──────────────────────────────────
   minio:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     container_name: talentbench-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"

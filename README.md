@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-13+-black.svg)](https://nextjs.org)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%20+%20pgvector-336791.svg)](https://github.com/pgvector/pgvector)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://www.postgresql.org)
 [![Redis](https://img.shields.io/badge/Redis-7-red.svg)](https://redis.io)
 [![LangChain Groq](https://img.shields.io/badge/LangChain-Groq%20(Qwen%2027B)-orange.svg)](https://groq.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -50,7 +50,7 @@ TalentBench solves high-volume applicant screening with an asynchronous, queue-d
                 ┌───────────────────────┘            └────────────────────────┐
                 ▼                                                             ▼
    ┌─────────────────────────┐                                   ┌─────────────────────────┐
-   │ PostgreSQL 16 + pgvector│                                   │   Redis 7 (Broker,      │
+   │      PostgreSQL 16      │                                   │   Redis 7 (Broker,      │
    │ (Roles, Candidates,     │                                   │   PubSub & Rate Limiter)│
    │  AuditLogs, JobStatus)  │                                   └────────────┬────────────┘
    └─────────────────────────┘                                                │
@@ -106,7 +106,7 @@ TalentBench solves high-volume applicant screening with an asynchronous, queue-d
 | **Frontend** | Next.js 13+ (App Router), TypeScript, Tailwind CSS, Radix UI, Lucide Icons, React Query |
 | **Backend API** | Python 3.12, FastAPI, Pydantic v2, Uvicorn, SQLAlchemy 2.0 (AsyncIO), Alembic |
 | **Workers & Queues** | Celery, Redis 7, Flower |
-| **Database & Search** | PostgreSQL 16 with `pgvector` extension for 1536-dim semantic embeddings |
+| **Database** | PostgreSQL 16 |
 | **LLM & AI** | LangChain Groq (`qwen/qwen3.8-27b`), Mock LLM Provider, Redis Semantic Caching |
 | **Document Parsing** | `pypdf`, `python-docx`, `openpyxl`, `pandas` |
 | **Storage** | MinIO (local) / AWS S3 / Google Cloud Storage |
@@ -118,7 +118,7 @@ TalentBench solves high-volume applicant screening with an asynchronous, queue-d
 
 ### Option A: One-Command Full Stack (Docker Compose)
 
-The easiest way to start all services (Frontend, API, 3 Workers, PostgreSQL + pgvector, Redis, MinIO, Flower, Prometheus, Grafana) is via Docker Compose:
+The easiest way to start all services (Frontend, API, 3 Workers, PostgreSQL, Redis, MinIO, Flower, Prometheus, Grafana) is via Docker Compose:
 
 #### 1. Clone & Configure Environment
 ```bash
@@ -162,7 +162,7 @@ If you prefer running services directly on your host machine:
 #### Prerequisites
 - Node.js 18+ & npm
 - Python 3.13+ with `uv` (or `venv`)
-- PostgreSQL 16 (with `pgvector` extension)
+- PostgreSQL 16
 - Redis 7
 
 #### 1. Start Frontend
@@ -245,7 +245,7 @@ For production deployments (AWS, GCP, Azure, or Kubernetes), deploy following th
     │                                                               │
     ▼                                                               ▼
 [ AWS Aurora PostgreSQL / GCP Cloud SQL ]          [ AWS ElastiCache Redis / GCP Memorystore ]
-  - pgvector enabled                                 - Cluster mode enabled
+  - High availability & automated backups            - Cluster mode enabled
   - Read-replicas for recruiter queries              - Celery broker & Rate limiting
     │                                                               │
     └───────────────────────────────┬───────────────────────────────┘
@@ -276,7 +276,7 @@ SECRET_KEY=<generate-secure-random-256-bit-key>
 API_V1_STR=/api/v1
 CORS_ORIGINS=["https://talentbench.yourcompany.com"]
 
-# Managed Database (PostgreSQL 16 + pgvector)
+# Managed Database (PostgreSQL 16)
 POSTGRES_USER=app_talentbench
 POSTGRES_PASSWORD=<strong-database-password>
 POSTGRES_HOST=db.prod.talentbench.internal
