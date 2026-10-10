@@ -162,14 +162,17 @@ export function HowItWorks() {
     const cards = cardRefs.current.filter(Boolean) as HTMLElement[];
     if (cards.length === 0) return;
 
+    let lastActiveStep = 0;
+
     const ctx = gsap.context(() => {
       // 1. Initial configuration
-      // Card 0 starts locked front and center
+      // Card 0 starts locked front and center at 100% solid opacity
       gsap.set(cards[0], {
         y: 0,
         scale: 1,
         opacity: 1,
         transformOrigin: "center top",
+        force3D: true,
       });
 
       const getInitialY = () =>
@@ -178,18 +181,19 @@ export function HowItWorks() {
       // Cards 1, 2, 3 wait below with natural offset, slight scale and zero opacity
       for (let i = 1; i < cards.length; i++) {
         gsap.set(cards[i], {
-          y: getInitialY,
-          scale: 0.94,
+          y: getInitialY(),
+          scale: 0.96,
           opacity: 0,
           transformOrigin: "center top",
+          force3D: true,
         });
       }
 
       const navOffset = () => (window.innerWidth <= 600 ? 66 : 76);
       const scrollDistance = () =>
-        Math.max(1800, Math.round(window.innerHeight * 2.5));
+        Math.max(1600, Math.round(window.innerHeight * 2.2));
 
-      // 2. Master timeline pinned once with responsive, continuous fluid scrub (scrub: 1.0)
+      // 2. Master timeline pinned once with responsive, responsive scrub synced to Lenis
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
@@ -197,127 +201,131 @@ export function HowItWorks() {
           end: () => `+=${scrollDistance()}`,
           pin: true,
           pinSpacing: true,
-          scrub: 1.0,
+          scrub: 0.3,
+          anticipatePin: 1,
           invalidateOnRefresh: true,
           onUpdate: (self) => {
             const p = self.progress;
-            if (p < 0.3) {
-              setActiveStep(0);
-            } else if (p < 0.6) {
-              setActiveStep(1);
-            } else if (p < 0.88) {
-              setActiveStep(2);
+            let nextStep = 0;
+            if (p < 0.2) {
+              nextStep = 0;
+            } else if (p < 0.5) {
+              nextStep = 1;
+            } else if (p < 0.8) {
+              nextStep = 2;
             } else {
-              setActiveStep(3);
+              nextStep = 3;
+            }
+            if (nextStep !== lastActiveStep) {
+              lastActiveStep = nextStep;
+              setActiveStep(nextStep);
             }
           },
         },
       });
 
-      // Continuous, uninterrupted fluid flow (no frozen dead-zones):
+      // Step 01 reading dwell
+      tl.to({}, { duration: 0.35 });
+
       // STEP 01 -> STEP 02
+      // Card 1 glides up to center at 100% solid opacity
+      // Card 0 steps back into the card stack while maintaining solid opacity
       tl.to(cards[1], {
         y: 0,
         scale: 1,
         opacity: 1,
         duration: 1.0,
-        ease: "power1.inOut",
+        ease: "power2.out",
       });
       tl.to(
         cards[0],
         {
-          y: -14,
+          y: -16,
           scale: 0.96,
-          opacity: 0.75,
           duration: 1.0,
-          ease: "power1.inOut",
+          ease: "power2.out",
         },
         "<"
       );
 
-      // STEP 02 -> STEP 03: seamlessly glides in as Step 02 finishes (slight 0.15s overlap for liquid continuity)
-      tl.to(
-        cards[2],
-        {
-          y: 0,
-          scale: 1,
-          opacity: 1,
-          duration: 1.0,
-          ease: "power1.inOut",
-        },
-        "-=0.15"
-      );
+      // Step 02 reading dwell
+      tl.to({}, { duration: 0.35 });
+
+      // STEP 02 -> STEP 03
+      // Card 2 glides up to center; cards 1 and 0 step back
+      tl.to(cards[2], {
+        y: 0,
+        scale: 1,
+        opacity: 1,
+        duration: 1.0,
+        ease: "power2.out",
+      });
       tl.to(
         cards[1],
         {
-          y: -14,
+          y: -16,
           scale: 0.96,
-          opacity: 0.75,
           duration: 1.0,
-          ease: "power1.inOut",
+          ease: "power2.out",
         },
         "<"
       );
       tl.to(
         cards[0],
         {
-          y: -28,
+          y: -32,
           scale: 0.92,
-          opacity: 0.5,
           duration: 1.0,
-          ease: "power1.inOut",
+          ease: "power2.out",
         },
         "<"
       );
 
-      // STEP 03 -> STEP 04: seamlessly glides in as Step 03 finishes
-      tl.to(
-        cards[3],
-        {
-          y: 0,
-          scale: 1,
-          opacity: 1,
-          duration: 1.0,
-          ease: "power1.inOut",
-        },
-        "-=0.15"
-      );
+      // Step 03 reading dwell
+      tl.to({}, { duration: 0.35 });
+
+      // STEP 03 -> STEP 04
+      // Card 3 glides up to center; cards 2, 1, 0 step back
+      tl.to(cards[3], {
+        y: 0,
+        scale: 1,
+        opacity: 1,
+        duration: 1.0,
+        ease: "power2.out",
+      });
       tl.to(
         cards[2],
         {
-          y: -14,
+          y: -16,
           scale: 0.96,
-          opacity: 0.75,
           duration: 1.0,
-          ease: "power1.inOut",
+          ease: "power2.out",
         },
         "<"
       );
       tl.to(
         cards[1],
         {
-          y: -28,
+          y: -32,
           scale: 0.92,
-          opacity: 0.5,
           duration: 1.0,
-          ease: "power1.inOut",
+          ease: "power2.out",
         },
         "<"
       );
       tl.to(
         cards[0],
         {
-          y: -42,
+          y: -48,
           scale: 0.88,
-          opacity: 0.35,
           duration: 1.0,
-          ease: "power1.inOut",
+          ease: "power2.out",
         },
         "<"
       );
 
-      // Gentle final cushion before unpinning
-      tl.to({}, { duration: 0.25 });
+      // Gentle final cushion on Step 04 before unpinning
+      tl.to({}, { duration: 0.4 });
     }, section);
 
     const timer = setTimeout(() => {

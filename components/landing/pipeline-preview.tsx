@@ -143,7 +143,8 @@ export function PipelinePreview() {
           end: () => `+=${getPositions().distance + holdDistance}`,
           pin: true,
           pinSpacing: true,
-          scrub: 1.0,
+          scrub: 0.35,
+          anticipatePin: 1,
           invalidateOnRefresh: true,
         },
       });
