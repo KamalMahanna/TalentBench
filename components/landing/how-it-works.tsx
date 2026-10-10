@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useReducedMotion } from "motion/react";
@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 
 export function HowItWorks() {
-  const containerRef = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
 
   const steps = [
@@ -151,42 +150,179 @@ export function HowItWorks() {
     },
   ];
 
+  const [activeStep, setActiveStep] = useState(0);
+  const sectionRef = useRef<HTMLElement>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+
   useEffect(() => {
-    if (reduce || !containerRef.current) return;
+    if (reduce || !sectionRef.current) return;
     initGSAP();
 
+    const section = sectionRef.current;
+    const cards = cardRefs.current.filter(Boolean) as HTMLElement[];
+    if (cards.length === 0) return;
+
     const ctx = gsap.context(() => {
-      const cards = gsap.utils.toArray<HTMLElement>(".how-it-works-card");
-
-      cards.forEach((card, i) => {
-        if (i === cards.length - 1) return;
-
-        ScrollTrigger.create({
-          trigger: card,
-          start: "top 14%",
-          endTrigger: cards[cards.length - 1],
-          end: "top 14%",
-          pin: true,
-          pinSpacing: false,
-        });
-
-        // Smooth scale down on scroll to create physical card-stacking depth
-        gsap.to(card, {
-          scale: 0.95,
-          ease: "none",
-          scrollTrigger: {
-            trigger: cards[i + 1],
-            start: "top 70%",
-            end: "top 14%",
-            scrub: true,
-          },
-        });
+      // 1. Initial configuration
+      // Card 0 starts locked front and center
+      gsap.set(cards[0], {
+        y: 0,
+        scale: 1,
+        opacity: 1,
+        transformOrigin: "center top",
       });
-    }, containerRef);
+
+      const getInitialY = () =>
+        Math.min(Math.round(window.innerHeight * 0.55), 440);
+
+      // Cards 1, 2, 3 wait below with natural offset, slight scale and zero opacity
+      for (let i = 1; i < cards.length; i++) {
+        gsap.set(cards[i], {
+          y: getInitialY,
+          scale: 0.94,
+          opacity: 0,
+          transformOrigin: "center top",
+        });
+      }
+
+      const navOffset = () => (window.innerWidth <= 600 ? 66 : 76);
+      const scrollDistance = () =>
+        Math.max(1800, Math.round(window.innerHeight * 2.5));
+
+      // 2. Master timeline pinned once with responsive, continuous fluid scrub (scrub: 1.0)
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: () => `top ${navOffset()}px`,
+          end: () => `+=${scrollDistance()}`,
+          pin: true,
+          pinSpacing: true,
+          scrub: 1.0,
+          invalidateOnRefresh: true,
+          onUpdate: (self) => {
+            const p = self.progress;
+            if (p < 0.3) {
+              setActiveStep(0);
+            } else if (p < 0.6) {
+              setActiveStep(1);
+            } else if (p < 0.88) {
+              setActiveStep(2);
+            } else {
+              setActiveStep(3);
+            }
+          },
+        },
+      });
+
+      // Continuous, uninterrupted fluid flow (no frozen dead-zones):
+      // STEP 01 -> STEP 02
+      tl.to(cards[1], {
+        y: 0,
+        scale: 1,
+        opacity: 1,
+        duration: 1.0,
+        ease: "power1.inOut",
+      });
+      tl.to(
+        cards[0],
+        {
+          y: -14,
+          scale: 0.96,
+          opacity: 0.75,
+          duration: 1.0,
+          ease: "power1.inOut",
+        },
+        "<"
+      );
+
+      // STEP 02 -> STEP 03: seamlessly glides in as Step 02 finishes (slight 0.15s overlap for liquid continuity)
+      tl.to(
+        cards[2],
+        {
+          y: 0,
+          scale: 1,
+          opacity: 1,
+          duration: 1.0,
+          ease: "power1.inOut",
+        },
+        "-=0.15"
+      );
+      tl.to(
+        cards[1],
+        {
+          y: -14,
+          scale: 0.96,
+          opacity: 0.75,
+          duration: 1.0,
+          ease: "power1.inOut",
+        },
+        "<"
+      );
+      tl.to(
+        cards[0],
+        {
+          y: -28,
+          scale: 0.92,
+          opacity: 0.5,
+          duration: 1.0,
+          ease: "power1.inOut",
+        },
+        "<"
+      );
+
+      // STEP 03 -> STEP 04: seamlessly glides in as Step 03 finishes
+      tl.to(
+        cards[3],
+        {
+          y: 0,
+          scale: 1,
+          opacity: 1,
+          duration: 1.0,
+          ease: "power1.inOut",
+        },
+        "-=0.15"
+      );
+      tl.to(
+        cards[2],
+        {
+          y: -14,
+          scale: 0.96,
+          opacity: 0.75,
+          duration: 1.0,
+          ease: "power1.inOut",
+        },
+        "<"
+      );
+      tl.to(
+        cards[1],
+        {
+          y: -28,
+          scale: 0.92,
+          opacity: 0.5,
+          duration: 1.0,
+          ease: "power1.inOut",
+        },
+        "<"
+      );
+      tl.to(
+        cards[0],
+        {
+          y: -42,
+          scale: 0.88,
+          opacity: 0.35,
+          duration: 1.0,
+          ease: "power1.inOut",
+        },
+        "<"
+      );
+
+      // Gentle final cushion before unpinning
+      tl.to({}, { duration: 0.25 });
+    }, section);
 
     const timer = setTimeout(() => {
       ScrollTrigger.refresh();
-    }, 120);
+    }, 150);
 
     return () => {
       clearTimeout(timer);
@@ -194,39 +330,33 @@ export function HowItWorks() {
     };
   }, [reduce]);
 
-  return (
-    <section
-      ref={containerRef}
-      id="how-it-works"
-      className="relative py-28 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto"
-    >
-      <div className="text-center max-w-2xl mx-auto mb-20">
-        <div className="section-kicker">How it works</div>
-        <h2 className="text-3xl sm:text-5xl font-semibold tracking-[-0.04em] text-ink">
-          From role specification to <span>verified shortlist.</span>
-        </h2>
-        <p className="mt-4 text-base leading-relaxed text-muted">
-          Four transparent, structured stages engineered to eliminate hiring guesswork and
-          save your team dozens of hours.
-        </p>
-      </div>
+  // Reduced motion fallback: static clean vertical stack
+  if (reduce) {
+    return (
+      <section
+        id="how-it-works"
+        className="relative py-24 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto"
+      >
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <div className="section-kicker">How it works</div>
+          <h2 className="text-3xl sm:text-5xl font-semibold tracking-[-0.04em] text-ink">
+            From role specification to <span>verified shortlist.</span>
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-muted">
+            Four transparent, structured stages engineered to eliminate hiring guesswork and
+            save your team dozens of hours.
+          </p>
+        </div>
 
-      {/* Cards stack on scroll */}
-      <div className="space-y-12">
-        {steps.map((item, idx) => {
-          const Icon = item.icon;
-          return (
-            <div
-              key={item.step}
-              className="how-it-works-card min-h-[440px] flex items-center justify-center will-change-transform relative"
-              style={{ zIndex: 10 + idx }}
-            >
-              {/* Card envelope in Material You theme */}
-              <div className="w-full rounded-3xl p-1 bg-surface-high border border-outline shadow-[0_12px_36px_rgba(27,26,34,0.06)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.35)] transition-all duration-300">
-                <div className="relative h-full w-full rounded-[calc(1.5rem-2px)] p-6 md:p-10 overflow-hidden bg-surface-high">
-                  {/* Subtle top edge Material You accent highlight */}
-                  <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-
+        <div className="flex flex-col gap-8">
+          {steps.map((item) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={item.step}
+                className="w-full rounded-3xl p-1 bg-surface-high border border-outline shadow-sm"
+              >
+                <div className="relative h-full w-full rounded-[calc(1.5rem-2px)] p-6 md:p-8 overflow-hidden bg-surface-high">
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
                     <div className="md:col-span-7">
                       <div className="flex items-center gap-3 mb-4">
@@ -258,9 +388,91 @@ export function HowItWorks() {
                   </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      ref={sectionRef}
+      id="how-it-works"
+      className="relative w-full overflow-hidden py-12 sm:py-16 px-4 sm:px-6 lg:px-8"
+    >
+      <div className="max-w-5xl mx-auto flex flex-col items-center">
+        {/* Section Header */}
+        <div className="how-it-works-header text-center max-w-2xl mx-auto mb-10 sm:mb-14">
+          <div className="section-kicker">How it works</div>
+          <h2 className="text-3xl sm:text-5xl font-semibold tracking-[-0.04em] text-ink">
+            From role specification to <span>verified shortlist.</span>
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-muted">
+            Four transparent, structured stages engineered to eliminate hiring guesswork and
+            save your team dozens of hours.
+          </p>
+        </div>
+
+        {/* Fluid Card Deck Stage */}
+        <div className="relative w-full max-w-4xl mx-auto pt-4">
+          <div className="grid grid-cols-1 grid-rows-1 items-start w-full">
+            {steps.map((item, idx) => {
+              const Icon = item.icon;
+              const isFront = activeStep === idx;
+              return (
+                <div
+                  key={item.step}
+                  ref={(el) => {
+                    cardRefs.current[idx] = el;
+                  }}
+                  className={`how-it-works-card col-start-1 row-start-1 w-full will-change-transform ${
+                    isFront ? "pointer-events-auto" : "pointer-events-none"
+                  }`}
+                  style={{ zIndex: 10 + idx }}
+                >
+                  {/* Card envelope in Material You theme */}
+                  <div className="w-full rounded-3xl p-1 bg-surface-high border border-outline shadow-[0_16px_40px_rgba(27,26,34,0.08)] dark:shadow-[0_20px_48px_rgba(0,0,0,0.45)] transition-shadow duration-300">
+                    <div className="relative h-full w-full rounded-[calc(1.5rem-2px)] p-6 md:p-8 overflow-hidden bg-surface-high">
+                      {/* Subtle top edge Material You accent highlight */}
+                      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+                        <div className="md:col-span-7">
+                          <div className="flex items-center gap-3 mb-4">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-purple text-primary-deep text-xs font-semibold">
+                              <Icon size={14} />
+                              STEP {item.step}
+                            </span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-outline" />
+                            <span className="text-xs text-muted font-medium">
+                              {item.highlight}
+                            </span>
+                          </div>
+
+                          <h3 className="text-2xl sm:text-3xl font-semibold tracking-[-0.03em] text-ink">
+                            {item.title}
+                          </h3>
+
+                          <p className="mt-4 text-sm sm:text-base leading-relaxed text-muted max-w-xl">
+                            {item.description}
+                          </p>
+
+                          <div className="mt-6 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-purple text-primary-deep border border-outline/50">
+                            <CheckCircle2 size={14} className="text-primary" />
+                            {item.metric}
+                          </div>
+                        </div>
+
+                        <div className="md:col-span-5">{item.preview}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </section>
   );

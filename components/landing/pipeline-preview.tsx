@@ -132,14 +132,18 @@ export function PipelinePreview() {
       const initialPositions = getPositions();
       gsap.set(track, { x: initialPositions.startX });
 
-      // Unified GSAP Timeline tied to ScrollTrigger
+      const navOffset = () => (window.innerWidth <= 600 ? 66 : 76);
+      const holdDistance = Math.min(Math.round(window.innerHeight * 0.3), 280);
+
+      // Unified GSAP Timeline tied to ScrollTrigger aligned beneath navbar
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: wrapRef.current,
-          start: "top top",
-          end: () => `+=${getPositions().distance}`,
+          start: () => `top ${navOffset()}px`,
+          end: () => `+=${getPositions().distance + holdDistance}`,
           pin: true,
-          scrub: 1,
+          pinSpacing: true,
+          scrub: 1.0,
           invalidateOnRefresh: true,
         },
       });
@@ -152,7 +156,7 @@ export function PipelinePreview() {
         },
         {
           x: () => getPositions().endX,
-          ease: "none",
+          ease: "power1.inOut",
           duration: 1,
         },
         0
@@ -183,7 +187,7 @@ export function PipelinePreview() {
             { width: startX },
             {
               width: () => getEndX() + 2,
-              ease: "none",
+              ease: "power1.inOut",
               duration: duration,
             },
             startTime
@@ -195,13 +199,16 @@ export function PipelinePreview() {
             { x: startX },
             {
               x: () => getEndX(),
-              ease: "none",
+              ease: "power1.inOut",
               duration: duration,
             },
             startTime
           );
         });
       }
+
+      // Gentle final cushion on the last stage before unpinning
+      tl.to({}, { duration: 0.15 });
     }, wrapRef);
 
     const refreshTimer = setTimeout(() => {
@@ -214,37 +221,143 @@ export function PipelinePreview() {
     };
   }, [reduce]);
 
+  // Reduced motion fallback: accessible clean horizontal scroll
+  if (reduce) {
+    return (
+      <section
+        id="pipeline"
+        className="relative overflow-hidden bg-canvas transition-colors duration-300 py-24 px-4 sm:px-6 lg:px-8"
+      >
+        <div className="max-w-5xl mx-auto flex flex-col items-center">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <div className="section-kicker">Modular connector architecture</div>
+            <h2 className="text-3xl sm:text-5xl font-semibold tracking-[-0.04em] text-ink">
+              Infinite Pipeline <span>Composability.</span>
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-muted">
+              Scroll horizontally through your pipeline. Reorder stages, chain technical rounds,
+              and insert automated gates in any configuration.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-8 px-6 sm:px-12 py-8 overflow-x-auto">
+          {pipelineStages.map((stage, idx) => {
+            const Icon = stage.icon;
+            return (
+              <div key={stage.id} className="flex items-center gap-8 shrink-0">
+                <div className="pipeline-node-card w-[320px] sm:w-[350px] rounded-3xl p-1 bg-surface-high border border-outline shadow-sm">
+                  <div className="relative rounded-[calc(1.5rem-2px)] p-6 bg-surface-high overflow-hidden">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-muted font-semibold">
+                        STAGE 0{idx + 1}
+                      </span>
+                      <span
+                        className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase border ${stage.color}`}
+                      >
+                        {stage.tag}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3.5 mb-5">
+                      <div
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${stage.iconBg}`}
+                      >
+                        <Icon size={22} />
+                      </div>
+                      <h4 className="text-base font-semibold text-ink tracking-tight">
+                        {stage.name}
+                      </h4>
+                    </div>
+
+                    <div className="space-y-2 pt-4 border-t border-outline">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted block mb-2">
+                        Evaluation Criteria:
+                      </span>
+                      {stage.rules.map((rule, rIdx) => (
+                        <div
+                          key={rIdx}
+                          className="text-xs flex items-center gap-2.5 text-ink/80"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                          <span>{rule}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Connector Bridge between stages */}
+                {idx < pipelineStages.length - 1 && (
+                  <div className="connector-bridge relative flex items-center w-12 sm:w-16 h-6 shrink-0 mx-2">
+                    <div className="w-full h-0.5 bg-outline/70 dark:bg-white/15" />
+                    <div
+                      className={`connector-line-active absolute left-0 top-1/2 -mt-[1px] h-0.5 w-full ${stage.lineBg}`}
+                    />
+                    <div
+                      className={`connector-arrow absolute right-0 top-1/2 -mt-[1px] h-0.5 flex items-center z-10 pointer-events-none ${stage.arrowColor}`}
+                    >
+                      <div className="w-3.5 h-0.5 bg-current shrink-0" />
+                      <svg
+                        width="9"
+                        height="12"
+                        viewBox="0 0 9 12"
+                        fill="none"
+                        className="shrink-0 -ml-[2px] block overflow-visible"
+                      >
+                        <path
+                          d="M 2 1.5 L 7.5 6 L 2 10.5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section
       id="pipeline"
       ref={wrapRef}
-      className="relative overflow-hidden bg-canvas transition-colors duration-300 py-24"
+      className="relative overflow-hidden bg-canvas transition-colors duration-300 py-12 sm:py-16"
     >
-      <div className="relative z-10 px-6 sm:px-12 max-w-7xl mx-auto flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
+      <div className="relative z-10 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto flex flex-col items-center">
+        {/* Section Header centered like How It Works */}
+        <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8">
           <div className="section-kicker">Modular connector architecture</div>
-          <h2 className="mt-2 text-3xl sm:text-5xl font-semibold tracking-[-0.04em] text-ink">
+          <h2 className="text-3xl sm:text-5xl font-semibold tracking-[-0.04em] text-ink">
             Infinite Pipeline <span>Composability.</span>
           </h2>
+          <p className="mt-4 text-base leading-relaxed text-muted">
+            Scroll horizontally through your pipeline. Reorder stages, chain technical rounds,
+            and insert automated gates in any configuration.
+          </p>
         </div>
-        <p className="text-sm sm:text-base max-w-md text-muted leading-relaxed">
-          Scroll horizontally through your pipeline. Reorder stages, chain technical rounds,
-          and insert automated gates in any configuration.
-        </p>
       </div>
 
       {/* Horizontal Scroll Track */}
       <div
         ref={trackRef}
-        className="relative z-10 flex items-center gap-8 px-6 sm:px-12 py-16 min-h-[520px] w-max will-change-transform"
+        className="relative z-10 flex items-center gap-8 px-6 sm:px-12 py-10 min-h-[500px] w-max will-change-transform"
       >
         {pipelineStages.map((stage, idx) => {
           const Icon = stage.icon;
           return (
             <div key={stage.id} className="flex items-center gap-8">
               {/* Connector Node Card */}
-              <div className="pipeline-node-card w-[320px] sm:w-[350px] rounded-3xl p-1 bg-surface-high border border-outline shadow-[0_12px_32px_rgba(27,26,34,0.06)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.35)] transition-all duration-300 hover:border-primary/40">
-                <div className="rounded-[calc(1.5rem-2px)] p-6 bg-surface-high">
+              <div className="pipeline-node-card w-[320px] sm:w-[350px] rounded-3xl p-1 bg-surface-high border border-outline shadow-[0_16px_40px_rgba(27,26,34,0.08)] dark:shadow-[0_20px_48px_rgba(0,0,0,0.45)] transition-shadow duration-300 hover:border-primary/40">
+                <div className="relative rounded-[calc(1.5rem-2px)] p-6 bg-surface-high overflow-hidden">
+                  {/* Subtle top edge Material You accent highlight like How It Works */}
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-[10px] font-mono uppercase tracking-wider text-muted font-semibold">
                       STAGE 0{idx + 1}
@@ -287,51 +400,48 @@ export function PipelinePreview() {
               </div>
 
               {/* Connector Bridge between stages */}
-              {idx < pipelineStages.length - 1 && (() => {
-                const nextStage = pipelineStages[idx + 1];
-                return (
-                  <div className="connector-bridge relative flex items-center w-16 sm:w-20 h-6 shrink-0 mx-2">
-                    {/* 1. Base 2px guide track */}
-                    <div className="w-full h-0.5 bg-outline/70 dark:bg-white/15" />
+              {idx < pipelineStages.length - 1 && (
+                <div className="connector-bridge relative flex items-center w-16 sm:w-20 h-6 shrink-0 mx-2">
+                  {/* 1. Base 2px guide track */}
+                  <div className="w-full h-0.5 bg-outline/70 dark:bg-white/15" />
 
-                    {/* 2. Active line in color of card it is coming from */}
-                    <div
-                      className={`connector-line-active absolute left-0 top-1/2 -mt-[1px] h-0.5 ${stage.lineBg}`}
-                      style={{ width: reduce ? "100%" : "0px" }}
-                    />
+                  {/* 2. Active line in color of card it is coming from */}
+                  <div
+                    className={`connector-line-active absolute left-0 top-1/2 -mt-[1px] h-0.5 ${stage.lineBg}`}
+                    style={{ width: reduce ? "100%" : "0px" }}
+                  />
 
-                    {/* 3. Arrow with tail & head in color of next card, centered seamlessly on the line */}
-                    <div
-                      className={`connector-arrow absolute left-0 top-1/2 -mt-[1px] h-0.5 flex items-center z-10 pointer-events-none ${nextStage.arrowColor}`}
-                      style={{
-                        transform: reduce
-                          ? "translateX(calc(100% - 20px))"
-                          : "translateX(0px)",
-                      }}
+                  {/* 3. Arrow with tail & head matching line color, centered seamlessly on the line */}
+                  <div
+                    className={`connector-arrow absolute left-0 top-1/2 -mt-[1px] h-0.5 flex items-center z-10 pointer-events-none ${stage.arrowColor}`}
+                    style={{
+                      transform: reduce
+                        ? "translateX(calc(100% - 20px))"
+                        : "translateX(0px)",
+                    }}
+                  >
+                    {/* Arrow Tail: identical 2px height HTML bar */}
+                    <div className="w-3.5 h-0.5 bg-current shrink-0" />
+
+                    {/* Arrowhead: precision chevron aligned with the 2px bar */}
+                    <svg
+                      width="9"
+                      height="12"
+                      viewBox="0 0 9 12"
+                      fill="none"
+                      className="shrink-0 -ml-[2px] block overflow-visible"
                     >
-                      {/* Arrow Tail: identical 2px height HTML bar */}
-                      <div className="w-3.5 h-0.5 bg-current shrink-0" />
-
-                      {/* Arrowhead: precision chevron aligned with the 2px bar */}
-                      <svg
-                        width="9"
-                        height="12"
-                        viewBox="0 0 9 12"
-                        fill="none"
-                        className="shrink-0 -ml-[2px] block overflow-visible"
-                      >
-                        <path
-                          d="M 2 1.5 L 7.5 6 L 2 10.5"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </div>
+                      <path
+                        d="M 2 1.5 L 7.5 6 L 2 10.5"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
                   </div>
-                );
-              })()}
+                </div>
+              )}
             </div>
           );
         })}
