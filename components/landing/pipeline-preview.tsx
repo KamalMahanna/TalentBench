@@ -232,10 +232,10 @@ export function PipelinePreview() {
         <div className="max-w-5xl mx-auto flex flex-col items-center">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <div className="section-kicker">Modular connector architecture</div>
-            <h2 className="text-3xl sm:text-5xl font-semibold tracking-[-0.04em] text-ink">
+            <h2 className="text-3xl sm:text-5xl lg:text-6xl font-semibold tracking-[-0.04em] text-ink">
               Infinite Pipeline <span>Composability.</span>
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-muted">
+            <p className="mt-4 text-base sm:text-lg leading-relaxed text-muted">
               Scroll horizontally through your pipeline. Reorder stages, chain technical rounds,
               and insert automated gates in any configuration.
             </p>
@@ -247,14 +247,14 @@ export function PipelinePreview() {
             const Icon = stage.icon;
             return (
               <div key={stage.id} className="flex items-center gap-8 shrink-0">
-                <div className="pipeline-node-card w-[320px] sm:w-[350px] rounded-3xl p-1 bg-surface-high border border-outline shadow-sm">
+                <div className="pipeline-node-card w-[340px] sm:w-[380px] rounded-3xl p-1 bg-surface-high border border-outline shadow-sm">
                   <div className="relative rounded-[calc(1.5rem-2px)] p-6 bg-surface-high overflow-hidden">
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-muted font-semibold">
+                      <span className="text-xs sm:text-sm uppercase tracking-wider text-muted font-bold">
                         STAGE 0{idx + 1}
                       </span>
                       <span
-                        className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase border ${stage.color}`}
+                        className={`text-xs sm:text-sm font-semibold px-3 py-1 rounded-full uppercase border ${stage.color}`}
                       >
                         {stage.tag}
                       </span>
@@ -266,21 +266,21 @@ export function PipelinePreview() {
                       >
                         <Icon size={22} />
                       </div>
-                      <h4 className="text-base font-semibold text-ink tracking-tight">
+                      <h4 className="text-lg sm:text-xl font-semibold text-ink tracking-tight">
                         {stage.name}
                       </h4>
                     </div>
 
                     <div className="space-y-2 pt-4 border-t border-outline">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted block mb-2">
+                      <span className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-muted block mb-2.5">
                         Evaluation Criteria:
                       </span>
                       {stage.rules.map((rule, rIdx) => (
                         <div
                           key={rIdx}
-                          className="text-xs flex items-center gap-2.5 text-ink/80"
+                          className="text-xs sm:text-sm flex items-center gap-2.5 text-ink/80 font-medium"
                         >
-                          <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                          <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
                           <span>{rule}</span>
                         </div>
                       ))}
@@ -335,10 +335,10 @@ export function PipelinePreview() {
         {/* Section Header centered like How It Works */}
         <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8">
           <div className="section-kicker">Modular connector architecture</div>
-          <h2 className="text-3xl sm:text-5xl font-semibold tracking-[-0.04em] text-ink">
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-semibold tracking-[-0.04em] text-ink">
             Infinite Pipeline <span>Composability.</span>
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-muted">
+          <p className="mt-4 text-base sm:text-lg leading-relaxed text-muted">
             Scroll horizontally through your pipeline. Reorder stages, chain technical rounds,
             and insert automated gates in any configuration.
           </p>
@@ -355,16 +355,16 @@ export function PipelinePreview() {
           return (
             <div key={stage.id} className="flex items-center gap-8">
               {/* Connector Node Card */}
-              <div className="pipeline-node-card w-[320px] sm:w-[350px] rounded-3xl p-1 bg-surface-high border border-outline shadow-[0_16px_40px_rgba(27,26,34,0.08)] dark:shadow-[0_20px_48px_rgba(0,0,0,0.45)] transition-shadow duration-300 hover:border-primary/40">
+              <div className="pipeline-node-card w-[340px] sm:w-[380px] rounded-3xl p-1 bg-surface-high border border-outline shadow-[0_16px_40px_rgba(27,26,34,0.08)] dark:shadow-[0_20px_48px_rgba(0,0,0,0.45)] transition-shadow duration-300 hover:border-primary/40">
                 <div className="relative rounded-[calc(1.5rem-2px)] p-6 bg-surface-high overflow-hidden">
                   {/* Subtle top edge Material You accent highlight like How It Works */}
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted font-semibold">
+                    <span className="text-xs sm:text-sm uppercase tracking-wider text-muted font-bold">
                       STAGE 0{idx + 1}
                     </span>
                     <span
-                      className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase border ${stage.color}`}
+                      className={`text-xs sm:text-sm font-semibold px-3 py-1 rounded-full uppercase border ${stage.color}`}
                     >
                       {stage.tag}
                     </span>
@@ -377,22 +377,22 @@ export function PipelinePreview() {
                       <Icon size={22} />
                     </div>
                     <div>
-                      <h4 className="text-base font-semibold text-ink tracking-tight">
+                      <h4 className="text-lg sm:text-xl font-semibold text-ink tracking-tight">
                         {stage.name}
                       </h4>
                     </div>
                   </div>
 
                   <div className="space-y-2 pt-4 border-t border-outline">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted block mb-2">
+                    <span className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-muted block mb-2.5">
                       Evaluation Criteria:
                     </span>
                     {stage.rules.map((rule, rIdx) => (
                       <div
                         key={rIdx}
-                        className="text-xs flex items-center gap-2.5 text-ink/80"
+                        className="text-xs sm:text-sm flex items-center gap-2.5 text-ink/80 font-medium"
                       >
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                        <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
                         <span>{rule}</span>
                       </div>
                     ))}
