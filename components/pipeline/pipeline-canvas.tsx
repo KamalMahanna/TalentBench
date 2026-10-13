@@ -33,6 +33,8 @@ interface PipelineCanvasProps {
   stages: PipelineStageItem[];
   onChange: (newStages: PipelineStageItem[]) => void;
   onExecuteStage?: (stage: PipelineStageItem) => void;
+  onViewTraces?: (stage: PipelineStageItem) => void;
+  candidateCount?: number;
   isEditable?: boolean;
 }
 
@@ -57,6 +59,8 @@ export function PipelineCanvas({
   stages,
   onChange,
   onExecuteStage,
+  onViewTraces,
+  candidateCount,
   isEditable = true,
 }: PipelineCanvasProps) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -398,10 +402,32 @@ export function PipelineCanvas({
                     <button
                       type="button"
                       onClick={() => onExecuteStage(stage)}
-                      className="md-button md-button--tonal"
-                      style={{ fontSize: "12px", padding: "6px 14px", gap: "5px" }}
+                      className="md-button md-button--tonal inline-flex items-center gap-1.5"
+                      style={{ fontSize: "12px", padding: "6px 13px" }}
                     >
-                      <Upload size={14} /> Execute Stage
+                      <Upload size={13} /> Screening Console
+                    </button>
+                  )}
+
+                  {onExecuteStage && stage.type !== "RESUME_SCREENING" && (
+                    <button
+                      type="button"
+                      onClick={() => onExecuteStage(stage)}
+                      className="md-button md-button--tonal inline-flex items-center gap-1.5"
+                      style={{ fontSize: "12px", padding: "6px 13px" }}
+                    >
+                      <Upload size={13} /> Execute Stage
+                    </button>
+                  )}
+
+                  {onViewTraces && (
+                    <button
+                      type="button"
+                      onClick={() => onViewTraces(stage)}
+                      className="md-button md-button--tonal inline-flex items-center gap-1.5"
+                      style={{ fontSize: "12px", padding: "6px 13px" }}
+                    >
+                      <Brain size={13} /> AI Traces {candidateCount !== undefined ? `(${candidateCount})` : ""}
                     </button>
                   )}
 

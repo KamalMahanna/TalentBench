@@ -109,6 +109,7 @@ export default function JobWorkspacePage({
   const [job, setJob] = useState<JobDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"pipeline" | "screening" | "candidates">("pipeline");
+  const [selectedStage, setSelectedStage] = useState<PipelineStageItem | null>(null);
 
   const [showAddRoundModal, setShowAddRoundModal] = useState(false);
   const [newRoundType, setNewRoundType] = useState("DSA");
@@ -314,22 +315,9 @@ export default function JobWorkspacePage({
           </div>
         </div>
 
-        {/* Tab switcher */}
-        <div className="flex items-center gap-1 bg-[var(--surface)] rounded-2xl p-1 overflow-x-auto max-w-full shrink-0">
-          <button onClick={() => setActiveTab("pipeline")} style={tabStyle(activeTab === "pipeline")} className="shrink-0 whitespace-nowrap">
-            Pipeline ({job.pipeline.length})
-          </button>
-          <button onClick={() => setActiveTab("screening")} style={tabStyle(activeTab === "screening", "var(--green)")} className="shrink-0 whitespace-nowrap">
-            <Upload size={13} style={{ display: "inline", marginRight: "4px" }} />
-            Screening ({job.candidates.length})
-          </button>
-          <button onClick={() => setActiveTab("candidates")} style={tabStyle(activeTab === "candidates")} className="shrink-0 whitespace-nowrap">
-            AI Traces ({job.candidates.length})
-          </button>
-        </div>
       </div>
 
-      {/* TAB 1: Pipeline Builder */}
+      {/* Main View: Pipeline Canvas by default */}
       {activeTab === "pipeline" && (
         <PipelineCanvas
           stages={job.pipeline.map((p) => {
@@ -338,234 +326,331 @@ export default function JobWorkspacePage({
             return { id: p.id, type: p.type, title: p.title, description: p.description, order: p.order, cutoff, config: p.config };
           })}
           onChange={handleSyncPipeline}
-          onExecuteStage={() => setActiveTab("screening")}
+          onExecuteStage={(stage) => {
+            setSelectedStage(stage);
+            if (stage.type === "RESUME_SCREENING") {
+              setActiveTab("screening");
+            } else {
+              setActiveTab("candidates");
+            }
+          }}
+          onViewTraces={(stage) => {
+            setSelectedStage(stage);
+            setActiveTab("candidates");
+          }}
+          candidateCount={job.candidates.length}
           isEditable={true}
         />
       )}
 
-      {/* TAB 2: Resume Screening */}
-      {activeTab === "screening" && (
-        <ResumeScreeningConsole
-          jobId={job.id}
-          jobTitle={job.title}
-          jobDescription={job.description}
-          cutoff={(() => {
-            const r = job.pipeline.find((r) => r.type === "RESUME_SCREENING") || job.pipeline[0];
-            if (r?.config) { try { return JSON.parse(r.config).cutoff || 50; } catch {} }
-            return 50;
-          })()}
-          candidates={job.candidates}
-          onRefresh={fetchJob}
-        />
-      )}
-
-      {/* TAB 3: AI Traces */}
-      {activeTab === "candidates" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left: Candidate list */}
-          <div className="lg:col-span-5 flex flex-col gap-3">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
-              <h2 style={{ fontSize: "15px", fontWeight: 600, color: "var(--ink)", margin: 0 }}>
-                Candidates ({job.candidates.length})
-              </h2>
+      {/* ── STAGE VIEWS: (Screening & AI Traces inside pipeline stages) ── */}
+      {activeTab !== "pipeline" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {/* Stage Context Bar */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "16px",
+              flexWrap: "wrap",
+              background: "var(--surface)",
+              border: "1px solid var(--outline)",
+              borderRadius: "18px",
+              padding: "12px 18px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("pipeline");
+                  setSelectedStage(null);
+                }}
+                className="md-button md-button--tonal inline-flex items-center gap-1.5"
+                style={{ fontSize: "12px", padding: "6px 14px", cursor: "pointer" }}
+              >
+                <ArrowLeft size={14} /> Back to Pipeline Stages
+              </button>
+              <div style={{ height: "18px", width: "1px", background: "var(--outline)" }} className="hidden sm:block" />
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <button
-                  type="button"
-                  onClick={() => setIsBulkEmailOpen(true)}
-                  disabled={job.candidates.length === 0}
-                  className="md-button md-button--filled inline-flex items-center gap-1.5"
-                  style={{ fontSize: "12px", padding: "6px 14px" }}
-                >
-                  <Send size={12} /> Email All
-                </button>
-                <button onClick={() => setShowAddCandidateModal(true)} className="md-button md-button--tonal" style={{ fontSize: "12px", padding: "6px 14px" }}>
-                  + Register
-                </button>
+                <span
+                  style={{
+                    width: "8px",
+                    height: "8px",
+                    borderRadius: "999px",
+                    background: "var(--primary)",
+                  }}
+                />
+                <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--ink)" }}>
+                  {selectedStage?.title || "AI Resume Screening Round"}
+                </span>
+                {selectedStage?.type && (
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 600,
+                      padding: "2px 8px",
+                      borderRadius: "999px",
+                      background: "var(--surface-purple)",
+                      color: "var(--primary-deep)",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {selectedStage.type.replace("_", " ")}
+                  </span>
+                )}
               </div>
             </div>
 
-            {job.candidates.length === 0 ? (
-              <div style={{ padding: "32px", textAlign: "center", background: "var(--surface)", borderRadius: "16px", border: "1px dashed var(--outline)" }}>
-                <p style={{ fontSize: "13px", color: "var(--muted)", margin: "0 0 12px" }}>No candidates yet.</p>
-                <button onClick={() => setShowAddCandidateModal(true)} className="md-button md-button--tonal" style={{ fontSize: "12px" }}>Add Candidate</button>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {job.candidates.map((cand) => {
-                  const isSelected = selectedCandidate?.id === cand.id;
-                  return (
-                    <div
-                      key={cand.id}
-                      onClick={() => setSelectedCandidate(cand)}
-                      style={{
-                        padding: "14px 16px",
-                        borderRadius: "16px",
-                        border: `1px solid ${isSelected ? "var(--primary)" : "var(--outline)"}`,
-                        background: isSelected ? "var(--surface-purple)" : "var(--surface-high)",
-                        cursor: "pointer",
-                        transition: "all 0.15s",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
-                        <div>
-                          <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--ink)" }}>{cand.name}</div>
-                          <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>{cand.email}</div>
-                          <div style={{ fontSize: "11px", color: "var(--primary)", marginTop: "3px" }}>{cand.experienceYears} yrs exp</div>
-                        </div>
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
-                          <span style={statusBadgeStyle(cand.status)}>{cand.status}</span>
-                          <EmailStatusBadge
-                            status={cand.emailStatus}
-                            sentAt={cand.emailSentAt}
-                            error={cand.emailError}
-                            onRetry={() => setEmailCandidate(cand)}
-                            size="sm"
-                          />
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "2px" }}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEmailCandidate(cand);
-                              }}
-                              style={{ background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: "var(--primary)", display: "flex", alignItems: "center", gap: "3px", fontFamily: "DM Sans, system-ui, sans-serif" }}
-                            >
-                              <Mail size={11} /> Email
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleRunScreening(cand.id); }}
-                              disabled={screeningLoading}
-                              style={{ background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: "var(--primary)", display: "flex", alignItems: "center", gap: "3px", fontFamily: "DM Sans, system-ui, sans-serif" }}
-                            >
-                              <Cpu size={11} />
-                              {cand.roundResults?.length > 0 ? "Re-Screen" : "Run AI Screener"}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {/* Stage Internal Switcher (Screening vs AI Traces) */}
+            <div className="flex items-center gap-1 bg-[var(--surface-high)] rounded-xl p-1 border border-[var(--outline)] shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveTab("screening")}
+                style={tabStyle(activeTab === "screening", "var(--green)")}
+                className="shrink-0 whitespace-nowrap text-xs"
+              >
+                <Upload size={12} style={{ display: "inline", marginRight: "4px" }} />
+                Screening Console
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("candidates")}
+                style={tabStyle(activeTab === "candidates")}
+                className="shrink-0 whitespace-nowrap text-xs"
+              >
+                <Brain size={12} style={{ display: "inline", marginRight: "4px" }} />
+                AI Traces ({job.candidates.length})
+              </button>
+            </div>
           </div>
 
-          {/* Right: AI Trace panel */}
-          <div className="lg:col-span-7">
-            {selectedCandidate ? (
-              <div style={{ background: "var(--surface-high)", border: "1px solid var(--outline)", borderRadius: "22px", padding: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
-                {/* Candidate header */}
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-[var(--outline)]">
-                  <div>
-                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted)" }}>AI Screening Console</div>
-                    <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--ink)", margin: "4px 0 2px", letterSpacing: "-0.03em" }}>{selectedCandidate.name}</h3>
-                    <div style={{ fontSize: "12px", color: "var(--muted)" }}>
-                      {selectedCandidate.experienceYears} yrs · Target [{job.minExperience}–{job.maxExperience} yrs]
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <EmailStatusBadge
-                      status={selectedCandidate.emailStatus}
-                      sentAt={selectedCandidate.emailSentAt}
-                      error={selectedCandidate.emailError}
-                      onRetry={() => setEmailCandidate(selectedCandidate)}
-                      size="sm"
-                    />
+          {/* TAB 2: Resume Screening */}
+          {activeTab === "screening" && (
+            <ResumeScreeningConsole
+              jobId={job.id}
+              jobTitle={job.title}
+              jobDescription={job.description}
+              cutoff={(() => {
+                const r = selectedStage?.type === "RESUME_SCREENING" ? selectedStage : (job.pipeline.find((r) => r.type === "RESUME_SCREENING") || job.pipeline[0]);
+                if (r?.config) { try { return JSON.parse(r.config).cutoff || 50; } catch {} }
+                return 50;
+              })()}
+              candidates={job.candidates}
+              onRefresh={fetchJob}
+            />
+          )}
+
+          {/* TAB 3: AI Traces */}
+          {activeTab === "candidates" && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left: Candidate list */}
+              <div className="lg:col-span-5 flex flex-col gap-3">
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+                  <h2 style={{ fontSize: "15px", fontWeight: 600, color: "var(--ink)", margin: 0 }}>
+                    Candidates ({job.candidates.length})
+                  </h2>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <button
-                      onClick={() => setEmailCandidate(selectedCandidate)}
-                      className="md-button md-button--tonal inline-flex items-center gap-1.5"
-                      style={{ fontSize: "12px", padding: "8px 14px" }}
+                      type="button"
+                      onClick={() => setIsBulkEmailOpen(true)}
+                      disabled={job.candidates.length === 0}
+                      className="md-button md-button--filled inline-flex items-center gap-1.5"
+                      style={{ fontSize: "12px", padding: "6px 14px" }}
                     >
-                      <Mail size={13} /> Send Email
+                      <Send size={12} /> Email All
                     </button>
-                    <button
-                      onClick={() => handleRunScreening(selectedCandidate.id)}
-                      disabled={screeningLoading}
-                      className="md-button md-button--filled"
-                      style={{ fontSize: "12px", padding: "8px 16px" }}
-                    >
-                      <Cpu size={13} /> {screeningLoading ? "Evaluating…" : "Trigger AI Screening"}
+                    <button onClick={() => setShowAddCandidateModal(true)} className="md-button md-button--tonal" style={{ fontSize: "12px", padding: "6px 14px" }}>
+                      + Register
                     </button>
                   </div>
                 </div>
 
-                {/* Trace steps */}
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "12px" }}>
-                    <span style={{ width: "7px", height: "7px", borderRadius: "999px", background: "var(--primary)", display: "inline-block" }} />
-                    <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--primary)" }}>Live Agent Inference Steps</span>
+                {job.candidates.length === 0 ? (
+                  <div style={{ padding: "32px", textAlign: "center", background: "var(--surface)", borderRadius: "16px", border: "1px dashed var(--outline)" }}>
+                    <p style={{ fontSize: "13px", color: "var(--muted)", margin: "0 0 12px" }}>No candidates yet.</p>
+                    <button onClick={() => setShowAddCandidateModal(true)} className="md-button md-button--tonal" style={{ fontSize: "12px" }}>Add Candidate</button>
                   </div>
-
-                  {parsedTrace.length > 0 ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {parsedTrace.map((t, idx) => (
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {job.candidates.map((cand) => {
+                      const isSelected = selectedCandidate?.id === cand.id;
+                      return (
                         <div
-                          key={idx}
+                          key={cand.id}
+                          onClick={() => setSelectedCandidate(cand)}
                           style={{
-                            padding: "12px 14px",
-                            borderRadius: "14px",
-                            background: "var(--surface)",
-                            border: "1px solid var(--outline)",
-                            display: "flex",
-                            alignItems: "flex-start",
-                            gap: "10px",
+                            padding: "14px 16px",
+                            borderRadius: "16px",
+                            border: `1px solid ${isSelected ? "var(--primary)" : "var(--outline)"}`,
+                            background: isSelected ? "var(--surface-purple)" : "var(--surface-high)",
+                            cursor: "pointer",
+                            transition: "all 0.15s",
                           }}
                         >
-                          {t.status === "PASSED" ? (
-                            <CheckCircle size={15} style={{ color: "var(--green)", flexShrink: 0, marginTop: "1px" }} />
-                          ) : t.status === "FAILED" ? (
-                            <XCircle size={15} style={{ color: "#c0392b", flexShrink: 0, marginTop: "1px" }} />
-                          ) : (
-                            <Clock size={15} style={{ color: "#a0440d", flexShrink: 0, marginTop: "1px" }} />
-                          )}
-                          <div>
-                            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
-                              {t.stepName}
-                              {t.metric && (
-                                <span style={{ fontSize: "10px", padding: "1px 7px", borderRadius: "999px", background: "var(--surface-purple)", color: "var(--primary-deep)", fontWeight: 500 }}>
-                                  {t.metric}
-                                </span>
-                              )}
+                          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
+                            <div>
+                              <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--ink)" }}>{cand.name}</div>
+                              <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>{cand.email}</div>
+                              <div style={{ fontSize: "11px", color: "var(--primary)", marginTop: "3px" }}>{cand.experienceYears} yrs exp</div>
                             </div>
-                            <p style={{ fontSize: "12px", color: "var(--muted)", margin: "3px 0 0", lineHeight: 1.5 }}>{t.reasoning}</p>
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                              <span style={statusBadgeStyle(cand.status)}>{cand.status}</span>
+                              <EmailStatusBadge
+                                status={cand.emailStatus}
+                                sentAt={cand.emailSentAt}
+                                error={cand.emailError}
+                                onRetry={() => setEmailCandidate(cand)}
+                                size="sm"
+                              />
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "2px" }}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEmailCandidate(cand);
+                                  }}
+                                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: "var(--primary)", display: "flex", alignItems: "center", gap: "3px", fontFamily: "DM Sans, system-ui, sans-serif" }}
+                                >
+                                  <Mail size={11} /> Email
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleRunScreening(cand.id); }}
+                                  disabled={screeningLoading}
+                                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: "var(--primary)", display: "flex", alignItems: "center", gap: "3px", fontFamily: "DM Sans, system-ui, sans-serif" }}
+                                >
+                                  <Cpu size={11} />
+                                  {cand.roundResults?.length > 0 ? "Re-Screen" : "Run AI Screener"}
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ padding: "32px", textAlign: "center", background: "var(--surface)", borderRadius: "14px", fontSize: "13px", color: "var(--muted)" }}>
-                      No screening run yet. Click &quot;Trigger AI Screening&quot; above to evaluate this candidate.
-                    </div>
-                  )}
-                </div>
-
-                {/* Personalized reply */}
-                {selectedCandidate.personalizedReply && (
-                  <div style={{ background: "var(--surface-blue)", borderRadius: "16px", padding: "16px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#1a6098", marginBottom: "8px", display: "flex", alignItems: "center", gap: "5px" }}>
-                      <MessageSquare size={13} /> Generated Personalized Reply
-                    </div>
-                    <p style={{ fontSize: "12px", color: "var(--ink)", lineHeight: 1.6, margin: 0, whiteSpace: "pre-line", fontStyle: "italic" }}>
-                      {selectedCandidate.personalizedReply}
-                    </p>
-                  </div>
-                )}
-
-                {/* Resume snippet */}
-                {selectedCandidate.resumeText && (
-                  <div style={{ borderTop: "1px solid var(--outline)", paddingTop: "16px" }}>
-                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted)", marginBottom: "8px" }}>Parsed Resume</div>
-                    <p style={{ fontSize: "12px", color: "var(--muted)", lineHeight: 1.6, margin: 0, maxHeight: "120px", overflowY: "auto", background: "var(--surface)", borderRadius: "10px", padding: "10px 12px" }}>
-                      {selectedCandidate.resumeText}
-                    </p>
+                      );
+                    })}
                   </div>
                 )}
               </div>
-            ) : (
-              <div style={{ padding: "64px", textAlign: "center", color: "var(--muted)", fontSize: "13px", background: "var(--surface)", borderRadius: "22px" }}>
-                Select a candidate to inspect their AI trace.
+
+              {/* Right: AI Trace panel */}
+              <div className="lg:col-span-7">
+                {selectedCandidate ? (
+                  <div style={{ background: "var(--surface-high)", border: "1px solid var(--outline)", borderRadius: "22px", padding: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
+                    {/* Candidate header */}
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-[var(--outline)]">
+                      <div>
+                        <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted)" }}>AI Screening Console</div>
+                        <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--ink)", margin: "4px 0 2px", letterSpacing: "-0.03em" }}>{selectedCandidate.name}</h3>
+                        <div style={{ fontSize: "12px", color: "var(--muted)" }}>
+                          {selectedCandidate.experienceYears} yrs · Target [{job.minExperience}–{job.maxExperience} yrs]
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <EmailStatusBadge
+                          status={selectedCandidate.emailStatus}
+                          sentAt={selectedCandidate.emailSentAt}
+                          error={selectedCandidate.emailError}
+                          onRetry={() => setEmailCandidate(selectedCandidate)}
+                          size="sm"
+                        />
+                        <button
+                          onClick={() => setEmailCandidate(selectedCandidate)}
+                          className="md-button md-button--tonal inline-flex items-center gap-1.5"
+                          style={{ fontSize: "12px", padding: "8px 14px" }}
+                        >
+                          <Mail size={13} /> Send Email
+                        </button>
+                        <button
+                          onClick={() => handleRunScreening(selectedCandidate.id)}
+                          disabled={screeningLoading}
+                          className="md-button md-button--filled"
+                          style={{ fontSize: "12px", padding: "8px 16px" }}
+                        >
+                          <Cpu size={13} /> {screeningLoading ? "Evaluating…" : "Trigger AI Screening"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Trace steps */}
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "12px" }}>
+                        <span style={{ width: "7px", height: "7px", borderRadius: "999px", background: "var(--primary)", display: "inline-block" }} />
+                        <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--primary)" }}>Live Agent Inference Steps</span>
+                      </div>
+
+                      {parsedTrace.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          {parsedTrace.map((t, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                padding: "12px 14px",
+                                borderRadius: "14px",
+                                background: "var(--surface)",
+                                border: "1px solid var(--outline)",
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: "10px",
+                              }}
+                            >
+                              {t.status === "PASSED" ? (
+                                <CheckCircle size={15} style={{ color: "var(--green)", flexShrink: 0, marginTop: "1px" }} />
+                              ) : t.status === "FAILED" ? (
+                                <XCircle size={15} style={{ color: "#c0392b", flexShrink: 0, marginTop: "1px" }} />
+                              ) : (
+                                <Clock size={15} style={{ color: "#a0440d", flexShrink: 0, marginTop: "1px" }} />
+                              )}
+                              <div>
+                                <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--ink)", display: "flex", alignItems: "center", gap: "6px" }}>
+                                  {t.stepName}
+                                  {t.metric && (
+                                    <span style={{ fontSize: "10px", padding: "1px 7px", borderRadius: "999px", background: "var(--surface-purple)", color: "var(--primary-deep)", fontWeight: 500 }}>
+                                      {t.metric}
+                                    </span>
+                                  )}
+                                </div>
+                                <p style={{ fontSize: "12px", color: "var(--muted)", margin: "3px 0 0", lineHeight: 1.5 }}>{t.reasoning}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ padding: "32px", textAlign: "center", background: "var(--surface)", borderRadius: "14px", fontSize: "13px", color: "var(--muted)" }}>
+                          No screening run yet. Click &quot;Trigger AI Screening&quot; above to evaluate this candidate.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Personalized reply */}
+                    {selectedCandidate.personalizedReply && (
+                      <div style={{ background: "var(--surface-blue)", borderRadius: "16px", padding: "16px" }}>
+                        <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#1a6098", marginBottom: "8px", display: "flex", alignItems: "center", gap: "5px" }}>
+                          <MessageSquare size={13} /> Generated Personalized Reply
+                        </div>
+                        <p style={{ fontSize: "12px", color: "var(--ink)", lineHeight: 1.6, margin: 0, whiteSpace: "pre-line", fontStyle: "italic" }}>
+                          {selectedCandidate.personalizedReply}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Resume snippet */}
+                    {selectedCandidate.resumeText && (
+                      <div style={{ borderTop: "1px solid var(--outline)", paddingTop: "16px" }}>
+                        <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted)", marginBottom: "8px" }}>Parsed Resume</div>
+                        <p style={{ fontSize: "12px", color: "var(--muted)", lineHeight: 1.6, margin: 0, maxHeight: "120px", overflowY: "auto", background: "var(--surface)", borderRadius: "10px", padding: "10px 12px" }}>
+                          {selectedCandidate.resumeText}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ padding: "64px", textAlign: "center", color: "var(--muted)", fontSize: "13px", background: "var(--surface)", borderRadius: "22px" }}>
+                    Select a candidate to inspect their AI trace.
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
