@@ -174,7 +174,7 @@ export function PipelineCanvas({
               margin: "0 0 6px",
             }}
           >
-            Configure First Connector Stage
+            Configure First Round
           </h3>
           <p
             style={{
@@ -184,7 +184,7 @@ export function PipelineCanvas({
               maxWidth: "420px",
             }}
           >
-            Select your initial pipeline round (Resume Screening, Aptitude, DSA, Technical, HR, or Custom).
+            Select your initial round (Resume Screening, Aptitude, DSA, Technical, HR, or Custom).
           </p>
         </div>
 
@@ -279,11 +279,8 @@ export function PipelineCanvas({
                 background: "var(--primary)",
               }}
             />
-            Connector Pipeline Stages ({stages.length})
+            Hiring Rounds ({stages.length})
           </h2>
-          <p style={{ fontSize: "12px", color: "var(--muted)", margin: "3px 0 0" }}>
-            Modular sequence of screening &amp; evaluation rounds
-          </p>
         </div>
       </div>
 
@@ -382,17 +379,6 @@ export function PipelineCanvas({
                         </span>
                       )}
                     </div>
-                    {stage.type !== "RESUME_SCREENING" && stage.description && (
-                      <p
-                        style={{
-                          fontSize: "12px",
-                          color: "var(--muted)",
-                          margin: "3px 0 0",
-                        }}
-                      >
-                        {stage.description}
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -445,7 +431,7 @@ export function PipelineCanvas({
                           color: "var(--muted)",
                           display: "flex",
                         }}
-                        title="Edit Stage"
+                        title="Edit Round"
                       >
                         <Pencil size={14} />
                       </button>
@@ -499,7 +485,7 @@ export function PipelineCanvas({
                           opacity: stages.length <= 1 ? 0.3 : 1,
                           display: "flex",
                         }}
-                        title="Remove Stage"
+                        title="Remove Round"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -550,7 +536,7 @@ export function PipelineCanvas({
             className="md-button md-button--tonal"
             style={{ fontSize: "12px", padding: "8px 18px" }}
           >
-            <Plus size={14} /> Add Connector Stage
+            <Plus size={14} /> Add Round
           </button>
         </div>
       )}

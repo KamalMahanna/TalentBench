@@ -174,7 +174,7 @@ export default function JobWorkspacePage({
         });
       } catch {}
     }
-    toast.success("Pipeline configuration updated.");
+    toast.success("Hiring rounds updated.");
     await fetchJob();
   };
 
@@ -370,7 +370,7 @@ export default function JobWorkspacePage({
                 className="md-button md-button--tonal inline-flex items-center gap-1.5"
                 style={{ fontSize: "12px", padding: "6px 14px", cursor: "pointer" }}
               >
-                <ArrowLeft size={14} /> Back to Pipeline Stages
+                <ArrowLeft size={14} /> Back to Rounds
               </button>
               <div style={{ height: "18px", width: "1px", background: "var(--outline)" }} className="hidden sm:block" />
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -658,10 +658,10 @@ export default function JobWorkspacePage({
       {showAddRoundModal && (
         <div style={modalOverlay}>
           <div style={modalCard}>
-            <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--ink)", margin: 0 }}>Add Connector Stage</h3>
+            <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--ink)", margin: 0 }}>Add Round</h3>
             <form onSubmit={handleAddRound} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               <div>
-                <label style={labelStyle}>Stage Type</label>
+                <label style={labelStyle}>Round Type</label>
                 <select
                   value={newRoundType}
                   onChange={(e) => {
@@ -683,16 +683,16 @@ export default function JobWorkspacePage({
                   <option value="RESUME_SCREENING">AI Resume Screening</option>
                   <option value="TECHNICAL">Technical Deep Dive</option>
                   <option value="CULTURE_FIT">Culture Fit Round</option>
-                  <option value="CUSTOM">Custom Stage</option>
+                  <option value="CUSTOM">Custom Round</option>
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Stage Name</label>
+                <label style={labelStyle}>Round Name</label>
                 <input type="text" required value={newRoundTitle} onChange={(e) => setNewRoundTitle(e.target.value)} placeholder="e.g. Distributed Systems DSA" style={inputStyle} />
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
                 <button type="button" onClick={() => setShowAddRoundModal(false)} className="md-button md-button--text">Cancel</button>
-                <button type="submit" className="md-button md-button--filled">Attach Connector</button>
+                <button type="submit" className="md-button md-button--filled">Add Round</button>
               </div>
             </form>
           </div>

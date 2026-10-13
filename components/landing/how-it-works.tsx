@@ -62,7 +62,7 @@ export function HowItWorks() {
     {
       step: "02",
       icon: GitMerge,
-      title: "Assemble Multi-Stage Connector Pipelines",
+      title: "Assemble Multi-Stage Hiring Rounds",
       description:
         "Chain interview stages like functional microservices. Add aptitude, DSA, system design, or cultural rounds in any order, with multiple iterations per profile.",
       highlight: "Infinite Stage Composition",
@@ -70,7 +70,7 @@ export function HowItWorks() {
       preview: (
         <div className="rounded-2xl p-5 border border-outline bg-surface text-ink text-xs shadow-sm">
           <div className="text-[11px] font-bold text-muted uppercase tracking-wider mb-3">
-            Connector Pipeline Sequence
+            Hiring Rounds Sequence
           </div>
           <div className="flex items-center gap-2 overflow-x-auto pb-2">
             <span className="px-3 py-1.5 rounded-xl border border-primary/20 bg-surface-purple text-primary-deep font-semibold whitespace-nowrap text-xs">

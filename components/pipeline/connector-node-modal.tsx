@@ -237,7 +237,7 @@ export function ConnectorNodeModal({
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span style={{ width: "7px", height: "7px", borderRadius: "999px", background: "var(--primary)", display: "inline-block" }} />
               <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--ink)", margin: 0 }}>
-                {mode === "create" ? "Configure Connector Stage" : "Edit Connector Stage"}
+                {mode === "create" ? "Configure Round" : "Edit Round"}
               </h3>
             </div>
             <p style={{ fontSize: "12px", color: "var(--muted)", margin: "4px 0 0" }}>
@@ -338,7 +338,7 @@ export function ConnectorNodeModal({
             <div style={{ background: "var(--surface)", border: "1px solid var(--outline)", borderRadius: "16px", padding: "14px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--primary)", display: "flex", alignItems: "center", gap: "5px" }}>
-                  <Info size={13} /> Pipeline Input & Output Specification
+                  <Info size={13} /> Round Input & Output Specification
                 </span>
                 <span style={{ fontSize: "10px", color: "var(--muted)", background: "var(--surface-high)", padding: "2px 8px", borderRadius: "999px" }}>Supplied at execution</span>
               </div>
@@ -365,7 +365,7 @@ export function ConnectorNodeModal({
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "10px", padding: "16px 24px", borderTop: "1px solid var(--outline)", flexShrink: 0, background: "var(--surface-high)" }}>
             <button type="button" onClick={onClose} className="md-button md-button--text">Cancel</button>
             <button type="submit" className="md-button md-button--filled">
-              {mode === "create" ? "Add Connector Stage" : "Save Changes"}
+              {mode === "create" ? "Add Round" : "Save Changes"}
             </button>
           </div>
         </form>

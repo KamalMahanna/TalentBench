@@ -74,10 +74,10 @@ export default function JobsListPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 style={{ color: "var(--ink)" }} className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Job Profiles &amp; Pipelines
+            Job Profiles &amp; Hiring Rounds
           </h1>
           <p style={{ color: "var(--muted)" }} className="text-xs sm:text-sm mt-1">
-            Manage your open requisitions, mandatory experience parameters, and connector pipelines.
+            Manage your open requisitions, mandatory experience parameters, and hiring rounds.
           </p>
         </div>
         <Link href="/dashboard/jobs/new">
@@ -105,7 +105,7 @@ export default function JobsListPage() {
             No Job Profiles Configured
           </h3>
           <p style={{ color: "var(--muted)" }} className="text-xs mt-1 max-w-sm mx-auto">
-            Mandatory criteria: Add job description and minimum-maximum experience range to deploy your autonomous screening pipeline.
+            Mandatory criteria: Add job description and minimum-maximum experience range to deploy your automated screening rounds.
           </p>
           <div className="mt-6">
             <Link href="/dashboard/jobs/new">
@@ -154,7 +154,7 @@ export default function JobsListPage() {
                   <div className="flex items-center gap-2.5 shrink-0 self-end md:self-start">
                     <Link href={`/dashboard/jobs/${job.id}`}>
                       <button className="md-button md-button--filled inline-flex items-center gap-2 text-sm">
-                        Pipeline &amp; Candidates
+                        Rounds &amp; Candidates
                         <ArrowRight size={14} />
                       </button>
                     </Link>
@@ -181,7 +181,7 @@ export default function JobsListPage() {
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span style={{ color: "var(--muted)" }} className="text-xs">
-                      Connector Rounds:
+                      Hiring Rounds:
                     </span>
                     {job.pipeline.map((round) => (
                       <span

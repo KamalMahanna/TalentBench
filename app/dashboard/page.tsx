@@ -36,7 +36,7 @@ const statCards = [
   },
   {
     key: "stages",
-    label: "Pipeline Connectors",
+    label: "Hiring Rounds",
     sublabel: "Total active rounds",
     icon: BarChart3,
     tone: "peach",
@@ -281,7 +281,7 @@ export default function DashboardOverview() {
               No job profiles yet
             </h3>
             <p style={{ fontSize: "13px", color: "var(--muted)", margin: "0 0 20px" }}>
-              Create your first job profile with a description and pipeline to
+              Create your first job profile with a description and hiring rounds to
               start screening candidates.
             </p>
             <Link href="/dashboard/jobs/new" className="md-button md-button--filled">
@@ -339,7 +339,7 @@ export default function DashboardOverview() {
                         fontWeight: 500,
                       }}
                     >
-                      Pipeline:
+                      Rounds:
                     </span>
                     {job.pipeline.map((r, rIdx) => (
                       <span
@@ -371,7 +371,7 @@ export default function DashboardOverview() {
                       {job._count.candidates} Candidates
                     </div>
                     <div style={{ fontSize: "11px", color: "var(--muted)" }}>
-                      {job._count.pipeline} pipeline stages
+                      {job._count.pipeline} rounds
                     </div>
                   </div>
                   <Link

@@ -63,7 +63,7 @@ export default function NewJobProfilePage() {
 
       const data = await res.json();
       if (!res.ok) { toast.error(data.error || "Failed to create job profile."); setLoading(false); return; }
-      toast.success("Job profile and pipeline initialized!");
+      toast.success("Job profile and hiring rounds initialized!");
       router.push(`/dashboard/jobs/${data.job.id}`);
     } catch {
       toast.error("Network error while creating profile.");
@@ -114,10 +114,10 @@ export default function NewJobProfilePage() {
       {/* Header */}
       <div>
         <h1 style={{ fontSize: "28px", fontWeight: 700, letterSpacing: "-0.04em", color: "var(--ink)", margin: "0 0 6px" }}>
-          Create Job Profile &amp; Pipeline
+          Create Job Profile &amp; Hiring Rounds
         </h1>
         <p style={{ fontSize: "14px", color: "var(--muted)", margin: 0 }}>
-          Define qualification boundaries and configure the connector evaluation pipeline.
+          Define qualification boundaries and configure the evaluation rounds.
         </p>
       </div>
 

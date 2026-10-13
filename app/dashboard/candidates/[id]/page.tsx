@@ -455,7 +455,7 @@ export default function CandidateDossierPage({
       <div className="flex items-center gap-1.5 bg-[var(--surface)] rounded-2xl p-1.5 border border-[var(--outline)] overflow-x-auto max-w-full">
         {[
           { id: "trace", label: "Autonomous AI Trace", icon: Brain },
-          { id: "pipeline", label: "Evaluation Pipeline", icon: GitBranch },
+          { id: "pipeline", label: "Hiring Rounds", icon: GitBranch },
           { id: "resume", label: "Resume & Evidence", icon: FileText },
           { id: "reply", label: "Candidate Feedback Draft", icon: MessageSquare },
         ].map((tab) => {

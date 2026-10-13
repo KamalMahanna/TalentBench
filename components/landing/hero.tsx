@@ -327,7 +327,7 @@ export default function Home() {
           <button onClick={() => scrollTo("workspace")}>Workspace</button>
           <button onClick={() => scrollTo("reports")}>Reports</button>
           <button onClick={() => scrollTo("how-it-works")}>How it works</button>
-          <button onClick={() => scrollTo("pipeline")}>Pipeline</button>
+          <button onClick={() => scrollTo("pipeline")}>Rounds</button>
           <ThemeToggle />
           <Button variant="filled" href="/dashboard">
             Try TalentBench <ArrowRight size={16} />

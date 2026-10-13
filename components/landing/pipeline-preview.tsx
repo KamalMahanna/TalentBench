@@ -235,10 +235,10 @@ export function PipelinePreview() {
           <div className="text-center max-w-2xl mx-auto mb-12">
             <div className="section-kicker">Modular connector architecture</div>
             <h2 className="text-3xl sm:text-5xl font-semibold tracking-[-0.04em] text-ink">
-              Infinite Pipeline <span>Composability.</span>
+              Multi-Round <span>Composability.</span>
             </h2>
             <p className="mt-4 text-base leading-relaxed text-muted">
-              Scroll horizontally through your pipeline. Reorder stages, chain technical rounds,
+              Scroll horizontally through your hiring rounds. Reorder rounds, chain technical rounds,
               and insert automated gates in any configuration.
             </p>
           </div>
@@ -338,10 +338,10 @@ export function PipelinePreview() {
         <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8">
           <div className="section-kicker">Modular connector architecture</div>
           <h2 className="text-3xl sm:text-5xl font-semibold tracking-[-0.04em] text-ink">
-            Infinite Pipeline <span>Composability.</span>
+            Multi-Round <span>Composability.</span>
           </h2>
           <p className="mt-4 text-base leading-relaxed text-muted">
-            Scroll horizontally through your pipeline. Reorder stages, chain technical rounds,
+            Scroll horizontally through your hiring rounds. Reorder rounds, chain technical rounds,
             and insert automated gates in any configuration.
           </p>
         </div>
