@@ -13,12 +13,9 @@ import {
   LogOut,
   Menu,
   Moon,
-  Plus,
   Settings,
-  Sparkles,
   Sun,
   User,
-  Users,
   X,
 } from "lucide-react";
 
@@ -70,9 +67,7 @@ export default function DashboardLayout({
   const navItems = [
     { label: "Overview", href: "/dashboard", icon: BarChart3 },
     { label: "Job Profiles", href: "/dashboard/jobs", icon: Briefcase },
-    { label: "Candidate Pool", href: "/dashboard/candidates", icon: Users },
     { label: "Settings", href: "/dashboard/settings", icon: Settings },
-    { label: "New Job Profile", href: "/dashboard/jobs/new", icon: Plus },
   ];
 
   return (

@@ -205,8 +205,8 @@ export default function CandidateDossierPage({
     return (
       <div style={{ padding: "64px", textAlign: "center", display: "flex", flexDirection: "column", gap: "16px", alignItems: "center" }}>
         <h2 style={{ fontSize: "20px", fontWeight: 700, color: "var(--ink)" }}>Candidate Not Found</h2>
-        <Link href="/dashboard/candidates" className="md-button md-button--tonal">
-          Back to Candidate Pool
+        <Link href="/dashboard/jobs" className="md-button md-button--tonal">
+          Back to Job Profiles
         </Link>
       </div>
     );
@@ -230,7 +230,7 @@ export default function CandidateDossierPage({
     <div style={{ display: "flex", flexDirection: "column", gap: "32px", maxWidth: "1080px", margin: "0 auto" }}>
       {/* Back Link */}
       <Link
-        href="/dashboard/candidates"
+        href={candidate?.jobProfile?.id ? `/dashboard/jobs/${candidate.jobProfile.id}` : "/dashboard/jobs"}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -242,7 +242,7 @@ export default function CandidateDossierPage({
         }}
       >
         <ArrowLeft size={16} />
-        Back to Candidate Pool
+        Back to Job Profile
       </Link>
 
       {/* Candidate Profile Header Card */}

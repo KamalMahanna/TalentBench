@@ -15,7 +15,6 @@ import {
   Briefcase,
   AlertTriangle,
   RefreshCw,
-  Users,
   Mail,
   Eye,
   X,
@@ -802,10 +801,10 @@ export default function BulkUploadPage() {
 
             <div className="flex items-center gap-3">
               {completedCount !== null && (
-                <Link href="/dashboard/candidates">
+                <Link href={selectedJobId ? `/dashboard/jobs/${selectedJobId}` : "/dashboard/jobs"}>
                   <button className="md-button md-button--tonal inline-flex items-center gap-2">
-                    <Users size={16} />
-                    View in Candidate Pool
+                    <Briefcase size={16} />
+                    Open Job Workspace
                   </button>
                 </Link>
               )}
