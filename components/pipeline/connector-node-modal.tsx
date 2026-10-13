@@ -262,7 +262,7 @@ export function ConnectorNodeModal({
               <label style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--primary)", marginBottom: "10px", display: "block" }}>
                 1. Select Round Type
               </label>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                 {ROUND_TYPES.map((rt) => {
                   const Icon = rt.icon;
                   const isSelected = selectedType === rt.type;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { runResumeScreeningAgent } from "@/lib/ai/resume-screener";
+import { extractCandidateNameFromResume, stripEmojis } from "@/lib/utils";
 
 export async function POST(req: Request) {
   try {
@@ -37,39 +38,86 @@ export async function POST(req: Request) {
     const createdCandidates = [];
     const resumeScreeningRoundId = job.pipeline[0]?.id;
 
-    for (const file of files) {
-      // Clean candidate name from fileName or candidateName
-      let rawName = file.candidateName || file.name || "";
-      rawName = rawName
-        .replace(/\.[^/.]+$/, "") // strip extension
-        .replace(/\b(resume|cv|curriculum\s+vitae|profile)\b/gi, "")
-        .replace(/[_-]/g, " ")
-        .trim();
+    // 1. Deduplicate incoming batch by email (primary key), keeping only the latest resume
+    const dedupedFilesMap = new Map<string, (typeof files)[0]>();
+    for (const f of files) {
+      const emailKey = f.email?.trim().toLowerCase();
+      if (emailKey) {
+        dedupedFilesMap.set(emailKey, f);
+      } else {
+        dedupedFilesMap.set(`no_email_${f.name || Math.random()}`, f);
+      }
+    }
+    const deduplicatedFiles = Array.from(dedupedFilesMap.values());
 
-      const name = rawName || (file.email ? file.email.split("@")[0].replace(/[._-]/g, " ") : "Candidate Applicant");
-      const cleanEmail = file.email?.trim() || `${name.toLowerCase().replace(/\s+/g, ".")}@applicant.io`;
-      const expYears = file.experienceYears !== undefined ? Number(file.experienceYears) : Math.floor(Math.random() * 4) + 3;
-      const skills = file.skills || "Distributed Systems, Backend Engineering, Cloud Infrastructure";
-      const resumeText = file.resumeText || `Seasoned software engineer with experience architecting high-scale production systems.`;
+    for (const file of deduplicatedFiles) {
+      const cleanEmail =
+        file.email?.trim().toLowerCase() ||
+        `cand_${Date.now()}_${Math.random().toString(36).slice(2, 6)}@applicant.io`;
+      const resumeText = stripEmojis(file.resumeText || "");
+      const expYears =
+        file.experienceYears !== undefined
+          ? Number(file.experienceYears)
+          : Math.floor(Math.random() * 4) + 3;
+      const skills =
+        file.skills || "Distributed Systems, Backend Engineering, Cloud Infrastructure";
 
-      const candidate = await prisma.candidate.create({
-        data: {
-          name: name.replace(/\b\w/g, (c: string) => c.toUpperCase()),
+      // Deduplicate: check if candidate with this email already exists for this job requisition
+      const existingCandidate = await prisma.candidate.findFirst({
+        where: {
           email: cleanEmail,
-          phone: file.phone || "+1 (555) 234-5678",
-          experienceYears: expYears,
-          resumeText,
-          skills,
           jobProfileId,
-          status: "PENDING",
         },
       });
 
-      // Optionally trigger immediate autonomous AI screening
+      // Name is extracted from resume text when checking against Job Description
+      let candidateName = existingCandidate?.name || "Candidate";
+      if (autoScreen && resumeScreeningRoundId) {
+        candidateName = extractCandidateNameFromResume(resumeText, cleanEmail, file.name);
+      }
+
+      let candidate;
+      if (existingCandidate) {
+        // Update existing candidate with latest resume
+        candidate = await prisma.candidate.update({
+          where: { id: existingCandidate.id },
+          data: {
+            name: candidateName,
+            resumeText,
+            experienceYears: expYears,
+            skills,
+            status: "PENDING",
+            updatedAt: new Date(),
+          },
+        });
+      } else {
+        // Create candidate record
+        candidate = await prisma.candidate.create({
+          data: {
+            name: candidateName,
+            email: cleanEmail,
+            phone: file.phone || "+1 (555) 234-5678",
+            experienceYears: expYears,
+            resumeText,
+            skills,
+            jobProfileId,
+            status: "PENDING",
+          },
+        });
+      }
+
+      // Check resume against Job Description for skill matching (AI screening)
       if (autoScreen && resumeScreeningRoundId) {
         try {
+          // Extract candidate name from resume text during JD skill matching
+          const finalCandidateName = extractCandidateNameFromResume(
+            resumeText,
+            cleanEmail,
+            file.name
+          );
+
           const screening = await runResumeScreeningAgent({
-            candidateName: candidate.name,
+            candidateName: finalCandidateName,
             candidateEmail: candidate.email,
             candidateExperience: candidate.experienceYears,
             resumeText: candidate.resumeText || "",
@@ -78,6 +126,9 @@ export async function POST(req: Request) {
             minExperience: job.minExperience,
             maxExperience: job.maxExperience,
           });
+
+          // Name extracted by LLM in structured output
+          const llmResolvedName = screening.candidateName || finalCandidateName;
 
           await prisma.roundResult.create({
             data: {
@@ -90,9 +141,10 @@ export async function POST(req: Request) {
             },
           });
 
-          await prisma.candidate.update({
+          candidate = await prisma.candidate.update({
             where: { id: candidate.id },
             data: {
+              name: llmResolvedName,
               status: screening.status,
               personalizedReply: screening.personalizedReply,
               currentRound: screening.passed ? 1 : 0,

@@ -436,7 +436,7 @@ export default function CandidatesPoolPage() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 6, scale: 0.96 }}
                   transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border shadow-2xl z-50 overflow-hidden"
+                  className="absolute right-0 top-full mt-2 w-[calc(100vw-32px)] sm:w-96 max-w-sm rounded-2xl border shadow-2xl z-50 overflow-hidden"
                   style={{
                     background: "var(--surface-high)",
                     borderColor: "var(--outline)",

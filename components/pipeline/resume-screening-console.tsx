@@ -364,12 +364,9 @@ export function ResumeScreeningConsole({
           email = fallback.email;
         }
 
-        const candidateName =
-          parsed.extractedName ||
-          extractCandidateNameFromResume(parsed.text, email, file.name);
-
+        // Defer name extraction until skill matching against JD
         newStaged.push({
-          name: candidateName,
+          name: "Pending Screening",
           email: email || `candidate_${Date.now()}_${i}@talentbench.local`,
           resumeText: parsed.text,
           source: file.name,
@@ -380,7 +377,16 @@ export function ResumeScreeningConsole({
       }
     }
 
-    setStagedCandidates((prev) => [...prev, ...newStaged]);
+    // Deduplicate staged candidates by email (primary key), keeping only the latest resume
+    setStagedCandidates((prev) => {
+      const combined = [...prev, ...newStaged];
+      const dedupMap = new Map<string, QueuedCandidate>();
+      for (const c of combined) {
+        const key = c.email?.trim().toLowerCase() || c.source;
+        dedupMap.set(key, c);
+      }
+      return Array.from(dedupMap.values());
+    });
     setIsParsingFiles(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
 
@@ -2699,7 +2705,7 @@ export function ResumeScreeningConsole({
               borderRadius: "999px",
               padding: "4px",
             }}
-            className="flex items-center"
+            className="flex items-center overflow-x-auto max-w-full shrink-0"
           >
             <button
               type="button"

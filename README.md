@@ -160,15 +160,15 @@ docker compose exec api python scripts/seed.py
 If you prefer running services directly on your host machine:
 
 #### Prerequisites
-- Node.js 18+ & npm
+- Node.js 18+ & pnpm
 - Python 3.13+ with `uv` (or `venv`)
 - PostgreSQL 16
 - Redis 7
 
 #### 1. Start Frontend
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 # Frontend runs on http://localhost:3000
 ```
 

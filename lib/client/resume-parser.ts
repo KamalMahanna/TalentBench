@@ -5,6 +5,8 @@
  * - Extracts Email & specifically detects Gmail addresses via strict regex
  */
 
+import { stripEmojis } from "@/lib/utils";
+
 export interface ExtractedEmailResult {
   email: string | null;
   isGmail: boolean;
@@ -373,14 +375,14 @@ export async function parseResumeFileInBrowser(file: File): Promise<ParseResult>
     text = "";
   }
 
-  // Clean and normalize text
-  text = text.replace(/\r\n/g, "\n").trim();
+  // Clean, normalize text, and strip emojis to prevent emoji-based attacks / token manipulation
+  text = stripEmojis(text.replace(/\r\n/g, "\n")).trim();
 
-  // Extract Email & Gmail
+  // Extract Email & Gmail (Primary key used for deduplication)
   const emailResult = extractEmailFromText(text);
 
-  // Extract Candidate Name
-  const extractedName = extractCandidateNameFromResume(text, emailResult.email, file.name);
+  // Candidate name extraction is deferred until skill matching against the Job Description
+  const extractedName = "";
 
   const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
   const chars = text.length;

@@ -1,18 +1,16 @@
 import { llmGateway } from "./llm-gateway";
 import { extractCandidateNameFromResume, sanitizeMailBodyGreeting } from "@/lib/utils";
+import {
+  stripEmojis,
+  scanForPromptInjection,
+  sanitizeAndSandboxResume,
+  createSecurityRejectionEvaluation,
+  enforceScreeningInvariant,
+  SECURITY_SYSTEM_INSTRUCTIONS,
+} from "./guardrails";
 
-export interface ScreeningEvaluation {
-  verdict: "YES" | "NO";
-  matches: boolean;
-  score: number; // 0 - 100
-  matchPercentage: number;
-  experienceMatch: boolean;
-  experienceAnalysis: string;
-  matchedSkills: string[];
-  missingSkills: string[];
-  reasoning: string;
-  mailBody: string; // Body part only explaining what is missing (or congratulating if YES)
-}
+import { ScreeningEvaluation } from "./types";
+export type { ScreeningEvaluation };
 
 /**
  * Clean and parse JSON from LLM output
@@ -54,6 +52,17 @@ export async function screenResumeWith30PercentRule({
   jobTitle: string;
   jobDescription: string;
 }): Promise<ScreeningEvaluation> {
+  const realCandidateName = extractCandidateNameFromResume(resumeText, candidateEmail, candidateName);
+
+  // LAYER 1: Fast Deterministic In-Memory Pre-LLM Injection Scanner (Zero extra LLM calls)
+  const preScan = scanForPromptInjection(resumeText);
+  if (preScan.isInjected) {
+    return createSecurityRejectionEvaluation(realCandidateName, preScan.reason, jobTitle);
+  }
+
+  // LAYER 2: Structural Sanitization & XML Tag Sandboxing (Zero extra LLM calls)
+  const { sandboxedPromptChunk } = sanitizeAndSandboxResume(resumeText.slice(0, 4000));
+
   const systemPrompt = `You are a principal technical recruiter and talent calibration architect.
 You evaluate resumes with a strict "EXPERIENCE FIRST, THEN SKILL GAP" methodology:
 
@@ -69,28 +78,31 @@ STEP 2: SKILL GAP EVALUATION (Second Priority)
   - If the candidate meets the experience requirements AND matches at least 30% of the skills/technologies from the Job Description, they MUST BE SHORTLISTED (verdict "YES").
   - If the candidate has less than 30% skill match OR their experience level is insufficient/unmatched, DO NOT shortlist them (verdict "NO").
 
-  STEP 3: REASONING & EMAIL GENERATION (EXPERIENCE FIRST, THEN SKILL GAP)
-  - In "reasoning", evaluate EXPERIENCE FIRST, followed by skill match percentage and specific skill gaps.
-  - In "mail_body", write a polite, professional email (BODY PART ONLY, no subject line, no email headers):
-    - GREET THE CANDIDATE BY THEIR ACTUAL PERSONAL NAME (e.g. "Dear Firstname Lastname,"). Extract their actual name from the resume header or CANDIDATE NAME. NEVER use file names (e.g. "resume 16..."), document labels, numbers, or generic brackets like "[Candidate Name]".
-    - Address their EXPERIENCE LEVEL FIRST (e.g., acknowledging their background/experience level vs what the role requires).
-    - Then address the TECHNICAL SKILL GAP and missing competencies with actionable suggestions on what to build or learn.
-    - Conclude with a warm, encouraging sign-off.
+STEP 3: REASONING & EMAIL GENERATION (EXPERIENCE FIRST, THEN SKILL GAP)
+- In "reasoning", evaluate EXPERIENCE FIRST, followed by skill match percentage and specific skill gaps.
+- In "mail_body", write a polite, professional email (BODY PART ONLY, no subject line, no email headers):
+  - GREET THE CANDIDATE BY THEIR ACTUAL PERSONAL NAME (e.g. "Dear Firstname Lastname,"). Extract their actual name from the resume header or CANDIDATE NAME. NEVER use file names (e.g. "resume 16..."), document labels, numbers, or generic brackets like "[Candidate Name]".
+  - Address their EXPERIENCE LEVEL FIRST (e.g., acknowledging their background/experience level vs what the role requires).
+  - Then address the TECHNICAL SKILL GAP and missing competencies with actionable suggestions on what to build or learn.
+  - Conclude with a warm, encouraging sign-off.
 
-  STRICT JSON OUTPUT FORMAT:
-  Return ONLY valid JSON with keys:
-  {
-    "verdict": "YES" | "NO",
-    "experience_match": true | false,
-    "experience_analysis": "Candidate possesses ~X years of relevant experience vs required Y+ years.",
-    "match_percentage": <integer 0-100>,
-    "matched_skills": ["Skill 1", "Skill 2"],
-    "missing_skills": ["Missing Skill 1", "Missing Skill 2"],
-    "reasoning": "Experience Evaluation: [Analysis]. Skill Calibration: [Analysis].",
-    "mail_body": "Dear <Actual Candidate Name>,\n\nThank you for applying... [Evaluates experience first, then technical skill gaps, ending with encouragement]"
-  }`;
+${SECURITY_SYSTEM_INSTRUCTIONS}
 
-  const realCandidateName = extractCandidateNameFromResume(resumeText, candidateEmail, candidateName);
+STRICT JSON OUTPUT FORMAT:
+Return ONLY valid JSON with keys:
+{
+  "candidate_name": "Extract candidate's actual personal name from the resume text header (e.g. 'Jane Doe'). Never output file names, emails, or numbers.",
+  "prompt_injection_detected": false,
+  "injection_details": "",
+  "verdict": "YES" | "NO",
+  "experience_match": true | false,
+  "experience_analysis": "Candidate possesses ~X years of relevant experience vs required Y+ years.",
+  "match_percentage": <integer 0-100>,
+  "matched_skills": ["Skill 1", "Skill 2"],
+  "missing_skills": ["Missing Skill 1", "Missing Skill 2"],
+  "reasoning": "Experience Evaluation: [Analysis]. Skill Calibration: [Analysis].",
+  "mail_body": "Dear <Actual Candidate Name>,\n\nThank you for applying... [Evaluates experience first, then technical skill gaps, ending with encouragement]"
+}`;
 
   const expContext = [
     minExperience != null ? `MINIMUM REQUIRED EXPERIENCE: ${minExperience} years` : "",
@@ -106,8 +118,7 @@ ${jobDescription}
 CANDIDATE NAME: ${realCandidateName}
 CANDIDATE EMAIL: ${candidateEmail}
 
-RESUME CONTENT:
-${resumeText.slice(0, 4000)}
+${sandboxedPromptChunk}
 
 Please evaluate following the EXPERIENCE FIRST, THEN SKILL GAP (>= 30% match) rule. Remember to address the candidate by their actual personal name (${realCandidateName}) in mail_body, and return the strict JSON format.`;
 
@@ -119,6 +130,17 @@ Please evaluate following the EXPERIENCE FIRST, THEN SKILL GAP (>= 30% match) ru
     });
 
     const parsed = JSON.parse(cleanJsonText(res.text));
+
+    // LAYER 4: Invariant Gatekeeper & Post-LLM Validator (Zero extra LLM calls)
+    const invariant = enforceScreeningInvariant(parsed, preScan);
+    if (invariant.isViolation) {
+      return createSecurityRejectionEvaluation(
+        realCandidateName,
+        parsed.injection_details || preScan.reason || "Adversarial prompt injection attempt detected",
+        jobTitle
+      );
+    }
+
     const matchPct =
       typeof parsed.match_percentage === "number"
         ? parsed.match_percentage
@@ -137,14 +159,18 @@ Please evaluate following the EXPERIENCE FIRST, THEN SKILL GAP (>= 30% match) ru
     const verdict = matches ? "YES" : "NO";
     const matchedSkills = Array.isArray(parsed.matched_skills) ? parsed.matched_skills : [];
     const missingSkills = Array.isArray(parsed.missing_skills) ? parsed.missing_skills : [];
+    const llmCandidateName =
+      (parsed.candidate_name || parsed.candidateName || "").trim() ||
+      realCandidateName;
 
-    let mailBody = sanitizeMailBodyGreeting(parsed.mail_body, realCandidateName) || "";
+    let mailBody = sanitizeMailBodyGreeting(parsed.mail_body, llmCandidateName) || "";
     if (!matches && !mailBody) {
       const missingStr = missingSkills.length > 0 ? missingSkills.join(", ") : "key architectural skills required for this position";
-      mailBody = `Dear ${realCandidateName},\n\nThank you for taking the time to apply for the ${jobTitle} position with our team.\n\n${experienceAnalysis}\n\nFurthermore, regarding technical competencies, our review noted that your current background lacks sufficient demonstrable experience in: ${missingStr}.\n\nWhile your existing foundation shows promise, our current priorities require candidates with deeper hands-on production depth in these areas. We encourage you to focus on building projects involving these technologies and look forward to seeing your application for future openings.`;
+      mailBody = `Dear ${llmCandidateName},\n\nThank you for taking the time to apply for the ${jobTitle} position with our team.\n\n${experienceAnalysis}\n\nFurthermore, regarding technical competencies, our review noted that your current background lacks sufficient demonstrable experience in: ${missingStr}.\n\nWhile your existing foundation shows promise, our current priorities require candidates with deeper hands-on production depth in these areas. We encourage you to focus on building projects involving these technologies and look forward to seeing your application for future openings.`;
     }
 
     return {
+      candidateName: llmCandidateName,
       verdict,
       matches,
       score: matchPct,
@@ -155,6 +181,7 @@ Please evaluate following the EXPERIENCE FIRST, THEN SKILL GAP (>= 30% match) ru
       missingSkills,
       reasoning: parsed.reasoning || `${experienceAnalysis} Skill match: ${matchPct}%. ${matches ? "Passes threshold." : "Does not pass threshold."}`,
       mailBody,
+      promptInjectionDetected: false,
     };
   } catch (err: any) {
     console.error("[screenResumeWith30PercentRule] LLM call failed, running deterministic fallback:", err);
@@ -190,9 +217,16 @@ function runDeterministic30PercentScreening({
   jobTitle: string;
   jobDescription: string;
 }): ScreeningEvaluation {
-  const textLower = (resumeText || "").toLowerCase();
+  const strippedResume = stripEmojis(resumeText);
+  const textLower = (strippedResume || "").toLowerCase();
   const descLower = (jobDescription || "").toLowerCase();
-  const realCandidateName = extractCandidateNameFromResume(resumeText, null, candidateName);
+  const realCandidateName = extractCandidateNameFromResume(strippedResume, null, candidateName);
+
+  // Security Invariant Check in deterministic fallback
+  const scan = scanForPromptInjection(strippedResume);
+  if (scan.isInjected) {
+    return createSecurityRejectionEvaluation(realCandidateName, scan.reason, jobTitle);
+  }
 
   // 1. Experience level evaluation first
   let detectedExp = experienceYears;
@@ -245,6 +279,7 @@ function runDeterministic30PercentScreening({
   }
 
   return {
+    candidateName: realCandidateName,
     verdict,
     matches,
     score: matchPercentage,

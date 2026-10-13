@@ -555,11 +555,17 @@ export async function loadCachedResumes(jobId?: string): Promise<CachedResume[]>
 
       req.onsuccess = () => {
         const all: CachedResume[] = req.result || [];
-        if (jobId) {
-          resolve(all.filter((r) => !r.jobId || r.jobId === jobId));
-        } else {
-          resolve(all);
+        const filtered = jobId ? all.filter((r) => !r.jobId || r.jobId === jobId) : all;
+        // Deduplicate by extractedEmail keeping only the latest resume
+        const dedupMap = new Map<string, CachedResume>();
+        for (const r of filtered) {
+          const key = r.extractedEmail ? r.extractedEmail.toLowerCase() : r.id;
+          const existing = dedupMap.get(key);
+          if (!existing || (r.createdAt || 0) >= (existing.createdAt || 0)) {
+            dedupMap.set(key, r);
+          }
         }
+        resolve(Array.from(dedupMap.values()));
       };
       req.onerror = () => reject(req.error);
     });

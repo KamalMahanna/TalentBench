@@ -54,9 +54,9 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["'DM Sans'", "system-ui", "-apple-system", "sans-serif"],
-        display: ["'DM Sans'", "system-ui", "-apple-system", "sans-serif"],
-        mono: ["'DM Sans'", "system-ui", "-apple-system", "sans-serif"],
+        sans: ["DM Sans", "system-ui", "sans-serif"],
+        display: ["DM Sans", "system-ui", "sans-serif"],
+        mono: ["ui-monospace", "SFMono-Regular", "monospace"],
       },
       borderRadius: {
         "2xl": "1.25rem",

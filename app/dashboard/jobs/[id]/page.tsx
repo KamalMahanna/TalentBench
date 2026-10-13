@@ -315,15 +315,15 @@ export default function JobWorkspacePage({
         </div>
 
         {/* Tab switcher */}
-        <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "var(--surface)", borderRadius: "14px", padding: "4px" }}>
-          <button onClick={() => setActiveTab("pipeline")} style={tabStyle(activeTab === "pipeline")}>
+        <div className="flex items-center gap-1 bg-[var(--surface)] rounded-2xl p-1 overflow-x-auto max-w-full shrink-0">
+          <button onClick={() => setActiveTab("pipeline")} style={tabStyle(activeTab === "pipeline")} className="shrink-0 whitespace-nowrap">
             Pipeline ({job.pipeline.length})
           </button>
-          <button onClick={() => setActiveTab("screening")} style={tabStyle(activeTab === "screening", "var(--green)")}>
+          <button onClick={() => setActiveTab("screening")} style={tabStyle(activeTab === "screening", "var(--green)")} className="shrink-0 whitespace-nowrap">
             <Upload size={13} style={{ display: "inline", marginRight: "4px" }} />
             Screening ({job.candidates.length})
           </button>
-          <button onClick={() => setActiveTab("candidates")} style={tabStyle(activeTab === "candidates")}>
+          <button onClick={() => setActiveTab("candidates")} style={tabStyle(activeTab === "candidates")} className="shrink-0 whitespace-nowrap">
             AI Traces ({job.candidates.length})
           </button>
         </div>
@@ -361,9 +361,9 @@ export default function JobWorkspacePage({
 
       {/* TAB 3: AI Traces */}
       {activeTab === "candidates" && (
-        <div style={{ display: "grid", gridTemplateColumns: "5fr 7fr", gap: "24px", alignItems: "start" }}>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left: Candidate list */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div className="lg:col-span-5 flex flex-col gap-3">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
               <h2 style={{ fontSize: "15px", fontWeight: 600, color: "var(--ink)", margin: 0 }}>
                 Candidates ({job.candidates.length})
@@ -450,11 +450,11 @@ export default function JobWorkspacePage({
           </div>
 
           {/* Right: AI Trace panel */}
-          <div>
+          <div className="lg:col-span-7">
             {selectedCandidate ? (
               <div style={{ background: "var(--surface-high)", border: "1px solid var(--outline)", borderRadius: "22px", padding: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
                 {/* Candidate header */}
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", paddingBottom: "16px", borderBottom: "1px solid var(--outline)" }}>
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-[var(--outline)]">
                   <div>
                     <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted)" }}>AI Screening Console</div>
                     <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--ink)", margin: "4px 0 2px", letterSpacing: "-0.03em" }}>{selectedCandidate.name}</h3>
@@ -462,7 +462,7 @@ export default function JobWorkspacePage({
                       {selectedCandidate.experienceYears} yrs · Target [{job.minExperience}–{job.maxExperience} yrs]
                     </div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div className="flex flex-wrap items-center gap-2">
                     <EmailStatusBadge
                       status={selectedCandidate.emailStatus}
                       sentAt={selectedCandidate.emailSentAt}

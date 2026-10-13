@@ -31,6 +31,7 @@ class ScreenResult(BaseModel):
     matched: bool
     verdict: str  # "yes" or rejection email body
     reason: str = ""
+    candidate_name: str = ""
     model_name: str = "default"
 
 

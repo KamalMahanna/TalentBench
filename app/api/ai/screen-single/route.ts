@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { screenResumeWith30PercentRule } from "@/lib/ai/screening-engine";
 import { GeminiProvider } from "@/lib/ai/gemini-provider";
 import { extractCandidateNameFromResume, sanitizeMailBodyGreeting } from "@/lib/utils";
+import {
+  scanForPromptInjection,
+  sanitizeAndSandboxResume,
+  createSecurityRejectionEvaluation,
+  enforceScreeningInvariant,
+  SECURITY_SYSTEM_INSTRUCTIONS,
+} from "@/lib/ai/guardrails";
 
 export async function POST(req: Request) {
   const startTime = Date.now();
@@ -32,11 +39,30 @@ export async function POST(req: Request) {
       );
     }
 
+    // LAYER 1: Fast Deterministic In-Memory Pre-LLM Injection Scanner (Zero extra LLM calls)
+    const preScan = scanForPromptInjection(resumeText || "");
+    if (preScan.isInjected) {
+      const securityEval = createSecurityRejectionEvaluation(
+        realCandidateName,
+        preScan.reason,
+        jobTitle
+      );
+      return NextResponse.json({
+        success: true,
+        evaluation: {
+          ...securityEval,
+          latencyMs: Date.now() - startTime,
+        },
+      });
+    }
+
     // If client supplied their own API key, we can instantiate a temporary provider
     let evaluation;
     if (activeApiKey) {
       const customProvider = new GeminiProvider({ apiKey: activeApiKey });
-      // Execute with custom BYOK provider
+      // LAYER 2: Structural Sanitization & XML Tag Sandboxing (Zero extra LLM calls)
+      const { sandboxedPromptChunk } = sanitizeAndSandboxResume(resumeText || "");
+
       const systemPrompt = `You are a principal technical recruiter and talent calibration architect.
 You evaluate resumes with a strict "EXPERIENCE FIRST, THEN SKILL GAP" methodology:
 
@@ -60,9 +86,14 @@ STEP 3: REASONING & EMAIL GENERATION (EXPERIENCE FIRST, THEN SKILL GAP)
   - Then address the TECHNICAL SKILL GAP and missing competencies with actionable suggestions on what to build or learn.
   - Conclude with a warm, encouraging sign-off.
 
+${SECURITY_SYSTEM_INSTRUCTIONS}
+
 STRICT JSON OUTPUT FORMAT:
 Return ONLY valid JSON with keys:
 {
+  "candidate_name": "Extract candidate's actual personal name from the resume text header (e.g. 'Jane Doe'). Never output file names, emails, or numbers.",
+  "prompt_injection_detected": false,
+  "injection_details": "",
   "verdict": "YES" | "NO",
   "experience_match": true | false,
   "experience_analysis": "Candidate possesses ~X years of relevant experience vs required Y+ years.",
@@ -87,10 +118,9 @@ ${jobDescription}
 CANDIDATE NAME: ${realCandidateName}
 CANDIDATE EMAIL: ${candidateEmail || "candidate@local"}
 
-RESUME CONTENT:
-${(resumeText || "").slice(0, 4000)}
+${sandboxedPromptChunk}
 
-Please evaluate following the EXPERIENCE FIRST, THEN SKILL GAP (>= 30% match) rule. Remember to address the candidate by their actual name (${realCandidateName}) in mail_body, and return the strict JSON format.`;
+Please evaluate following the EXPERIENCE FIRST, THEN SKILL GAP (>= 30% match) rule. Remember to extract candidate_name from resume text header, address the candidate by their name in mail_body, and return the strict JSON format.`;
 
       try {
         const res = await customProvider.complete(userPrompt, { systemPrompt, temperature: 0.1 });
@@ -99,45 +129,61 @@ Please evaluate following the EXPERIENCE FIRST, THEN SKILL GAP (>= 30% match) ru
         if (clean.startsWith("```")) clean = clean.slice(3);
         if (clean.endsWith("```")) clean = clean.slice(0, -3);
         const parsed = JSON.parse(clean.trim());
-        const matchPct =
-          typeof parsed.match_percentage === "number"
-            ? parsed.match_percentage
-            : Number(parsed.match_percentage) || (parsed.verdict === "YES" ? 75 : 20);
 
-        const experienceMatch =
-          typeof parsed.experience_match === "boolean"
-            ? parsed.experience_match
-            : parsed.verdict === "YES" || matchPct >= 30;
-        const experienceAnalysis =
-          parsed.experience_analysis ||
-          (experienceMatch
-            ? "Candidate's demonstrated experience level aligns with the role requirements."
-            : "Candidate lacks sufficient demonstrated years or seniority level for this role.");
+        // LAYER 4: Invariant Gatekeeper & Post-LLM Validator (Zero extra LLM calls)
+        const invariant = enforceScreeningInvariant(parsed, preScan);
+        if (invariant.isViolation) {
+          evaluation = createSecurityRejectionEvaluation(
+            realCandidateName,
+            parsed.injection_details || preScan.reason || "Adversarial prompt injection attempt detected",
+            jobTitle
+          );
+        } else {
+          const matchPct =
+            typeof parsed.match_percentage === "number"
+              ? parsed.match_percentage
+              : Number(parsed.match_percentage) || (parsed.verdict === "YES" ? 75 : 20);
 
-        const matches = parsed.verdict === "YES" || (experienceMatch && matchPct >= 30);
-        const matchedSkills = Array.isArray(parsed.matched_skills) ? parsed.matched_skills : [];
-        const missingSkills = Array.isArray(parsed.missing_skills) ? parsed.missing_skills : [];
+          const experienceMatch =
+            typeof parsed.experience_match === "boolean"
+              ? parsed.experience_match
+              : parsed.verdict === "YES" || matchPct >= 30;
+          const experienceAnalysis =
+            parsed.experience_analysis ||
+            (experienceMatch
+              ? "Candidate's demonstrated experience level aligns with the role requirements."
+              : "Candidate lacks sufficient demonstrated years or seniority level for this role.");
 
-        let mailBody = parsed.mail_body || "";
-        if (!matches && !mailBody) {
-          const missingStr = missingSkills.length > 0 ? missingSkills.join(", ") : "core technical requirements";
-          mailBody = `Dear ${realCandidateName},\n\nThank you for taking the time to apply for the ${jobTitle} position.\n\n${experienceAnalysis}\n\nFurthermore, regarding technical competencies, our review noted that your current background lacks sufficient demonstrable experience in: ${missingStr}.\n\nWe encourage you to continue building projects in these areas and look forward to seeing your application for future openings.`;
+          const matches = parsed.verdict === "YES" || (experienceMatch && matchPct >= 30);
+          const matchedSkills = Array.isArray(parsed.matched_skills) ? parsed.matched_skills : [];
+          const missingSkills = Array.isArray(parsed.missing_skills) ? parsed.missing_skills : [];
+          const llmCandidateName =
+            (parsed.candidate_name || parsed.candidateName || "").trim() ||
+            realCandidateName;
+
+          let mailBody = parsed.mail_body || "";
+          if (!matches && !mailBody) {
+            const missingStr = missingSkills.length > 0 ? missingSkills.join(", ") : "core technical requirements";
+            mailBody = `Dear ${llmCandidateName},\n\nThank you for taking the time to apply for the ${jobTitle} position.\n\n${experienceAnalysis}\n\nFurthermore, regarding technical competencies, our review noted that your current background lacks sufficient demonstrable experience in: ${missingStr}.\n\nWe encourage you to continue building projects in these areas and look forward to seeing your application for future openings.`;
+          }
+          mailBody = sanitizeMailBodyGreeting(mailBody, llmCandidateName);
+
+          evaluation = {
+            candidateName: llmCandidateName,
+            verdict: (matches ? "YES" : "NO") as "YES" | "NO",
+            matches,
+            score: matchPct,
+            matchPercentage: matchPct,
+            experienceMatch,
+            experienceAnalysis,
+            matchedSkills,
+            missingSkills,
+            reasoning: parsed.reasoning || `${experienceAnalysis} Skill match: ${matchPct}%.`,
+            mailBody,
+            tokensUsed: res.totalTokens,
+            promptInjectionDetected: false,
+          };
         }
-        mailBody = sanitizeMailBodyGreeting(mailBody, realCandidateName);
-
-        evaluation = {
-          verdict: (matches ? "YES" : "NO") as "YES" | "NO",
-          matches,
-          score: matchPct,
-          matchPercentage: matchPct,
-          experienceMatch,
-          experienceAnalysis,
-          matchedSkills,
-          missingSkills,
-          reasoning: parsed.reasoning || `${experienceAnalysis} Skill match: ${matchPct}%.`,
-          mailBody,
-          tokensUsed: res.totalTokens,
-        };
       } catch (customErr: any) {
         console.error("Custom BYOK provider failed:", customErr);
         throw new Error(`LLM evaluation failed: ${customErr.message || customErr}`);

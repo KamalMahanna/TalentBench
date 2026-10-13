@@ -4,6 +4,7 @@ import {
   screenResumeWith50PercentRule,
   runComparativeResumeMatchingPass,
 } from "@/lib/ai/screening-engine";
+import { extractCandidateNameFromResume } from "@/lib/utils";
 
 export async function POST(
   req: Request,
@@ -82,9 +83,12 @@ export async function POST(
             const initialScreeningResults = [];
             for (let i = 0; i < targetCandidates.length; i++) {
               const cand = targetCandidates[i];
+              // Extract candidate name from resume text during JD skill matching
+              const candName = extractCandidateNameFromResume(cand.resumeText || "", cand.email, cand.name);
+
               sendEvent("candidate_start", {
                 candidateId: cand.id,
-                name: cand.name,
+                name: candName,
                 email: cand.email,
                 index: i + 1,
                 total: targetCandidates.length,
@@ -92,7 +96,7 @@ export async function POST(
               });
 
               const evalResult = await screenResumeWith50PercentRule({
-                candidateName: cand.name,
+                candidateName: candName,
                 candidateEmail: cand.email,
                 resumeText: cand.resumeText || "",
                 jobTitle: job.title,
@@ -374,10 +378,13 @@ export async function POST(
       }
 
       const status = isShortlisted ? "SHORTLISTED" : "REJECTED";
+      // Use candidate name extracted by LLM in structured output
+      const finalCandName = item.evalResult.candidateName || extractCandidateNameFromResume(cand.resumeText || "", cand.email, cand.name);
 
       await prisma.candidate.update({
         where: { id: cand.id },
         data: {
+          name: finalCandName,
           status,
           currentRound: isShortlisted ? 1 : 0,
           personalizedReply: finalMailBody,

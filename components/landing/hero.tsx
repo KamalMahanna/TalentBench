@@ -192,6 +192,14 @@ export default function Home() {
   };
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  useEffect(() => {
     const { gsap } = initGSAP();
 
     const ctx = gsap.context(() => {
@@ -325,14 +333,25 @@ export default function Home() {
             Try TalentBench <ArrowRight size={16} />
           </Button>
         </nav>
-        <button
-          className="menu-button"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label="Toggle navigation"
-        >
-          {menuOpen ? <X size={21} /> : <Menu size={21} />}
-        </button>
+        <div className="flex items-center gap-1.5 md:hidden">
+          <ThemeToggle />
+          <button
+            className="menu-button"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle navigation"
+          >
+            {menuOpen ? <X size={21} /> : <Menu size={21} />}
+          </button>
+        </div>
       </header>
+
+      {menuOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-xs z-20 md:hidden"
+          onClick={() => setMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
       <main id="top">
         <section className="hero-material" id="product">
@@ -342,10 +361,7 @@ export default function Home() {
             initial="hidden"
             animate="show"
           >
-            <motion.div variants={heroItemVariants} className="status-chip">
-              <span className="status-dot" /> Recruiting, made clearer
-            </motion.div>
-            <motion.h1 variants={heroItemVariants}>
+            <motion.h1 variants={heroItemVariants} className="!mt-0">
               Make better<br />
               <span>hiring decisions.</span>
             </motion.h1>
@@ -359,13 +375,6 @@ export default function Home() {
               <Button variant="text" onClick={() => scrollTo("reports")}>
                 See a sample report
               </Button>
-            </motion.div>
-            <motion.div variants={heroItemVariants} className="trusted-line">
-              <span>Built for thoughtful teams</span>
-              <i />
-              <span>Fair by design</span>
-              <i />
-              <span>Simple to start</span>
             </motion.div>
           </motion.div>
           <motion.div
@@ -462,32 +471,14 @@ export default function Home() {
           </motion.div>
         </section>
 
-        <section
-          ref={statsRowRef}
-          className="stats-row section-wrap"
-          aria-label="TalentBench results"
-        >
-          {stats.map(({ value, label, icon: Icon, tone }, index) => {
-            const statRef = index === 0 ? stat1Ref : index === 1 ? stat2Ref : stat3Ref;
-            return (
-              <div
-                className={`stat-tile stat-tile--${tone}`}
-                key={label}
-              >
-                <span className="stat-icon">
-                  <Icon size={19} />
-                </span>
-                <div>
-                  <strong ref={statRef}>{value}</strong>
-                  <span>{label}</span>
-                </div>
-              </div>
-            );
-          })}
-        </section>
-
         <section className="workspace-section section-wrap" id="workspace">
-          <div className="section-intro">
+          <motion.div
+            className="section-intro"
+            initial={{ opacity: 0, y: 28 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-60px" }}
+            transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+          >
             <div className="section-kicker">A calmer recruiting workspace</div>
             <h2>
               Everything you need.<br />
@@ -496,7 +487,7 @@ export default function Home() {
             <p>
               TalentBench keeps the important parts of hiring together, so your team can spend less time formatting and more time deciding.
             </p>
-          </div>
+          </motion.div>
           <div className="feature-grid">
             <motion.article
               className="feature-card feature-card--large"
@@ -656,6 +647,30 @@ export default function Home() {
           </div>
         </section>
 
+        <section
+          ref={statsRowRef as any}
+          className="stats-row section-wrap"
+          aria-label="TalentBench results"
+        >
+          {stats.map(({ value, label, icon: Icon, tone }, index) => {
+            const statRef = index === 0 ? stat1Ref : index === 1 ? stat2Ref : stat3Ref;
+            return (
+              <div
+                className={`stat-tile stat-tile--${tone}`}
+                key={label}
+              >
+                <span className="stat-icon">
+                  <Icon size={19} />
+                </span>
+                <div>
+                  <strong ref={statRef}>{value}</strong>
+                  <span>{label}</span>
+                </div>
+              </div>
+            );
+          })}
+        </section>
+
         <HowItWorks />
 
         <PipelinePreview />
@@ -734,7 +749,13 @@ export default function Home() {
           />
           <span>TalentBench</span>
         </a>
-        <span>Recruiting tools for thoughtful teams.</span>
+        <div className="trusted-line !mt-0">
+          <span>Built for thoughtful teams</span>
+          <i />
+          <span>Fair by design</span>
+          <i />
+          <span>Simple to start</span>
+        </div>
         <span>© 2026 TalentBench</span>
       </footer>
     </div>

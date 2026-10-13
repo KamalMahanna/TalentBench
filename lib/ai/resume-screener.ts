@@ -1,5 +1,6 @@
 import { AgentTraceStep, ScreeningResult } from "./types";
 import { llmGateway } from "./llm-gateway";
+import { scanForPromptInjection, createSecurityRejectionResult } from "./guardrails";
 
 export type { AgentTraceStep, ScreeningResult };
 
@@ -22,6 +23,12 @@ export async function runResumeScreeningAgent({
   minExperience: number;
   maxExperience: number;
 }): Promise<ScreeningResult> {
+  // LAYER 1: Fast Deterministic In-Memory Pre-LLM Injection Scanner (Zero extra LLM calls)
+  const preScan = scanForPromptInjection(resumeText);
+  if (preScan.isInjected) {
+    return createSecurityRejectionResult(candidateName, preScan.reason, jobTitle);
+  }
+
   try {
     return await llmGateway.screenCandidate({
       candidateName,
@@ -66,6 +73,11 @@ function runDeterministicFallback({
   minExperience: number;
   maxExperience: number;
 }): ScreeningResult {
+  const preScan = scanForPromptInjection(resumeText);
+  if (preScan.isInjected) {
+    return createSecurityRejectionResult(candidateName, preScan.reason, jobTitle);
+  }
+
   const traces: AgentTraceStep[] = [];
   const textLower = (resumeText || "").toLowerCase();
   const descLower = (jobDescription || "").toLowerCase();
@@ -192,6 +204,7 @@ Talent Operations Team`;
     : `Does not meet ${!inExperienceRange ? `mandatory experience range (${minExperience}-${maxExperience} yrs)` : "target technical depth"}.`;
 
   return {
+    candidateName: candidateName || "Candidate",
     score,
     passed,
     status,

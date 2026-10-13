@@ -347,15 +347,23 @@ export default function BulkUploadPage() {
     );
 
     try {
-      // Send extracted text and emails directly to backend
+      // Deduplicate queue by extractedEmail (primary key), keeping only the latest resume for each email
+      const dedupMap = new Map<string, (typeof queue)[0]>();
+      for (const item of queue) {
+        const key = item.extractedEmail?.trim().toLowerCase() || item.id;
+        dedupMap.set(key, item);
+      }
+      const deduplicatedQueue = Array.from(dedupMap.values());
+
+      // Send extracted text and emails directly to backend (name will be extracted during JD matching)
       const res = await fetch("/api/candidates/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobProfileId: selectedJobId,
           autoScreen,
-          files: queue.map((f) => ({
-            name: f.candidateName || f.name,
+          files: deduplicatedQueue.map((f) => ({
+            name: f.name,
             email: f.extractedEmail,
             experienceYears: f.experienceYears,
             skills: f.skills,

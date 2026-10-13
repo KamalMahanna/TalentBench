@@ -83,19 +83,7 @@ export default function LoginPage() {
       {/* Back link */}
       <Link
         href="/"
-        style={{
-          position: "fixed",
-          top: "24px",
-          left: "24px",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "6px",
-          fontSize: "13px",
-          color: "var(--muted)",
-          textDecoration: "none",
-          fontWeight: 500,
-          zIndex: 10,
-        }}
+        className="absolute top-4 sm:top-6 left-4 sm:left-6 inline-flex items-center gap-1.5 text-xs sm:text-sm text-[var(--muted)] font-medium hover:text-[var(--ink)] transition-colors z-10"
       >
         <ArrowLeft size={16} />
         Back to Home
@@ -105,15 +93,7 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        style={{
-          width: "100%",
-          maxWidth: "420px",
-          background: "var(--surface-high)",
-          border: "1px solid var(--outline)",
-          borderRadius: "28px",
-          padding: "40px",
-          boxShadow: "0 22px 55px rgba(60,48,83,0.1)",
-        }}
+        className="w-full max-w-md bg-[var(--surface-high)] border border-[var(--outline)] rounded-3xl p-6 sm:p-10 shadow-xl"
       >
         {/* Brand Header */}
         <div style={{ textAlign: "center", marginBottom: "32px" }}>

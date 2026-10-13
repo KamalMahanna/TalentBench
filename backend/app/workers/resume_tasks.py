@@ -19,7 +19,6 @@ from app.models import (
     RoundResult,
 )
 from app.parsing.embeddings import compute_jd_match_score
-from app.parsing.pdf_parser import parse_pdf
 from app.parsing.skill_extractor import extract_candidate_metadata
 from app.storage.client import storage_client
 from app.workers.celery_app import celery_app
@@ -105,14 +104,8 @@ def process_single_candidate_resume(
         if not candidate or not role:
             raise ValueError(f"Candidate {candidate_id} or Role {role_id} not found")
 
-        # Extract text & metadata
-        resume_text = candidate.resume_text
-        if not resume_text and resume_s3_key:
-            file_bytes = storage_client.download_file(
-                storage_client.resume_bucket, resume_s3_key
-            )
-            resume_text = parse_pdf(file_bytes)
-            candidate.resume_text = resume_text
+        # Resume text is supplied directly (client-side pre-extracted, no backend PDF parsing)
+        resume_text = candidate.resume_text or ""
 
         # LLM Metadata extraction & Direct JD Screening
         llm = get_llm_gateway()

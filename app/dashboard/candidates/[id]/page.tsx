@@ -452,17 +452,7 @@ export default function CandidateDossierPage({
       </div>
 
       {/* Tabs Navigation */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "6px",
-          background: "var(--surface)",
-          borderRadius: "16px",
-          padding: "4px",
-          border: "1px solid var(--outline)",
-        }}
-      >
+      <div className="flex items-center gap-1.5 bg-[var(--surface)] rounded-2xl p-1.5 border border-[var(--outline)] overflow-x-auto max-w-full">
         {[
           { id: "trace", label: "Autonomous AI Trace", icon: Brain },
           { id: "pipeline", label: "Evaluation Pipeline", icon: GitBranch },
@@ -475,19 +465,11 @@ export default function CandidateDossierPage({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
+              className="shrink-0 whitespace-nowrap flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm transition-all cursor-pointer font-medium"
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 16px",
-                borderRadius: "12px",
-                border: "none",
-                fontSize: "13px",
-                fontWeight: isActive ? 600 : 500,
-                cursor: "pointer",
-                transition: "all 0.15s",
                 background: isActive ? "var(--surface-high)" : "transparent",
                 color: isActive ? "var(--ink)" : "var(--muted)",
+                fontWeight: isActive ? 600 : 500,
                 boxShadow: isActive ? "0 2px 6px rgba(0,0,0,0.05)" : "none",
               }}
             >

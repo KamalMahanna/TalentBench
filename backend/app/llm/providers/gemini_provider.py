@@ -306,11 +306,12 @@ class LangChainGeminiProvider(LLMGateway):
             f"JOB DESCRIPTION:\n{jd_text}\n\n"
             f"RESUME:\n{resume_text}\n\n"
             "RULES:\n"
-            "1. Internship experience does not count as full-time experience.\n"
-            "2. If candidate meets core requirements, return matched=True, verdict='yes'.\n"
-            "3. If candidate lacks mandatory experience or core stack, return matched=False and "
+            "1. Extract candidate's actual personal name from resume header.\n"
+            "2. Internship experience does not count as full-time experience.\n"
+            "3. If candidate meets core requirements, return matched=True, verdict='yes'.\n"
+            "4. If candidate lacks mandatory experience or core stack, return matched=False and "
             "verdict=<personalized rejection email explaining specifically what is missing>.\n"
-            'Return JSON: {"matched": bool, "verdict": str, "reason": str}'
+            'Return JSON: {"candidate_name": str, "matched": bool, "verdict": str, "reason": str}'
         )
 
         model, est_tokens = self.select_model_for_prompt(prompt)
@@ -331,10 +332,12 @@ class LangChainGeminiProvider(LLMGateway):
                 verdict = str(
                     data.get("verdict", "yes" if matched else "Thank you for applying.")
                 )
+                cand_name = str(data.get("candidate_name") or candidate_name).strip()
                 return ScreenResult(
                     matched=matched,
                     verdict=verdict,
                     reason=str(data.get("reason", "")),
+                    candidate_name=cand_name,
                     model_name=res.model,
                 )
             except Exception:

@@ -393,7 +393,7 @@ export function PipelineCanvas({
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto pt-2.5 sm:pt-0 border-t sm:border-t-0 border-[var(--outline)]">
                   {onExecuteStage && stage.type === "RESUME_SCREENING" && (
                     <button
                       type="button"

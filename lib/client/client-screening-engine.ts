@@ -249,10 +249,11 @@ export class ClientScreeningEngine {
         const data = await res.json();
         const rawEval = data.evaluation;
         const totalDuration = Date.now() - candidateStartTime;
+        const resolvedCandidateName = rawEval.candidateName || cand.name;
 
         const evalRecord: CachedEvaluation = {
           hash,
-          candidateName: cand.name,
+          candidateName: resolvedCandidateName,
           candidateEmail: cand.email,
           jobId,
           verdict: rawEval.verdict,
@@ -280,8 +281,7 @@ export class ClientScreeningEngine {
         stats.activeWorkers--;
         latencies.push(evalRecord.latencyMs);
         updateStats(`Evaluated ${cand.name}: Score ${evalRecord.score}% (${evalRecord.verdict}) in ${evalRecord.latencyMs}ms`);
-        emitLog(`✅ Completed ${cand.name}: Score ${evalRecord.score} (${evalRecord.verdict}) in ${evalRecord.latencyMs}ms`);
-
+        cand.name = resolvedCandidateName;
         if (onCandidateComplete) onCandidateComplete(cand, evalRecord, false);
         return evalRecord;
       } catch (err: any) {

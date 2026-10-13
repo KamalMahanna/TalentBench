@@ -167,7 +167,7 @@ export default function NewJobProfilePage() {
 
           <div>
             <label style={labelStyle}>Required Years of Experience</label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div style={{ background: "var(--surface)", borderRadius: "14px", padding: "14px 16px", border: "1px solid var(--outline)" }}>
                 <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Minimum (years)</span>
                 <input

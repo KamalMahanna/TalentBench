@@ -138,13 +138,7 @@ export default function DashboardOverview() {
       </div>
 
       {/* Stat Cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-          gap: "16px",
-        }}
-      >
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
         {statCards.map(({ key, label, sublabel, icon: Icon, tone, fixed, fixedSub }, i) => {
           const style = toneStyle(tone);
           return (
@@ -303,17 +297,7 @@ export default function DashboardOverview() {
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ y: -2, transition: { duration: 0.15 } }}
                 transition={{ delay: 0.2 + i * 0.05, duration: 0.35, ease: "easeOut" }}
-                style={{
-                  background: "var(--surface-high)",
-                  border: "1px solid var(--outline)",
-                  borderRadius: "20px",
-                  padding: "22px 24px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "24px",
-                  flexWrap: "wrap",
-                }}
+                className="bg-[var(--surface-high)] border border-[var(--outline)] rounded-2xl sm:rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6"
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
@@ -375,15 +359,8 @@ export default function DashboardOverview() {
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "16px",
-                    flexShrink: 0,
-                  }}
-                >
-                  <div style={{ textAlign: "right" }}>
+                <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-[var(--outline)] shrink-0">
+                  <div className="text-left sm:text-right">
                     <div
                       style={{
                         fontSize: "15px",
@@ -399,7 +376,7 @@ export default function DashboardOverview() {
                   </div>
                   <Link
                     href={`/dashboard/jobs/${job.id}`}
-                    className="md-button md-button--tonal"
+                    className="md-button md-button--tonal shrink-0"
                     style={{ fontSize: "13px", padding: "8px 18px" }}
                   >
                     Open Workspace

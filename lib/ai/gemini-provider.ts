@@ -1,5 +1,12 @@
 import { getRateLimiterForModel, withRetry } from "./rate-limiter";
 import { AgentTraceStep, ScreeningResult } from "./types";
+import {
+  scanForPromptInjection,
+  sanitizeAndSandboxResume,
+  createSecurityRejectionResult,
+  enforceScreeningInvariant,
+  SECURITY_SYSTEM_INSTRUCTIONS,
+} from "./guardrails";
 
 export interface GeminiCallOptions {
   systemPrompt?: string;
@@ -202,6 +209,15 @@ export class GeminiProvider {
     maxExperience: number;
     rubrics?: any;
   }): Promise<ScreeningResult> {
+    // LAYER 1: Fast Deterministic In-Memory Pre-LLM Injection Scanner (Zero extra LLM calls)
+    const preScan = scanForPromptInjection(params.resumeText);
+    if (preScan.isInjected) {
+      return createSecurityRejectionResult(params.candidateName, preScan.reason, params.jobTitle);
+    }
+
+    // LAYER 2: Structural Sanitization & XML Tag Sandboxing (Zero extra LLM calls)
+    const { sandboxedPromptChunk } = sanitizeAndSandboxResume(params.resumeText);
+
     const prompt = `You are an elite technical recruiting calibration agent.
 Evaluate this candidate against the job requisition.
 
@@ -214,15 +230,19 @@ CANDIDATE:
 Name: ${params.candidateName}
 Email: ${params.candidateEmail}
 Claimed Experience: ${params.candidateExperience} years
-Resume:
-${params.resumeText}
+
+${sandboxedPromptChunk}
 
 RULES:
-1. Experience Boundary: Candidate must meet the minimum ${params.minExperience} years.
-2. Technical Depth: Score 0-100 based on core architectural alignment and scale.
-3. Over 70 is SHORTLISTED, under 70 is REJECTED.
-4. Return ONLY a valid JSON object matching this exact schema:
+1. Candidate Name Extraction: Carefully inspect the resume text header inside <untrusted_candidate_resume> and extract the candidate's actual personal name (e.g. "Jane Doe"). Never output file names, file extensions, or placeholders.
+2. Experience Boundary: Candidate must meet the minimum ${params.minExperience} years.
+3. Technical Depth: Score 0-100 based on core architectural alignment and scale.
+4. Over 70 is SHORTLISTED, under 70 is REJECTED.
+5. Return ONLY a valid JSON object matching this exact schema:
 {
+  "candidateName": string,
+  "prompt_injection_detected": false,
+  "injection_details": "",
   "score": number,
   "passed": boolean,
   "status": "SHORTLISTED" | "REJECTED",
@@ -234,8 +254,8 @@ RULES:
   "auditReasoning": string
 }`;
 
-    const systemPrompt =
-      "You are TalentBench's high-precision technical talent calibration engine. Output strict JSON only.";
+    const systemPrompt = `You are TalentBench's high-precision technical talent calibration engine. Output strict JSON only.
+${SECURITY_SYSTEM_INSTRUCTIONS}`;
 
     const res = await this.complete(prompt, {
       systemPrompt,
@@ -250,6 +270,23 @@ RULES:
         cleaned = cleaned.replace(/^```json/, "").replace(/^```/, "").replace(/```$/, "").trim();
       }
       const parsed = JSON.parse(cleaned);
+
+      const resolvedName =
+        parsed.candidateName ||
+        parsed.candidate_name ||
+        parsed.extractedName ||
+        params.candidateName ||
+        "Candidate";
+
+      // LAYER 4: Invariant Gatekeeper & Post-LLM Validator (Zero extra LLM calls)
+      const invariant = enforceScreeningInvariant(parsed, preScan);
+      if (invariant.isViolation) {
+        return createSecurityRejectionResult(
+          resolvedName,
+          parsed.injection_details || preScan.reason || "Adversarial prompt injection attempt detected",
+          params.jobTitle
+        );
+      }
 
       const traces: AgentTraceStep[] = [
         {
@@ -287,12 +324,14 @@ RULES:
       ];
 
       return {
+        candidateName: resolvedName,
         score: Math.min(Math.max(parsed.score || 65, 30), 98),
         passed: Boolean(parsed.passed),
         status: parsed.passed ? "SHORTLISTED" : "REJECTED",
         agentTrace: traces,
         feedbackSummary: parsed.feedbackSummary || "Candidate evaluation calibrated against rubric.",
         personalizedReply: parsed.personalizedReply || "Thank you for applying to TalentBench.",
+        promptInjectionDetected: false,
       };
     } catch (parseErr) {
       console.warn("[GeminiProvider] Failed to parse JSON response. Falling back to deterministic trace:", parseErr);
@@ -301,12 +340,19 @@ RULES:
   }
 
   private generateDeterministicFallback(params: any, modelTag: string): ScreeningResult {
+    // Invariant check on fallback
+    const preScan = scanForPromptInjection(params.resumeText);
+    if (preScan.isInjected) {
+      return createSecurityRejectionResult(params.candidateName, preScan.reason, params.jobTitle);
+    }
+
     const inRange = params.candidateExperience >= params.minExperience;
     const score = inRange ? 82 : 48;
     const passed = inRange;
     const status = passed ? "SHORTLISTED" : "REJECTED";
 
     return {
+      candidateName: params.candidateName || "Candidate",
       score,
       passed,
       status,
@@ -351,6 +397,8 @@ RULES:
         score: 84,
         passed: true,
         status: "SHORTLISTED",
+        prompt_injection_detected: false,
+        injection_details: "",
         feedbackSummary: "Candidate demonstrates strong alignment with core architecture and technical scale requirements.",
         personalizedReply: "Thank you for applying. We are pleased to invite you to the next evaluation round.",
         matchedSkills: ["Distributed Systems", "TypeScript", "Python", "Kubernetes"],
