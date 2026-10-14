@@ -19,7 +19,7 @@ export default function NewJobProfilePage() {
   const [stages, setStages] = useState<PipelineStageItem[]>([
     {
       type: "RESUME_SCREENING",
-      title: "RESUME SCREENING",
+      title: "Resume Shortlisting",
       description: "",
       cutoff: 50,
       order: 0,

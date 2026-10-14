@@ -22,6 +22,7 @@ export interface ConnectorStageConfig {
   inputType: "BULK_RESUME_OR_EXCEL" | "ASSESSMENT_LINK" | "CODING_SANDBOX" | "INTERVIEW_PANEL" | "CUSTOM";
   inputSpecText: string;
   outputSpecText: string;
+  status?: string;
 }
 
 interface ConnectorNodeModalProps {
@@ -36,6 +37,7 @@ interface ConnectorNodeModalProps {
     inputType?: "BULK_RESUME_OR_EXCEL" | "ASSESSMENT_LINK" | "CODING_SANDBOX" | "INTERVIEW_PANEL" | "CUSTOM";
     inputSpecText?: string;
     outputSpecText?: string;
+    status?: string;
   };
   mode?: "create" | "edit";
 }
@@ -43,11 +45,11 @@ interface ConnectorNodeModalProps {
 const ROUND_TYPES = [
   {
     type: "RESUME_SCREENING",
-    name: "Resume Screening",
+    name: "Resume Shortlisting",
     icon: FileText,
     badge: "Active",
     isUpcoming: false,
-    defaultTitle: "RESUME SCREENING",
+    defaultTitle: "Resume Shortlisting",
     defaultDesc: "",
     inputType: "BULK_RESUME_OR_EXCEL" as const,
     inputSpecText: "Bulk Resume Upload (PDF / DOCX / TXT) or Excel Sheet with column like 'resume_texts'. Resumes transferred 1-by-1 via JSON queue.",
@@ -55,11 +57,11 @@ const ROUND_TYPES = [
   },
   {
     type: "APTITUDE",
-    name: "Aptitude and Reasoning",
+    name: "Aptitude & Reasoning",
     icon: Brain,
     badge: "Upcoming",
     isUpcoming: true,
-    defaultTitle: "Cognitive Logic & Reasoning Assessment",
+    defaultTitle: "Aptitude & Reasoning",
     defaultDesc: "Timed quantitative aptitude, analytical reasoning, and data interpretation challenges.",
     inputType: "ASSESSMENT_LINK" as const,
     inputSpecText: "Automated test link dispatch or proctored question bank specification.",
@@ -67,23 +69,35 @@ const ROUND_TYPES = [
   },
   {
     type: "DSA",
-    name: "DSA Round",
+    name: "Coding & DSA",
     icon: Code,
     badge: "Upcoming",
     isUpcoming: true,
-    defaultTitle: "Live DSA & System Algorithms",
+    defaultTitle: "Coding & DSA",
     defaultDesc: "Interactive algorithmic challenges, time/space complexity evaluation, and test suite execution.",
     inputType: "CODING_SANDBOX" as const,
     inputSpecText: "Curated problem set with unit test boundaries.",
     outputSpecText: "Automated test case pass rate, memory usage, runtime complexity analysis, and code quality score.",
   },
   {
-    type: "TECHNICAL",
-    name: "Technical Interview",
+    type: "COMMUNICATION",
+    name: "Communication",
     icon: Terminal,
     badge: "Upcoming",
     isUpcoming: true,
-    defaultTitle: "Deep Technical & System Design Round",
+    defaultTitle: "Communication",
+    defaultDesc: "Structured technical design walkthrough, presentation, and verbal reasoning.",
+    inputType: "INTERVIEW_PANEL" as const,
+    inputSpecText: "Communication rubric and presentation evaluation criteria.",
+    outputSpecText: "Clarity score, communication breakdown, and architectural presentation notes.",
+  },
+  {
+    type: "TECHNICAL",
+    name: "Technical Round",
+    icon: Terminal,
+    badge: "Upcoming",
+    isUpcoming: true,
+    defaultTitle: "Technical Round",
     defaultDesc: "Comprehensive architectural discussion, concurrency, database design, and framework mastery.",
     inputType: "INTERVIEW_PANEL" as const,
     inputSpecText: "Interview scorecard rubric, technical topic checklist, and interviewer assignment.",
@@ -91,11 +105,11 @@ const ROUND_TYPES = [
   },
   {
     type: "HR_ROUND",
-    name: "HR Interview",
+    name: "HR round",
     icon: Users,
     badge: "Upcoming",
     isUpcoming: true,
-    defaultTitle: "Executive HR & Cultural Alignment",
+    defaultTitle: "HR round",
     defaultDesc: "Values alignment, compensation expectations, behavioral traits, and team fit verification.",
     inputType: "INTERVIEW_PANEL" as const,
     inputSpecText: "Behavioral question bank and candidate availability windows.",
@@ -107,7 +121,7 @@ const ROUND_TYPES = [
     icon: Settings,
     badge: "Upcoming",
     isUpcoming: true,
-    defaultTitle: "Custom Evaluation Gate",
+    defaultTitle: "Custom Round",
     defaultDesc: "Tailored recruiter stage configured with proprietary company requirements.",
     inputType: "CUSTOM" as const,
     inputSpecText: "Custom file submission, presentation review, or manual review rubric.",
@@ -127,6 +141,7 @@ export function ConnectorNodeModal({
   const [title, setTitle] = useState(initialStage?.title || "");
   const [description, setDescription] = useState(initialStage?.description || "");
   const [cutoff, setCutoff] = useState<number>(initialStage?.cutoff || 50);
+  const [status, setStatus] = useState<string>(initialStage?.status || "auto");
 
   const currentTypeInfo = ROUND_TYPES.find((r) => r.type === selectedType) || ROUND_TYPES[0];
 
@@ -138,12 +153,14 @@ export function ConnectorNodeModal({
       setTitle(initialStage.title || "");
       setDescription(initialStage.description || "");
       setCutoff(initialStage.cutoff || 50);
+      setStatus(initialStage.status || "auto");
     } else {
       const def = ROUND_TYPES[0];
       setSelectedType(def.type);
       setTitle(def.defaultTitle);
       setDescription(def.defaultDesc);
       setCutoff(50);
+      setStatus("auto");
     }
   }, [initialStage, isOpen]);
 
@@ -180,6 +197,7 @@ export function ConnectorNodeModal({
       inputType: currentTypeInfo.inputType,
       inputSpecText: currentTypeInfo.inputSpecText,
       outputSpecText: currentTypeInfo.outputSpecText,
+      status: status !== "auto" ? status : undefined,
     });
     onClose();
   };
@@ -333,6 +351,24 @@ export function ConnectorNodeModal({
                 </div>
               </>
             )}
+
+            {/* Round Status */}
+            <div>
+              <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "6px" }}>
+                Round Status
+              </label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="auto">Auto (Calculated from Candidate Progress)</option>
+                <option value="pending">Not Finished / Pending (Theme Color)</option>
+                <option value="running">Running (Amber / Yellow)</option>
+                <option value="finished">Finished (Green)</option>
+                <option value="failed">Failed (Red)</option>
+              </select>
+            </div>
 
             {/* I/O Spec */}
             <div style={{ background: "var(--surface)", border: "1px solid var(--outline)", borderRadius: "16px", padding: "14px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>

@@ -24,6 +24,23 @@
   --green: #1F8A4C;
   --success: #1F8A4C;
 
+  /* Round Status Tokens (Light mode) */
+  --round-finished-bg: #E8F5E9;
+  --round-finished-text: #166534;
+  --round-finished-border: #C7EED8;
+
+  --round-running-bg: #FEF3C7;
+  --round-running-text: #92400E;
+  --round-running-border: #FDE68A;
+
+  --round-failed-bg: #FEE2E2;
+  --round-failed-text: #991B1B;
+  --round-failed-border: #FECACA;
+
+  --round-pending-bg: var(--surface-purple);
+  --round-pending-text: var(--primary-deep);
+  --round-pending-border: transparent;
+
   font-family: "DM Sans", system-ui, sans-serif;
   color: var(--ink);
   background: var(--canvas);
@@ -51,8 +68,40 @@
   --green: #6FD09A;
   --success: #6FD09A;
 
+  /* Round Status Tokens (Dark mode) */
+  --round-finished-bg: rgba(22, 101, 52, 0.35);
+  --round-finished-text: #86EFAC;
+  --round-finished-border: rgba(134, 239, 172, 0.28);
+
+  --round-running-bg: rgba(180, 83, 9, 0.35);
+  --round-running-text: #FCD34D;
+  --round-running-border: rgba(252, 211, 77, 0.28);
+
+  --round-failed-bg: rgba(185, 28, 28, 0.35);
+  --round-failed-text: #FCA5A5;
+  --round-failed-border: rgba(252, 165, 165, 0.28);
+
+  --round-pending-bg: var(--surface-purple);
+  --round-pending-text: var(--primary-deep);
+  --round-pending-border: transparent;
+
   color-scheme: dark;
   background: var(--canvas);
+}
+
+@keyframes roundRunningPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.22);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.14);
+  }
+}
+
+.round-no-running {
+  animation: roundRunningPulse 2.4s infinite ease-in-out;
 }
 
 * { box-sizing: border-box; }

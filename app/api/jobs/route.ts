@@ -121,31 +121,31 @@ export async function POST(req: Request) {
         : [
             {
               type: "RESUME_SCREENING",
-              title: "RESUME SCREENING",
+              title: "Resume Shortlisting",
               description: "",
               order: 0,
             },
             {
               type: "APTITUDE",
-              title: "Cognitive Aptitude Assessment",
+              title: "Aptitude & Reasoning",
               description: "Core problem-solving and numerical aptitude.",
               order: 1,
             },
             {
               type: "DSA",
-              title: "Data Structures & Algorithms Challenge",
+              title: "Coding & DSA",
               description: "Sandboxed live coding and technical problem solving.",
               order: 2,
             },
             {
               type: "COMMUNICATION",
-              title: "Communication & Architecture Round",
+              title: "Communication",
               description: "Structured design walkthrough and verbal reasoning.",
               order: 3,
             },
             {
               type: "HR_ROUND",
-              title: "Executive HR & Culture Alignment",
+              title: "HR round",
               description: "Team fit, ethics, and compensation discussion.",
               order: 4,
             },

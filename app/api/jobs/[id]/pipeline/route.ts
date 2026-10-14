@@ -39,7 +39,7 @@ export async function POST(
         type,
         title: title.trim(),
         description: description?.trim() || null,
-        config: config ? JSON.stringify(config) : null,
+        config: config ? (typeof config === "string" ? config : JSON.stringify(config)) : null,
         order: nextOrder,
         jobProfileId,
       },

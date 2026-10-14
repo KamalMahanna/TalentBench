@@ -7,17 +7,13 @@ import {
   Trash2,
   ArrowUp,
   ArrowDown,
-  FileText,
   Brain,
-  Code,
-  Terminal,
-  Users,
-  Settings,
   Pencil,
-  Sparkles,
   Upload,
 } from "lucide-react";
 import { ConnectorNodeModal, ConnectorStageConfig } from "./connector-node-modal";
+
+export type StageStatus = "finished" | "running" | "failed" | "pending";
 
 export interface PipelineStageItem {
   id?: string;
@@ -27,6 +23,7 @@ export interface PipelineStageItem {
   cutoff?: number;
   order: number;
   config?: string | null;
+  status?: StageStatus | string;
 }
 
 interface PipelineCanvasProps {
@@ -38,22 +35,92 @@ interface PipelineCanvasProps {
   isEditable?: boolean;
 }
 
-const getRoundIcon = (type: string) => {
-  switch (type) {
-    case "RESUME_SCREENING":
-      return FileText;
-    case "APTITUDE":
-      return Brain;
-    case "DSA":
-      return Code;
-    case "TECHNICAL":
-      return Terminal;
-    case "HR_ROUND":
-      return Users;
-    default:
-      return Settings;
+export function getRoundStatusStyles(status?: string | null) {
+  const s = (status || "").toLowerCase().trim();
+  if (s === "finished" || s === "completed" || s === "passed" || s === "success") {
+    return {
+      background: "var(--round-finished-bg, #E8F5E9)",
+      color: "var(--round-finished-text, #166534)",
+      border: "1px solid var(--round-finished-border, #C7EED8)",
+      label: "Finished",
+      status: "finished" as const,
+      isRunning: false,
+    };
   }
-};
+  if (s === "running" || s === "in_progress" || s === "active" || s === "evaluating") {
+    return {
+      background: "var(--round-running-bg, #FEF3C7)",
+      color: "var(--round-running-text, #92400E)",
+      border: "1px solid var(--round-running-border, #FDE68A)",
+      label: "Running",
+      status: "running" as const,
+      isRunning: true,
+    };
+  }
+  if (s === "failed" || s === "rejected" || s === "error") {
+    return {
+      background: "var(--round-failed-bg, #FEE2E2)",
+      color: "var(--round-failed-text, #991B1B)",
+      border: "1px solid var(--round-failed-border, #FECACA)",
+      label: "Failed",
+      status: "failed" as const,
+      isRunning: false,
+    };
+  }
+  return {
+    background: "var(--round-pending-bg, var(--surface-purple))",
+    color: "var(--round-pending-text, var(--primary-deep))",
+    border: "1px solid var(--round-pending-border, transparent)",
+    label: "Not Finished",
+    status: "pending" as const,
+    isRunning: false,
+  };
+}
+
+export function getSimplifiedRoundTitle(stage: { title?: string | null; type?: string | null } | null | undefined): string {
+  if (!stage) return "Round";
+  const type = stage.type?.toUpperCase() || "";
+  const title = (stage.title || "").trim();
+
+  if (
+    type === "RESUME_SCREENING" ||
+    title.toUpperCase() === "RESUME SCREENING" ||
+    title.toLowerCase().includes("resume")
+  ) {
+    return "Resume Shortlisting";
+  }
+  if (
+    type === "APTITUDE" ||
+    title.toLowerCase().includes("cognitive aptitude") ||
+    title.toLowerCase().includes("aptitude")
+  ) {
+    return "Aptitude & Reasoning";
+  }
+  if (
+    type === "DSA" ||
+    title.toLowerCase().includes("distributed algorithms") ||
+    title.toLowerCase().includes("dsa")
+  ) {
+    return "Coding & DSA";
+  }
+  if (
+    type === "COMMUNICATION" ||
+    title.toLowerCase().includes("technical communication") ||
+    title.toLowerCase().includes("communication")
+  ) {
+    return "Communication";
+  }
+  if (
+    type === "HR_ROUND" ||
+    title.toLowerCase().includes("executive hr") ||
+    title.toLowerCase().includes("hr round") ||
+    title.toLowerCase().includes("culture alignment")
+  ) {
+    return "HR round";
+  }
+
+  return stage.title || "Round";
+}
 
 export function PipelineCanvas({
   stages,
@@ -76,12 +143,38 @@ export function PipelineCanvas({
     setModalOpen(true);
   };
 
+  const handleCycleStatus = (idx: number) => {
+    if (!isEditable) return;
+    const currentStage = stages[idx];
+    const currentStatus = (currentStage.status || "pending").toLowerCase();
+    let nextStatus: StageStatus = "finished";
+    if (currentStatus === "pending") nextStatus = "running";
+    else if (currentStatus === "running") nextStatus = "finished";
+    else if (currentStatus === "finished") nextStatus = "failed";
+    else if (currentStatus === "failed") nextStatus = "pending";
+
+    let updatedConfig = currentStage.config;
+    try {
+      const parsed = currentStage.config ? JSON.parse(currentStage.config) : {};
+      parsed.status = nextStatus;
+      updatedConfig = JSON.stringify(parsed);
+    } catch {
+      updatedConfig = JSON.stringify({ status: nextStatus });
+    }
+
+    const updated = stages.map((s, i) =>
+      i === idx ? { ...s, status: nextStatus, config: updatedConfig } : s
+    );
+    onChange(updated);
+  };
+
   const handleSaveStage = (config: ConnectorStageConfig) => {
     const configString = JSON.stringify({
       cutoff: config.cutoff,
       inputType: config.inputType,
       inputSpecText: config.inputSpecText,
       outputSpecText: config.outputSpecText,
+      status: config.status && config.status !== "auto" ? config.status : undefined,
     });
 
     if (editIndex !== null && editIndex >= 0) {
@@ -92,6 +185,7 @@ export function PipelineCanvas({
         title: config.title,
         description: config.description,
         cutoff: config.cutoff,
+        status: config.status && config.status !== "auto" ? (config.status as StageStatus) : undefined,
         config: configString,
       };
       onChange(updated);
@@ -101,6 +195,7 @@ export function PipelineCanvas({
         title: config.title,
         description: config.description,
         cutoff: config.cutoff,
+        status: config.status && config.status !== "auto" ? (config.status as StageStatus) : undefined,
         order: stages.length,
         config: configString,
       };
@@ -286,7 +381,6 @@ export function PipelineCanvas({
 
       <div style={{ display: "flex", flexDirection: "column" }}>
         {stages.map((stage, idx) => {
-          const Icon = getRoundIcon(stage.type);
           const isLast = idx === stages.length - 1;
 
           return (
@@ -314,71 +408,56 @@ export function PipelineCanvas({
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
                   {/* Step Number */}
-                  <div
-                    style={{
-                      width: "36px",
-                      height: "36px",
-                      borderRadius: "10px",
-                      background: "var(--surface-purple)",
-                      color: "var(--primary-deep)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "12px",
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
-                    0{idx + 1}
-                  </div>
-
-                  {/* Icon */}
-                  <div
-                    style={{
-                      width: "38px",
-                      height: "38px",
-                      borderRadius: "10px",
-                      background: "var(--surface-high)",
-                      border: "1px solid var(--outline)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "var(--ink)",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Icon size={18} />
-                  </div>
+                  {(() => {
+                    const statusStyle = getRoundStatusStyles(stage.status);
+                    return (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCycleStatus(idx);
+                        }}
+                        className={statusStyle.isRunning ? "round-no-running" : ""}
+                        style={{
+                          width: "36px",
+                          height: "36px",
+                          borderRadius: "10px",
+                          background: statusStyle.background,
+                          color: statusStyle.color,
+                          border: statusStyle.border,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          flexShrink: 0,
+                          cursor: isEditable ? "pointer" : "default",
+                          transition: "all 0.25s ease",
+                          padding: 0,
+                        }}
+                        title={
+                          isEditable
+                            ? `Round 0${idx + 1} (${statusStyle.label}) · Click to toggle status`
+                            : `Round 0${idx + 1} (${statusStyle.label})`
+                        }
+                      >
+                        0{idx + 1}
+                      </button>
+                    );
+                  })()}
 
                   {/* Details */}
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                      <h3
-                        style={{
-                          fontSize: "14px",
-                          fontWeight: 600,
-                          color: "var(--ink)",
-                          margin: 0,
-                        }}
-                      >
-                        {stage.type === "RESUME_SCREENING" ? "RESUME SCREENING" : stage.title}
-                      </h3>
-                      {stage.type !== "RESUME_SCREENING" && (
-                        <span
-                          style={{
-                            fontSize: "10px",
-                            fontWeight: 600,
-                            padding: "2px 8px",
-                            borderRadius: "999px",
-                            background: "var(--surface-blue)",
-                            color: "#1a6098",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {stage.type.replace("_", " ")}
-                        </span>
-                      )}
-                    </div>
+                    <h3
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: 600,
+                        color: "var(--ink)",
+                        margin: 0,
+                      }}
+                    >
+                      {getSimplifiedRoundTitle(stage)}
+                    </h3>
                   </div>
                 </div>
 

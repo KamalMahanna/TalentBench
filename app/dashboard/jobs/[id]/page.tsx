@@ -22,7 +22,13 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { PipelineCanvas, PipelineStageItem } from "@/components/pipeline/pipeline-canvas";
+import {
+  PipelineCanvas,
+  PipelineStageItem,
+  StageStatus,
+  getSimplifiedRoundTitle,
+  getRoundStatusStyles,
+} from "@/components/pipeline/pipeline-canvas";
 import { ResumeScreeningConsole } from "@/components/pipeline/resume-screening-console";
 import { EmailStatusBadge } from "@/components/email/email-status-badge";
 import { SingleEmailModal } from "@/components/email/single-email-modal";
@@ -98,6 +104,85 @@ const labelStyle: React.CSSProperties = {
   textTransform: "uppercase",
   letterSpacing: "0.04em",
 };
+
+function computeRoundStatus(
+  round: { id: string; type: string; order: number; config?: string | null },
+  orderIdx: number,
+  candidates: Candidate[],
+  screeningLoading: boolean
+): StageStatus {
+  // 1. Explicit override if present in config JSON
+  if (round.config) {
+    try {
+      const parsed = JSON.parse(round.config);
+      if (parsed.status && parsed.status !== "auto") {
+        return parsed.status as StageStatus;
+      }
+    } catch {}
+  }
+
+  // 2. If screening is actively running and this is the active screening stage
+  if (screeningLoading && (round.type === "RESUME_SCREENING" || orderIdx === 0)) {
+    return "running";
+  }
+
+  if (!candidates || candidates.length === 0) {
+    return "pending";
+  }
+
+  // 3. For RESUME_SCREENING (order 0)
+  if (round.type === "RESUME_SCREENING" || orderIdx === 0) {
+    const hasInReview = candidates.some((c) => c.status === "IN_REVIEW");
+    if (hasInReview) return "running";
+
+    const hasAdvanced = candidates.some(
+      (c) => c.status === "SHORTLISTED" || c.status === "HIRED" || (c.currentRound && c.currentRound > 0)
+    );
+    if (hasAdvanced) return "finished";
+
+    const allRejected = candidates.length > 0 && candidates.every((c) => c.status === "REJECTED");
+    if (allRejected) return "failed";
+
+    const anyEvaluated = candidates.some(
+      (c) => c.status === "SHORTLISTED" || c.status === "REJECTED" || c.status === "HIRED" || (c.roundResults && c.roundResults.length > 0)
+    );
+    if (anyEvaluated) return "finished";
+
+    return "pending";
+  }
+
+  // 4. For subsequent rounds (orderIdx > 0)
+  // Check if any candidate has already progressed past this round
+  const passedPast = candidates.some((c) => (c.currentRound ?? 0) > orderIdx);
+  if (passedPast) {
+    return "finished";
+  }
+
+  // Check candidates currently in this round
+  const candidatesInThisRound = candidates.filter((c) => (c.currentRound ?? 0) === orderIdx);
+  if (candidatesInThisRound.length === 0) {
+    return "pending";
+  }
+
+  // If any candidate in this round is in review
+  if (candidatesInThisRound.some((c) => c.status === "IN_REVIEW")) {
+    return "running";
+  }
+
+  // Check round results specifically for this round
+  const resultsForThisRound = candidates
+    .flatMap((c) => c.roundResults || [])
+    .filter((r) => r.pipelineRoundId === round.id);
+
+  if (resultsForThisRound.length > 0) {
+    const anyPassed = resultsForThisRound.some((r) => r.passed === true);
+    const allFailed = resultsForThisRound.every((r) => r.passed === false);
+    if (anyPassed) return "finished";
+    if (allFailed) return "failed";
+  }
+
+  return "pending";
+}
 
 export default function JobWorkspacePage({
   params,
@@ -320,10 +405,11 @@ export default function JobWorkspacePage({
       {/* Main View: Pipeline Canvas by default */}
       {activeTab === "pipeline" && (
         <PipelineCanvas
-          stages={job.pipeline.map((p) => {
+          stages={job.pipeline.map((p, idx) => {
             let cutoff = 50;
             if (p.config) { try { const parsed = JSON.parse(p.config); if (parsed.cutoff) cutoff = Number(parsed.cutoff); } catch {} }
-            return { id: p.id, type: p.type, title: p.title, description: p.description, order: p.order, cutoff, config: p.config };
+            const status = computeRoundStatus(p, idx, job.candidates, screeningLoading);
+            return { id: p.id, type: p.type, title: p.title, description: p.description, order: p.order, cutoff, config: p.config, status };
           })}
           onChange={handleSyncPipeline}
           onExecuteStage={(stage) => {
@@ -374,32 +460,23 @@ export default function JobWorkspacePage({
               </button>
               <div style={{ height: "18px", width: "1px", background: "var(--outline)" }} className="hidden sm:block" />
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span
-                  style={{
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "999px",
-                    background: "var(--primary)",
-                  }}
-                />
+                {(() => {
+                  const statusStyle = getRoundStatusStyles(selectedStage?.status);
+                  return (
+                    <span
+                      style={{
+                        width: "8px",
+                        height: "8px",
+                        borderRadius: "999px",
+                        background: statusStyle.color || "var(--primary)",
+                      }}
+                      title={statusStyle.label}
+                    />
+                  );
+                })()}
                 <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--ink)" }}>
-                  {selectedStage?.title || "AI Resume Screening Round"}
+                  {getSimplifiedRoundTitle(selectedStage || { type: "RESUME_SCREENING" })}
                 </span>
-                {selectedStage?.type && (
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      fontWeight: 600,
-                      padding: "2px 8px",
-                      borderRadius: "999px",
-                      background: "var(--surface-purple)",
-                      color: "var(--primary-deep)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {selectedStage.type.replace("_", " ")}
-                  </span>
-                )}
               </div>
             </div>
 
@@ -667,22 +744,26 @@ export default function JobWorkspacePage({
                   onChange={(e) => {
                     setNewRoundType(e.target.value);
                     const defaults: Record<string, string> = {
-                      RESUME_SCREENING: "AI Resume Screening Round", APTITUDE: "Cognitive Aptitude Assessment",
-                      DSA: "Data Structures & Algorithms Challenge", COMMUNICATION: "Architecture & Communication Interview",
-                      HR_ROUND: "Executive HR & Culture Alignment", TECHNICAL: "Systems Engineering Review",
-                      CULTURE_FIT: "Team Fit Round", CUSTOM: "Custom Evaluation Round",
+                      RESUME_SCREENING: "Resume Shortlisting",
+                      APTITUDE: "Aptitude & Reasoning",
+                      DSA: "Coding & DSA",
+                      COMMUNICATION: "Communication",
+                      HR_ROUND: "HR round",
+                      TECHNICAL: "Technical Round",
+                      CULTURE_FIT: "Culture Fit",
+                      CUSTOM: "Custom Round",
                     };
                     setNewRoundTitle(defaults[e.target.value] || "Custom Round");
                   }}
                   style={inputStyle}
                 >
-                  <option value="DSA">DSA & Coding Round</option>
-                  <option value="APTITUDE">Aptitude & Logic</option>
-                  <option value="COMMUNICATION">Communication & Architecture</option>
-                  <option value="HR_ROUND">Executive HR Round</option>
-                  <option value="RESUME_SCREENING">AI Resume Screening</option>
-                  <option value="TECHNICAL">Technical Deep Dive</option>
-                  <option value="CULTURE_FIT">Culture Fit Round</option>
+                  <option value="RESUME_SCREENING">Resume Shortlisting</option>
+                  <option value="APTITUDE">Aptitude & Reasoning</option>
+                  <option value="DSA">Coding & DSA</option>
+                  <option value="COMMUNICATION">Communication</option>
+                  <option value="HR_ROUND">HR round</option>
+                  <option value="TECHNICAL">Technical Round</option>
+                  <option value="CULTURE_FIT">Culture Fit</option>
                   <option value="CUSTOM">Custom Round</option>
                 </select>
               </div>
