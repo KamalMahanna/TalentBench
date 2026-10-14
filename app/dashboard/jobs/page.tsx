@@ -129,10 +129,10 @@ export default function JobsListPage() {
             >
               <div
                 style={{ background: "var(--surface-high)", borderColor: "var(--outline)" }}
-                className="rounded-3xl p-6 sm:p-8 border"
+                className="rounded-3xl p-6 sm:p-7 border"
               >
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                  <div className="space-y-3 max-w-2xl">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-2 max-w-2xl">
                     <div className="flex flex-wrap items-center gap-2.5">
                       <h2 style={{ color: "var(--ink)" }} className="text-xl font-bold tracking-tight">
                         {job.title}
@@ -140,18 +140,20 @@ export default function JobsListPage() {
                       <Badge variant="ice">
                         Experience: {job.minExperience} - {job.maxExperience} Years
                       </Badge>
-                      <span style={{ color: "var(--muted)" }} className="text-[11px]">
-                        Created {formatDate(job.createdAt)}
-                      </span>
                     </div>
 
-                    <p style={{ color: "var(--muted)" }} className="text-xs sm:text-sm leading-relaxed line-clamp-2">
-                      {job.description}
-                    </p>
+                    <div style={{ color: "var(--muted)" }} className="flex flex-wrap items-center gap-3 text-xs">
+                      <span>Created {formatDate(job.createdAt)}</span>
+                      <span className="w-1 h-1 rounded-full bg-[var(--outline)]" />
+                      <span className="flex items-center gap-1.5">
+                        <Users size={14} style={{ color: "var(--primary)" }} />
+                        <strong style={{ color: "var(--ink)" }}>{job._count.candidates}</strong> Candidates
+                      </span>
+                    </div>
                   </div>
 
                   {/* Right side CTAs: Open Workspace or Delete */}
-                  <div className="flex items-center gap-2.5 shrink-0 self-end md:self-start">
+                  <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
                     <Link href={`/dashboard/jobs/${job.id}`}>
                       <button className="md-button md-button--filled inline-flex items-center gap-2 text-sm">
                         Rounds &amp; Candidates
@@ -171,42 +173,6 @@ export default function JobsListPage() {
                     >
                       <Trash2 size={16} />
                     </button>
-                  </div>
-                </div>
-
-                {/* Pipeline Connectors Strip */}
-                <div
-                  style={{ borderColor: "var(--outline)" }}
-                  className="mt-6 pt-6 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span style={{ color: "var(--muted)" }} className="text-xs">
-                      Hiring Rounds:
-                    </span>
-                    {job.pipeline.map((round) => (
-                      <span
-                        key={round.id}
-                        style={{
-                          background: "var(--surface-purple)",
-                          borderColor: "var(--outline)",
-                          color: "var(--ink)",
-                        }}
-                        className="text-xs px-3 py-1 rounded-lg border flex items-center gap-1.5"
-                      >
-                        <span
-                          className="w-1.5 h-1.5 rounded-full"
-                          style={{ background: "var(--primary)" }}
-                        />
-                        {round.title}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div style={{ color: "var(--muted)" }} className="flex items-center gap-4 text-xs shrink-0">
-                    <span className="flex items-center gap-1.5">
-                      <Users size={16} style={{ color: "var(--primary)" }} />
-                      <strong style={{ color: "var(--ink)" }}>{job._count.candidates}</strong> Candidates
-                    </span>
                   </div>
                 </div>
               </div>

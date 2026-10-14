@@ -95,45 +95,21 @@ export default function DashboardOverview() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "40px" }}>
+    <div className="space-y-8">
       {/* Page Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: "16px",
-          flexWrap: "wrap",
-        }}
-      >
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1
-            style={{
-              fontSize: "28px",
-              fontWeight: 700,
-              letterSpacing: "-0.04em",
-              color: "var(--ink)",
-              margin: 0,
-            }}
-          >
+          <h1 style={{ color: "var(--ink)" }} className="text-2xl sm:text-3xl font-bold tracking-tight">
             Recruitment Overview
           </h1>
-          <p
-            style={{
-              fontSize: "14px",
-              color: "var(--muted)",
-              marginTop: "6px",
-            }}
-          >
-            Monitor active candidate pipelines, review AI screening traces, and
-            customize evaluation stages.
+          <p style={{ color: "var(--muted)" }} className="text-xs sm:text-sm mt-1">
+            Monitor active candidate pipelines, review AI screening traces, and customize evaluation stages.
           </p>
         </div>
-        <Link
-          href="/dashboard/jobs/new"
-          className="md-button md-button--filled"
-        >
-          <Plus size={16} /> New Job Profile
+        <Link href="/dashboard/jobs/new">
+          <button className="md-button md-button--filled inline-flex items-center gap-2">
+            <Plus size={16} /> New Job Profile
+          </button>
         </Link>
       </div>
 
