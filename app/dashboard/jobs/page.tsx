@@ -73,10 +73,16 @@ export default function JobsListPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 style={{ color: "var(--ink)" }} className="text-2xl sm:text-3xl font-bold tracking-tight">
+          <h1
+            style={{ color: "var(--ink)", margin: "24px 0 0 0" }}
+            className="text-2xl sm:text-3xl font-bold tracking-tight"
+          >
             Job Profiles &amp; Hiring Rounds
           </h1>
-          <p style={{ color: "var(--muted)" }} className="text-xs sm:text-sm mt-1">
+          <p
+            style={{ color: "var(--muted)", marginTop: "6px" }}
+            className="text-xs sm:text-sm"
+          >
             Manage your open requisitions, mandatory experience parameters, and hiring rounds.
           </p>
         </div>
