@@ -7,7 +7,6 @@ import {
   Trash2,
   ArrowUp,
   ArrowDown,
-  Brain,
   Pencil,
   Upload,
 } from "lucide-react";
@@ -485,16 +484,6 @@ export function PipelineCanvas({
                     </button>
                   )}
 
-                  {onViewTraces && (
-                    <button
-                      type="button"
-                      onClick={() => onViewTraces(stage)}
-                      className="md-button md-button--tonal inline-flex items-center gap-1.5"
-                      style={{ fontSize: "12px", padding: "6px 13px" }}
-                    >
-                      <Brain size={13} /> AI Traces {candidateCount !== undefined ? `(${candidateCount})` : ""}
-                    </button>
-                  )}
 
                   {isEditable && (
                     <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>

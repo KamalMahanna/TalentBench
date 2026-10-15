@@ -13,7 +13,6 @@ import {
   GitBranch,
   Users,
   FileText,
-  Brain,
   Code,
   Upload,
   Sparkles,
@@ -27,7 +26,6 @@ import {
   PipelineStageItem,
   StageStatus,
   getSimplifiedRoundTitle,
-  getRoundStatusStyles,
 } from "@/components/pipeline/pipeline-canvas";
 import { ResumeScreeningConsole } from "@/components/pipeline/resume-screening-console";
 import { EmailStatusBadge } from "@/components/email/email-status-badge";
@@ -336,19 +334,6 @@ export default function JobWorkspacePage({
     try { parsedTrace = JSON.parse(latestResult.agentTrace); } catch {}
   }
 
-  const tabStyle = (active: boolean, color?: string): React.CSSProperties => ({
-    padding: "8px 16px",
-    borderRadius: "10px",
-    border: "none",
-    cursor: "pointer",
-    fontSize: "13px",
-    fontWeight: active ? 600 : 500,
-    fontFamily: "DM Sans, system-ui, sans-serif",
-    transition: "all 0.15s",
-    background: active ? (color || "var(--surface-purple)") : "transparent",
-    color: active ? (color ? "var(--on-primary)" : "var(--primary-deep)") : "var(--muted)",
-  });
-
   const modalOverlay: React.CSSProperties = {
     position: "fixed",
     inset: 0,
@@ -389,17 +374,60 @@ export default function JobWorkspacePage({
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
         <div>
-          <Link href="/dashboard/jobs" style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "var(--muted)", textDecoration: "none", marginBottom: "8px" }}>
-            <ArrowLeft size={14} /> Back to Job Profiles
-          </Link>
+          {activeTab === "pipeline" ? (
+            <Link
+              href="/dashboard/jobs"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                fontSize: "12px",
+                color: "var(--muted)",
+                textDecoration: "none",
+                marginBottom: "8px",
+              }}
+            >
+              <ArrowLeft size={14} /> Back to Job Profiles
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("pipeline");
+                setSelectedStage(null);
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                fontSize: "12px",
+                color: "var(--muted)",
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                marginBottom: "8px",
+                fontFamily: "inherit",
+              }}
+              className="hover:text-[var(--primary)] transition-colors"
+            >
+              <ArrowLeft size={14} /> Back to Rounds
+            </button>
+          )}
+
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px" }}>
-            <h1 style={{ fontSize: "24px", fontWeight: 700, letterSpacing: "-0.04em", color: "var(--ink)", margin: 0 }}>{job.title}</h1>
-            <Badge variant="default">
-              {job.minExperience}–{job.maxExperience} yrs
+            <h1 style={{ fontSize: "24px", fontWeight: 700, letterSpacing: "-0.04em", color: "var(--ink)", margin: 0 }}>
+              {activeTab === "pipeline"
+                ? job.title
+                : getSimplifiedRoundTitle(selectedStage || { type: "RESUME_SCREENING" })}
+            </h1>
+            <Badge variant={activeTab === "pipeline" ? "default" : "ice"}>
+              {activeTab === "pipeline"
+                ? `${job.minExperience}–${job.maxExperience} yrs`
+                : `${job.candidates.length} Candidate${job.candidates.length === 1 ? "" : "s"}`}
             </Badge>
           </div>
         </div>
-
       </div>
 
       {/* Main View: Pipeline Canvas by default */}
@@ -420,89 +448,14 @@ export default function JobWorkspacePage({
               setActiveTab("candidates");
             }
           }}
-          onViewTraces={(stage) => {
-            setSelectedStage(stage);
-            setActiveTab("candidates");
-          }}
           candidateCount={job.candidates.length}
           isEditable={true}
         />
       )}
 
-      {/* ── STAGE VIEWS: (Screening & AI Traces inside pipeline stages) ── */}
+      {/* ── STAGE VIEWS: (Screening & Evaluation inside pipeline stages) ── */}
       {activeTab !== "pipeline" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {/* Stage Context Bar */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "16px",
-              flexWrap: "wrap",
-              background: "var(--surface)",
-              border: "1px solid var(--outline)",
-              borderRadius: "18px",
-              padding: "12px 18px",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("pipeline");
-                  setSelectedStage(null);
-                }}
-                className="md-button md-button--tonal inline-flex items-center gap-1.5"
-                style={{ fontSize: "12px", padding: "6px 14px", cursor: "pointer" }}
-              >
-                <ArrowLeft size={14} /> Back to Rounds
-              </button>
-              <div style={{ height: "18px", width: "1px", background: "var(--outline)" }} className="hidden sm:block" />
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                {(() => {
-                  const statusStyle = getRoundStatusStyles(selectedStage?.status);
-                  return (
-                    <span
-                      style={{
-                        width: "8px",
-                        height: "8px",
-                        borderRadius: "999px",
-                        background: statusStyle.color || "var(--primary)",
-                      }}
-                      title={statusStyle.label}
-                    />
-                  );
-                })()}
-                <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--ink)" }}>
-                  {getSimplifiedRoundTitle(selectedStage || { type: "RESUME_SCREENING" })}
-                </span>
-              </div>
-            </div>
-
-            {/* Stage Internal Switcher (Screening vs AI Traces) */}
-            <div className="flex items-center gap-1 bg-[var(--surface-high)] rounded-xl p-1 border border-[var(--outline)] shrink-0">
-              <button
-                type="button"
-                onClick={() => setActiveTab("screening")}
-                style={tabStyle(activeTab === "screening", "var(--green)")}
-                className="shrink-0 whitespace-nowrap text-xs"
-              >
-                <Upload size={12} style={{ display: "inline", marginRight: "4px" }} />
-                Screening Console
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("candidates")}
-                style={tabStyle(activeTab === "candidates")}
-                className="shrink-0 whitespace-nowrap text-xs"
-              >
-                <Brain size={12} style={{ display: "inline", marginRight: "4px" }} />
-                AI Traces ({job.candidates.length})
-              </button>
-            </div>
-          </div>
-
           {/* TAB 2: Resume Screening */}
           {activeTab === "screening" && (
             <ResumeScreeningConsole
@@ -609,14 +562,14 @@ export default function JobWorkspacePage({
                 )}
               </div>
 
-              {/* Right: AI Trace panel */}
+              {/* Right: Candidate Evaluation panel */}
               <div className="lg:col-span-7">
                 {selectedCandidate ? (
                   <div style={{ background: "var(--surface-high)", border: "1px solid var(--outline)", borderRadius: "22px", padding: "24px", display: "flex", flexDirection: "column", gap: "20px" }}>
                     {/* Candidate header */}
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-[var(--outline)]">
                       <div>
-                        <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted)" }}>AI Screening Console</div>
+                        <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted)" }}>Evaluation Console</div>
                         <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--ink)", margin: "4px 0 2px", letterSpacing: "-0.03em" }}>{selectedCandidate.name}</h3>
                         <div style={{ fontSize: "12px", color: "var(--muted)" }}>
                           {selectedCandidate.experienceYears} yrs · Target [{job.minExperience}–{job.maxExperience} yrs]
@@ -722,7 +675,7 @@ export default function JobWorkspacePage({
                   </div>
                 ) : (
                   <div style={{ padding: "64px", textAlign: "center", color: "var(--muted)", fontSize: "13px", background: "var(--surface)", borderRadius: "22px" }}>
-                    Select a candidate to inspect their AI trace.
+                    Select a candidate to view evaluation details.
                   </div>
                 )}
               </div>
