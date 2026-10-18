@@ -80,7 +80,7 @@ export default function DashboardLayout({
             alt="TalentBench Logo"
             width={26}
             height={26}
-            className="w-6.5 h-6.5 object-contain"
+            className="w-[26px] h-[26px] object-contain"
             priority
           />
           <span className="font-bold tracking-tight">TalentBench</span>

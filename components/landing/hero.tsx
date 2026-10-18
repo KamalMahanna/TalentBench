@@ -745,7 +745,7 @@ export default function Home() {
             alt="TalentBench Logo"
             width={26}
             height={26}
-            className="w-6.5 h-6.5 object-contain"
+            className="w-[26px] h-[26px] object-contain"
           />
           <span>TalentBench</span>
         </a>

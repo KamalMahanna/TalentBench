@@ -103,7 +103,7 @@ export default function LoginPage() {
               alt="TalentBench Logo"
               width={52}
               height={52}
-              className="w-13 h-13 object-contain"
+              className="w-[52px] h-[52px] object-contain"
               priority
             />
           </div>
