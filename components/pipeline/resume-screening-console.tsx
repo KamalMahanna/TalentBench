@@ -2769,8 +2769,7 @@ export function ResumeScreeningConsole({
             alignItems: "center",
             justifyContent: "center",
             padding: "16px",
-            background: "rgba(41, 38, 49, 0.4)",
-            backdropFilter: "blur(6px)",
+            background: "rgba(0, 0, 0, 0.65)",
           }}
         >
           <div

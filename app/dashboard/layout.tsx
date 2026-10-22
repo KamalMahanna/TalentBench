@@ -118,7 +118,7 @@ export default function DashboardLayout({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={() => setMobileMenuOpen(false)}
-              className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+              className="lg:hidden fixed inset-0 z-40 bg-black/60"
               aria-hidden="true"
             />
 

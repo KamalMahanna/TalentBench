@@ -227,8 +227,7 @@ export function ConnectorNodeModal({
         alignItems: "center",
         justifyContent: "center",
         padding: "16px",
-        background: "rgba(0,0,0,0.5)",
-        backdropFilter: "blur(6px)",
+        background: "rgba(0, 0, 0, 0.65)",
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"

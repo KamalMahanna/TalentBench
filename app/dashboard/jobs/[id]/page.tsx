@@ -366,8 +366,7 @@ export default function JobWorkspacePage({
     alignItems: "center",
     justifyContent: "center",
     padding: "16px",
-    background: "rgba(0,0,0,0.4)",
-    backdropFilter: "blur(4px)",
+    background: "rgba(0, 0, 0, 0.65)",
   };
 
   const modalCard: React.CSSProperties = {

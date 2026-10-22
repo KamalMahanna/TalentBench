@@ -833,8 +833,7 @@ export default function CandidateDossierPage({
             alignItems: "center",
             justifyContent: "center",
             padding: "16px",
-            background: "rgba(0,0,0,0.5)",
-            backdropFilter: "blur(4px)",
+            background: "rgba(0, 0, 0, 0.65)",
           }}
         >
           <div

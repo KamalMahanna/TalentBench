@@ -103,9 +103,7 @@ export function ConfirmationModal({
         alignItems: "center",
         justifyContent: "center",
         padding: "16px",
-        background: "rgba(0, 0, 0, 0.45)",
-        backdropFilter: "blur(6px)",
-        WebkitBackdropFilter: "blur(6px)",
+        background: "rgba(0, 0, 0, 0.65)",
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget && !isLoading) {
