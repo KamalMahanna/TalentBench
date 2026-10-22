@@ -6,6 +6,7 @@ import { Briefcase, Trash2, Users, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 
 interface JobProfileItem {
   id: string;
@@ -24,7 +25,8 @@ interface JobProfileItem {
 export default function JobsListPage() {
   const [jobs, setJobs] = useState<JobProfileItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [jobToDelete, setJobToDelete] = useState<JobProfileItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchJobs = () => {
     fetch("/api/jobs")
@@ -43,28 +45,31 @@ export default function JobsListPage() {
     fetchJobs();
   }, []);
 
-  const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`Are you sure you want to permanently delete "${title}" and all its candidate records?`)) {
-      return;
-    }
+  const handleOpenDeleteModal = (job: JobProfileItem) => {
+    setJobToDelete(job);
+  };
 
-    setDeletingId(id);
+  const handleConfirmDelete = async () => {
+    if (!jobToDelete) return;
+
+    setIsDeleting(true);
     try {
-      const res = await fetch(`/api/jobs/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/jobs/${jobToDelete.id}`, { method: "DELETE" });
       const data = await res.json();
 
       if (!res.ok) {
         toast.error(data.error || "Failed to delete profile.");
-        setDeletingId(null);
+        setIsDeleting(false);
         return;
       }
 
-      toast.success(`Job profile "${title}" deleted.`);
-      setJobs((prev) => prev.filter((j) => j.id !== id));
-      setDeletingId(null);
+      toast.success(`Job profile "${jobToDelete.title}" deleted.`);
+      setJobs((prev) => prev.filter((j) => j.id !== jobToDelete.id));
+      setJobToDelete(null);
     } catch (err) {
       toast.error("Network error while deleting.");
-      setDeletingId(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -167,9 +172,8 @@ export default function JobsListPage() {
                       </button>
                     </Link>
                     <button
-                      onClick={() => handleDelete(job.id, job.title)}
-                      disabled={deletingId === job.id}
-                      className="p-2.5 rounded-xl transition-all disabled:opacity-50"
+                      onClick={() => handleOpenDeleteModal(job)}
+                      className="p-2.5 rounded-xl transition-all disabled:opacity-50 hover:bg-rose-500/20 cursor-pointer"
                       style={{
                         background: "rgba(239,68,68,0.1)",
                         color: "#f87171",
@@ -185,6 +189,30 @@ export default function JobsListPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Themed Confirmation Modal */}
+      {jobToDelete && (
+        <ConfirmationModal
+          isOpen={Boolean(jobToDelete)}
+          onClose={() => {
+            if (!isDeleting) setJobToDelete(null);
+          }}
+          onConfirm={handleConfirmDelete}
+          title="Delete Job Profile"
+          itemName={jobToDelete.title}
+          itemTypeLabel="Job Requisition"
+          description={
+            <span>
+              Are you sure you want to permanently delete <strong>{jobToDelete.title}</strong>? All configured hiring rounds, automated screening criteria, and {jobToDelete._count.candidates} candidate evaluation record{jobToDelete._count.candidates === 1 ? "" : "s"} will be permanently removed.
+            </span>
+          }
+          warningNote="This action cannot be undone. All candidate scoring data and round results for this role will be deleted immediately."
+          confirmText="Delete Profile"
+          cancelText="Cancel"
+          variant="danger"
+          isLoading={isDeleting}
+        />
       )}
     </div>
   );

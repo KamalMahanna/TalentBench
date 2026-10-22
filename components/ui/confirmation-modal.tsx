@@ -56,22 +56,57 @@ export function ConfirmationModal({
   const isDanger = variant === "danger";
   const isWarning = variant === "warning";
 
-  const iconBg = isDanger
-    ? "bg-rose-500/15 text-rose-500 border border-rose-500/30"
+  const iconBgStyle: React.CSSProperties = isDanger
+    ? {
+        background: "rgba(239, 68, 68, 0.12)",
+        color: "#dc2626",
+        border: "1px solid rgba(239, 68, 68, 0.25)",
+      }
     : isWarning
-    ? "bg-amber-500/15 text-amber-500 border border-amber-500/30"
-    : "bg-blue-500/15 text-blue-500 border border-blue-500/30";
+    ? {
+        background: "rgba(245, 158, 11, 0.12)",
+        color: "#d97706",
+        border: "1px solid rgba(245, 158, 11, 0.25)",
+      }
+    : {
+        background: "var(--surface-purple)",
+        color: "var(--primary-deep)",
+        border: "1px solid var(--outline)",
+      };
 
-  const confirmBtnClasses = isDanger
-    ? "bg-rose-600 hover:bg-rose-500 text-white shadow-[0_2px_10px_rgba(225,29,72,0.3)]"
+  const confirmBtnStyle: React.CSSProperties = isDanger
+    ? {
+        background: "#dc2626",
+        color: "#ffffff",
+        boxShadow: "0 3px 12px rgba(220, 38, 38, 0.3)",
+      }
     : isWarning
-    ? "bg-amber-600 hover:bg-amber-500 text-white shadow-[0_2px_10px_rgba(217,119,6,0.3)]"
-    : "bg-[var(--primary)] hover:opacity-90 text-[var(--on-primary)] shadow-[0_2px_10px_rgba(103,80,164,0.3)]";
+    ? {
+        background: "#d97706",
+        color: "#ffffff",
+        boxShadow: "0 3px 12px rgba(217, 119, 6, 0.3)",
+      }
+    : {
+        background: "var(--primary)",
+        color: "var(--on-primary)",
+        boxShadow: "0 3px 12px rgba(108, 76, 220, 0.25)",
+      };
 
   return createPortal(
     <div
       data-lenis-prevent
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 99999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+        background: "rgba(0, 0, 0, 0.45)",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
+      }}
       onClick={(e) => {
         if (e.target === e.currentTarget && !isLoading) {
           onClose();
@@ -82,37 +117,69 @@ export function ConfirmationModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirmation-modal-title"
-        className="relative w-full max-w-md rounded-3xl p-6 sm:p-7 border shadow-2xl space-y-5 animate-in zoom-in-95 duration-150"
         style={{
-          backgroundColor: "var(--surface)",
-          borderColor: "var(--outline)",
+          position: "relative",
+          width: "100%",
+          maxWidth: "460px",
+          background: "var(--surface-high)",
+          border: "1px solid var(--outline)",
+          borderRadius: "24px",
+          padding: "26px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "18px",
+          boxShadow: "0 22px 55px rgba(27, 26, 34, 0.18)",
+          fontFamily: '"DM Sans", system-ui, sans-serif',
           color: "var(--ink)",
         }}
       >
-        {/* Top Header Strip with Icon */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className={`p-3 rounded-2xl shrink-0 ${iconBg}`}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div
+              style={{
+                width: "44px",
+                height: "44px",
+                borderRadius: "14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                ...iconBgStyle,
+              }}
+            >
               {isDanger ? (
-                <Trash2 size={22} className="shrink-0" />
+                <Trash2 size={20} />
               ) : isWarning ? (
-                <AlertTriangle size={22} className="shrink-0" />
+                <AlertTriangle size={20} />
               ) : (
-                <Info size={22} className="shrink-0" />
+                <Info size={20} />
               )}
             </div>
             <div>
               <h3
                 id="confirmation-modal-title"
-                className="text-base sm:text-lg font-bold leading-tight"
-                style={{ color: "var(--ink)" }}
+                style={{
+                  fontSize: "17px",
+                  fontWeight: 700,
+                  color: "var(--ink)",
+                  margin: 0,
+                  letterSpacing: "-0.03em",
+                }}
               >
                 {title}
               </h3>
               {itemTypeLabel && (
                 <span
-                  className="text-[11px] font-mono uppercase tracking-wider block mt-0.5"
-                  style={{ color: "var(--muted)" }}
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    color: "var(--muted)",
+                    display: "block",
+                    marginTop: "2px",
+                  }}
                 >
                   {itemTypeLabel}
                 </span>
@@ -124,59 +191,95 @@ export function ConfirmationModal({
             type="button"
             onClick={onClose}
             disabled={isLoading}
-            className="p-1.5 rounded-full hover:opacity-75 transition-colors cursor-pointer"
-            style={{ color: "var(--muted)" }}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--muted)",
+              cursor: "pointer",
+              padding: "4px",
+              display: "flex",
+              borderRadius: "50%",
+            }}
             aria-label="Close dialog"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Item Spotlight Badge if provided */}
+        {/* Item Spotlight Badge */}
         {itemName && (
           <div
-            className="px-3.5 py-2.5 rounded-xl border flex items-center gap-2 text-xs font-mono"
             style={{
-              backgroundColor: "var(--canvas)",
-              borderColor: "var(--outline)",
-              color: "var(--ink)",
+              padding: "10px 14px",
+              borderRadius: "14px",
+              background: "var(--surface)",
+              border: "1px solid var(--outline)",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "12px",
             }}
           >
-            <span style={{ color: "var(--muted)" }}>Target:</span>
-            <span className="font-bold truncate">{itemName}</span>
+            <span style={{ color: "var(--muted)", fontWeight: 600 }}>Target:</span>
+            <span style={{ color: "var(--ink)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {itemName}
+            </span>
           </div>
         )}
 
         {/* Description Body */}
         <div
-          className="text-xs sm:text-sm leading-relaxed"
-          style={{ color: "var(--muted)" }}
+          style={{
+            fontSize: "13px",
+            color: "var(--muted)",
+            lineHeight: 1.6,
+          }}
         >
           {description}
         </div>
 
-        {/* Warning Callout if provided */}
+        {/* Warning Callout */}
         {warningNote && (
-          <div className="p-3.5 rounded-xl border flex items-start gap-2 text-xs bg-amber-500/10 border-amber-500/25 text-amber-600 dark:text-amber-400 leading-normal">
-            <AlertTriangle size={15} className="shrink-0 mt-0.5" />
+          <div
+            style={{
+              padding: "12px 14px",
+              borderRadius: "14px",
+              background: "rgba(245, 158, 11, 0.08)",
+              border: "1px solid rgba(245, 158, 11, 0.22)",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "8px",
+              fontSize: "12px",
+              color: "#b45309",
+              lineHeight: 1.5,
+            }}
+          >
+            <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: "2px" }} />
             <span>{warningNote}</span>
           </div>
         )}
 
         {/* Action Controls */}
         <div
-          className="flex items-center justify-end gap-3 pt-3 border-t"
-          style={{ borderColor: "var(--outline)" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: "10px",
+            paddingTop: "14px",
+            borderTop: "1px solid var(--outline)",
+          }}
         >
           <button
             type="button"
             onClick={onClose}
             disabled={isLoading}
-            className="px-4 py-2 rounded-full text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+            className="md-button md-button--text"
             style={{
-              backgroundColor: "var(--canvas)",
-              color: "var(--ink)",
-              border: "1px solid var(--outline)",
+              fontSize: "12px",
+              minHeight: "38px",
+              padding: "0 16px",
+              color: "var(--muted)",
             }}
           >
             {cancelText}
@@ -188,10 +291,23 @@ export function ConfirmationModal({
               await onConfirm();
             }}
             disabled={isLoading}
-            className={`px-5 py-2 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${confirmBtnClasses}`}
+            className="md-button"
+            style={{
+              fontSize: "12px",
+              minHeight: "38px",
+              padding: "0 18px",
+              borderRadius: "999px",
+              border: "none",
+              cursor: "pointer",
+              fontWeight: 600,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              ...confirmBtnStyle,
+            }}
           >
             {isLoading && <Loader2 size={13} className="animate-spin" />}
-            {isLoading ? "Processing..." : confirmText}
+            {isLoading ? "Deleting..." : confirmText}
           </button>
         </div>
       </div>
@@ -199,4 +315,3 @@ export function ConfirmationModal({
     document.body
   );
 }
-

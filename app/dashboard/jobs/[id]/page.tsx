@@ -20,6 +20,7 @@ import {
   Send,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   PipelineCanvas,
@@ -31,6 +32,7 @@ import { RoundExecutionRouter } from "@/components/pipeline/round-execution-rout
 import { EmailStatusBadge } from "@/components/email/email-status-badge";
 import { SingleEmailModal } from "@/components/email/single-email-modal";
 import { BulkEmailModal } from "@/components/email/bulk-email-modal";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 
 interface PipelineRound {
   id: string;
@@ -188,6 +190,7 @@ export default function JobWorkspacePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
 
   const [job, setJob] = useState<JobDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -209,6 +212,27 @@ export default function JobWorkspacePage({
   const [screeningLoading, setScreeningLoading] = useState(false);
   const [emailCandidate, setEmailCandidate] = useState<Candidate | null>(null);
   const [isBulkEmailOpen, setIsBulkEmailOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeletingJob, setIsDeletingJob] = useState(false);
+
+  const handleConfirmDeleteJob = async () => {
+    if (!job) return;
+    setIsDeletingJob(true);
+    try {
+      const res = await fetch(`/api/jobs/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Failed to delete profile.");
+        setIsDeletingJob(false);
+        return;
+      }
+      toast.success(`Job profile "${job.title}" deleted.`);
+      router.push("/dashboard/jobs");
+    } catch {
+      toast.error("Network error while deleting job profile.");
+      setIsDeletingJob(false);
+    }
+  };
 
   const fetchJob = async () => {
     try {
@@ -448,6 +472,24 @@ export default function JobWorkspacePage({
             >
               <Users size={13} /> + Register Candidate
             </button>
+            <button
+              type="button"
+              onClick={() => setShowDeleteModal(true)}
+              className="p-2 rounded-xl transition-all cursor-pointer hover:bg-rose-500/20"
+              style={{
+                background: "rgba(239, 68, 68, 0.1)",
+                color: "#f87171",
+                border: "1px solid rgba(239, 68, 68, 0.2)",
+                height: "38px",
+                width: "38px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              title="Delete Job Profile"
+            >
+              <Trash2 size={15} />
+            </button>
           </div>
         )}
       </div>
@@ -630,6 +672,30 @@ export default function JobWorkspacePage({
           await fetchJob();
         }}
       />
+
+      {/* Themed Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <ConfirmationModal
+          isOpen={showDeleteModal}
+          onClose={() => {
+            if (!isDeletingJob) setShowDeleteModal(false);
+          }}
+          onConfirm={handleConfirmDeleteJob}
+          title="Delete Job Profile"
+          itemName={job.title}
+          itemTypeLabel="Job Requisition"
+          description={
+            <span>
+              Are you sure you want to permanently delete <strong>{job.title}</strong>? All configured hiring rounds, automated screening criteria, and {job.candidates.length} candidate evaluation record{job.candidates.length === 1 ? "" : "s"} will be permanently purged.
+            </span>
+          }
+          warningNote="This action cannot be undone. All candidate scoring data and round results for this role will be deleted immediately."
+          confirmText="Delete Profile"
+          cancelText="Cancel"
+          variant="danger"
+          isLoading={isDeletingJob}
+        />
+      )}
     </div>
   );
 }
