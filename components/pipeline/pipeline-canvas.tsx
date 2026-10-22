@@ -9,6 +9,13 @@ import {
   ArrowDown,
   Pencil,
   Upload,
+  FileText,
+  Brain,
+  Code,
+  MessageSquare,
+  Users,
+  Terminal,
+  Sparkles,
 } from "lucide-react";
 import { ConnectorNodeModal, ConnectorStageConfig } from "./connector-node-modal";
 
@@ -119,6 +126,31 @@ export function getSimplifiedRoundTitle(stage: { title?: string | null; type?: s
   }
 
   return stage.title || "Round";
+}
+
+export function getStageButtonConfig(stage: { title?: string | null; type?: string | null } | null | undefined) {
+  const type = stage?.type?.toUpperCase() || "";
+  const title = (stage?.title || "").toLowerCase();
+
+  if (type === "RESUME_SCREENING" || title.includes("resume")) {
+    return { label: "Screening Console", Icon: FileText };
+  }
+  if (type === "APTITUDE" || title.includes("aptitude")) {
+    return { label: "Aptitude Console", Icon: Brain };
+  }
+  if (type === "DSA" || title.includes("dsa") || title.includes("coding")) {
+    return { label: "Coding Sandbox", Icon: Code };
+  }
+  if (type === "COMMUNICATION" || title.includes("communication")) {
+    return { label: "Communication Console", Icon: MessageSquare };
+  }
+  if (type === "HR_ROUND" || type === "CULTURE_FIT" || title.includes("hr") || title.includes("culture")) {
+    return { label: "HR & Culture Console", Icon: Users };
+  }
+  if (type === "TECHNICAL" || title.includes("technical")) {
+    return { label: "Technical Console", Icon: Terminal };
+  }
+  return { label: "Review Console", Icon: Sparkles };
 }
 
 export function PipelineCanvas({
@@ -462,27 +494,20 @@ export function PipelineCanvas({
 
                 {/* Actions */}
                 <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto pt-2.5 sm:pt-0 border-t sm:border-t-0 border-[var(--outline)]">
-                  {onExecuteStage && stage.type === "RESUME_SCREENING" && (
-                    <button
-                      type="button"
-                      onClick={() => onExecuteStage(stage)}
-                      className="md-button md-button--tonal inline-flex items-center gap-1.5"
-                      style={{ fontSize: "12px", padding: "6px 13px" }}
-                    >
-                      <Upload size={13} /> Screening Console
-                    </button>
-                  )}
-
-                  {onExecuteStage && stage.type !== "RESUME_SCREENING" && (
-                    <button
-                      type="button"
-                      onClick={() => onExecuteStage(stage)}
-                      className="md-button md-button--tonal inline-flex items-center gap-1.5"
-                      style={{ fontSize: "12px", padding: "6px 13px" }}
-                    >
-                      <Upload size={13} /> Execute Stage
-                    </button>
-                  )}
+                  {onExecuteStage && (() => {
+                    const btn = getStageButtonConfig(stage);
+                    const BtnIcon = btn.Icon;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => onExecuteStage(stage)}
+                        className="md-button md-button--tonal inline-flex items-center gap-1.5"
+                        style={{ fontSize: "12px", padding: "6px 13px" }}
+                      >
+                        <BtnIcon size={13} /> {btn.label}
+                      </button>
+                    );
+                  })()}
 
 
                   {isEditable && (
