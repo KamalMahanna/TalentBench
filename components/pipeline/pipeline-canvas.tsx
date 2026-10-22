@@ -18,6 +18,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { ConnectorNodeModal, ConnectorStageConfig } from "./connector-node-modal";
+import { RoundStatusDropdown } from "./round-status-dropdown";
 
 export type StageStatus = "finished" | "running" | "failed" | "pending";
 
@@ -479,16 +480,50 @@ export function PipelineCanvas({
 
                   {/* Details */}
                   <div style={{ minWidth: 0 }}>
-                    <h3
-                      style={{
-                        fontSize: "14px",
-                        fontWeight: 600,
-                        color: "var(--ink)",
-                        margin: 0,
-                      }}
-                    >
-                      {getSimplifiedRoundTitle(stage)}
-                    </h3>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      <h3
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: 600,
+                          color: "var(--ink)",
+                          margin: 0,
+                        }}
+                      >
+                        {getSimplifiedRoundTitle(stage)}
+                      </h3>
+                      {isEditable && (
+                        <RoundStatusDropdown
+                          value={(() => {
+                            try {
+                              const parsed = stage.config ? JSON.parse(stage.config) : {};
+                              if (parsed.status) return parsed.status;
+                            } catch {}
+                            return stage.status || "auto";
+                          })()}
+                          onChange={(newStatus) => {
+                            let updatedConfig = stage.config;
+                            try {
+                              const parsed = stage.config ? JSON.parse(stage.config) : {};
+                              parsed.status = newStatus;
+                              updatedConfig = JSON.stringify(parsed);
+                            } catch {
+                              updatedConfig = JSON.stringify({ status: newStatus });
+                            }
+                            const updated = stages.map((s, i) =>
+                              i === idx
+                                ? {
+                                    ...s,
+                                    status: newStatus === "auto" ? undefined : newStatus,
+                                    config: updatedConfig,
+                                  }
+                                : s
+                            );
+                            onChange(updated);
+                          }}
+                          compact={true}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
 

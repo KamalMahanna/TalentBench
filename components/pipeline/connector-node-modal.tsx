@@ -13,6 +13,7 @@ import {
   Sparkles,
   Info,
 } from "lucide-react";
+import { RoundStatusDropdown } from "./round-status-dropdown";
 
 export interface ConnectorStageConfig {
   type: string;
@@ -356,17 +357,10 @@ export function ConnectorNodeModal({
               <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "6px" }}>
                 Round Status
               </label>
-              <select
+              <RoundStatusDropdown
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                style={inputStyle}
-              >
-                <option value="auto">Auto (Calculated from Candidate Progress)</option>
-                <option value="pending">Not Finished / Pending (Theme Color)</option>
-                <option value="running">Running (Amber / Yellow)</option>
-                <option value="finished">Finished (Green)</option>
-                <option value="failed">Failed (Red)</option>
-              </select>
+                onChange={(val) => setStatus(val)}
+              />
             </div>
 
             {/* I/O Spec */}
