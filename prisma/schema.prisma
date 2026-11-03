@@ -20,6 +20,7 @@ model User {
 model JobProfile {
   id            String          @id @default(cuid())
   title         String
+  company       String?
   description   String
   minExperience Int
   maxExperience Int

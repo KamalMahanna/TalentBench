@@ -88,7 +88,7 @@ export async function PATCH(
       user = await getOrCreateDemoUser();
     }
 
-    const { title, description, minExperience, maxExperience } = await req.json();
+    const { title, company, description, minExperience, maxExperience } = await req.json();
 
     const existingJob = await prisma.jobProfile.findFirst({
       where: { id, userId: user.id },
@@ -102,6 +102,7 @@ export async function PATCH(
       where: { id },
       data: {
         ...(title ? { title: title.trim() } : {}),
+        ...(company !== undefined ? { company: company ? String(company).trim() : null } : {}),
         ...(description ? { description: description.trim() } : {}),
         ...(minExperience !== undefined ? { minExperience: Number(minExperience) } : {}),
         ...(maxExperience !== undefined ? { maxExperience: Number(maxExperience) } : {}),

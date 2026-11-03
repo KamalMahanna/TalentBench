@@ -18,7 +18,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { ConnectorNodeModal, ConnectorStageConfig } from "./connector-node-modal";
-import { RoundStatusDropdown } from "./round-status-dropdown";
 
 export type StageStatus = "finished" | "running" | "failed" | "pending";
 
@@ -173,31 +172,6 @@ export function PipelineCanvas({
   const handleOpenEditModal = (idx: number) => {
     setEditIndex(idx);
     setModalOpen(true);
-  };
-
-  const handleCycleStatus = (idx: number) => {
-    if (!isEditable) return;
-    const currentStage = stages[idx];
-    const currentStatus = (currentStage.status || "pending").toLowerCase();
-    let nextStatus: StageStatus = "finished";
-    if (currentStatus === "pending") nextStatus = "running";
-    else if (currentStatus === "running") nextStatus = "finished";
-    else if (currentStatus === "finished") nextStatus = "failed";
-    else if (currentStatus === "failed") nextStatus = "pending";
-
-    let updatedConfig = currentStage.config;
-    try {
-      const parsed = currentStage.config ? JSON.parse(currentStage.config) : {};
-      parsed.status = nextStatus;
-      updatedConfig = JSON.stringify(parsed);
-    } catch {
-      updatedConfig = JSON.stringify({ status: nextStatus });
-    }
-
-    const updated = stages.map((s, i) =>
-      i === idx ? { ...s, status: nextStatus, config: updatedConfig } : s
-    );
-    onChange(updated);
   };
 
   const handleSaveStage = (config: ConnectorStageConfig) => {
@@ -443,12 +417,7 @@ export function PipelineCanvas({
                   {(() => {
                     const statusStyle = getRoundStatusStyles(stage.status);
                     return (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCycleStatus(idx);
-                        }}
+                      <div
                         className={statusStyle.isRunning ? "round-no-running" : ""}
                         style={{
                           width: "36px",
@@ -463,18 +432,13 @@ export function PipelineCanvas({
                           fontSize: "12px",
                           fontWeight: 700,
                           flexShrink: 0,
-                          cursor: isEditable ? "pointer" : "default",
                           transition: "all 0.25s ease",
                           padding: 0,
                         }}
-                        title={
-                          isEditable
-                            ? `Round 0${idx + 1} (${statusStyle.label}) · Click to toggle status`
-                            : `Round 0${idx + 1} (${statusStyle.label})`
-                        }
+                        title={`Round 0${idx + 1}`}
                       >
                         0{idx + 1}
-                      </button>
+                      </div>
                     );
                   })()}
 
@@ -491,38 +455,6 @@ export function PipelineCanvas({
                       >
                         {getSimplifiedRoundTitle(stage)}
                       </h3>
-                      {isEditable && (
-                        <RoundStatusDropdown
-                          value={(() => {
-                            try {
-                              const parsed = stage.config ? JSON.parse(stage.config) : {};
-                              if (parsed.status) return parsed.status;
-                            } catch {}
-                            return stage.status || "auto";
-                          })()}
-                          onChange={(newStatus) => {
-                            let updatedConfig = stage.config;
-                            try {
-                              const parsed = stage.config ? JSON.parse(stage.config) : {};
-                              parsed.status = newStatus;
-                              updatedConfig = JSON.stringify(parsed);
-                            } catch {
-                              updatedConfig = JSON.stringify({ status: newStatus });
-                            }
-                            const updated = stages.map((s, i) =>
-                              i === idx
-                                ? {
-                                    ...s,
-                                    status: newStatus === "auto" ? undefined : newStatus,
-                                    config: updatedConfig,
-                                  }
-                                : s
-                            );
-                            onChange(updated);
-                          }}
-                          compact={true}
-                        />
-                      )}
                     </div>
                   </div>
                 </div>

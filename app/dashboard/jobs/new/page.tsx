@@ -10,6 +10,7 @@ import { motion } from "motion/react";
 
 export default function NewJobProfilePage() {
   const router = useRouter();
+  const [company, setCompany] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [minExperience, setMinExperience] = useState<number>(3);
@@ -35,6 +36,7 @@ export default function NewJobProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!company.trim()) { toast.error("Company name is required."); return; }
     if (!title.trim()) { toast.error("Job title is required."); return; }
     if (!description.trim()) { toast.error("Job description is required."); return; }
     if (minExperience < 0 || maxExperience < minExperience) {
@@ -47,6 +49,7 @@ export default function NewJobProfilePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          company: company.trim(),
           title: title.trim(),
           description: description.trim(),
           minExperience: Number(minExperience),
@@ -140,6 +143,18 @@ export default function NewJobProfilePage() {
             <span style={{ width: "8px", height: "8px", borderRadius: "999px", background: "var(--primary)", flexShrink: 0, display: "inline-block" }} />
             Role Specification
           </h2>
+
+          <div>
+            <label style={labelStyle}>Company Name</label>
+            <input
+              type="text"
+              required
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              placeholder="e.g. Vanguard Systems"
+              style={inputStyle}
+            />
+          </div>
 
           <div>
             <label style={labelStyle}>Job Title</label>

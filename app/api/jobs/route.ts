@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       user = await getOrCreateDemoUser();
     }
 
-    const { title, description, minExperience, maxExperience, initialRounds } = await req.json();
+    const { title, company, description, minExperience, maxExperience, initialRounds } = await req.json();
 
     // Strict validation for mandatory fields per user prompt
     if (!title || typeof title !== "string" || !title.trim()) {
@@ -151,9 +151,12 @@ export async function POST(req: Request) {
             },
           ];
 
+    const resolvedCompany = company ? String(company).trim() : user.company || null;
+
     const job = await prisma.jobProfile.create({
       data: {
         title: title.trim(),
+        company: resolvedCompany,
         description: description.trim(),
         minExperience: minExp,
         maxExperience: maxExp,

@@ -75,6 +75,7 @@ interface Candidate {
 interface JobDetail {
   id: string;
   title: string;
+  company?: string | null;
   description: string;
   minExperience: number;
   maxExperience: number;
@@ -444,6 +445,21 @@ export default function JobWorkspacePage({
                 ? job.title
                 : getSimplifiedRoundTitle(selectedStage || { type: "RESUME_SCREENING" })}
             </h1>
+            {activeTab === "pipeline" && job.company && (
+              <span
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  padding: "3px 10px",
+                  borderRadius: "999px",
+                  background: "var(--surface)",
+                  border: "1px solid var(--outline)",
+                  color: "var(--ink)",
+                }}
+              >
+                {job.company}
+              </span>
+            )}
             <Badge variant={activeTab === "pipeline" ? "default" : "ice"}>
               {activeTab === "pipeline"
                 ? `${job.minExperience}–${job.maxExperience} yrs`
@@ -667,6 +683,7 @@ export default function JobWorkspacePage({
           personalizedReply: c.personalizedReply,
         }))}
         jobTitle={job.title}
+        companyName={job.company || undefined}
         onComplete={async () => {
           await fetchJob();
         }}

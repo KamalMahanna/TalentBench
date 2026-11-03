@@ -11,6 +11,7 @@ import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 interface JobProfileItem {
   id: string;
   title: string;
+  company?: string | null;
   description: string;
   minExperience: number;
   maxExperience: number;
@@ -148,6 +149,21 @@ export default function JobsListPage() {
                       <h2 style={{ color: "var(--ink)" }} className="text-xl font-bold tracking-tight">
                         {job.title}
                       </h2>
+                      {job.company && (
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            padding: "3px 10px",
+                            borderRadius: "999px",
+                            background: "var(--surface)",
+                            border: "1px solid var(--outline)",
+                            color: "var(--ink)",
+                          }}
+                        >
+                          {job.company}
+                        </span>
+                      )}
                       <Badge variant="ice">
                         Experience: {job.minExperience} - {job.maxExperience} Years
                       </Badge>

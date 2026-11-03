@@ -13,7 +13,6 @@ import {
   Sparkles,
   Info,
 } from "lucide-react";
-import { RoundStatusDropdown } from "./round-status-dropdown";
 
 export interface ConnectorStageConfig {
   type: string;
@@ -142,7 +141,6 @@ export function ConnectorNodeModal({
   const [title, setTitle] = useState(initialStage?.title || "");
   const [description, setDescription] = useState(initialStage?.description || "");
   const [cutoff, setCutoff] = useState<number>(initialStage?.cutoff || 50);
-  const [status, setStatus] = useState<string>(initialStage?.status || "auto");
 
   const currentTypeInfo = ROUND_TYPES.find((r) => r.type === selectedType) || ROUND_TYPES[0];
 
@@ -154,14 +152,12 @@ export function ConnectorNodeModal({
       setTitle(initialStage.title || "");
       setDescription(initialStage.description || "");
       setCutoff(initialStage.cutoff || 50);
-      setStatus(initialStage.status || "auto");
     } else {
       const def = ROUND_TYPES[0];
       setSelectedType(def.type);
       setTitle(def.defaultTitle);
       setDescription(def.defaultDesc);
       setCutoff(50);
-      setStatus("auto");
     }
   }, [initialStage, isOpen]);
 
@@ -198,7 +194,7 @@ export function ConnectorNodeModal({
       inputType: currentTypeInfo.inputType,
       inputSpecText: currentTypeInfo.inputSpecText,
       outputSpecText: currentTypeInfo.outputSpecText,
-      status: status !== "auto" ? status : undefined,
+      status: initialStage?.status && initialStage.status !== "auto" ? initialStage.status : undefined,
     });
     onClose();
   };
@@ -351,17 +347,6 @@ export function ConnectorNodeModal({
                 </div>
               </>
             )}
-
-            {/* Round Status */}
-            <div>
-              <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "6px" }}>
-                Round Status
-              </label>
-              <RoundStatusDropdown
-                value={status}
-                onChange={(val) => setStatus(val)}
-              />
-            </div>
 
             {/* I/O Spec */}
             <div style={{ background: "var(--surface)", border: "1px solid var(--outline)", borderRadius: "16px", padding: "14px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>

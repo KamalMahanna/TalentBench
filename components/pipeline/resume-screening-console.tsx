@@ -1202,384 +1202,6 @@ export function ResumeScreeningConsole({
           </div>
         )}
 
-        {/* ── EXECUTION FLOW STAGE VISUALIZER ── */}
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--outline)",
-            borderRadius: "20px",
-            padding: "18px 20px",
-          }}
-          className="shadow-sm space-y-3"
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2">
-              <div
-                style={{
-                  width: "28px",
-                  height: "28px",
-                  borderRadius: "8px",
-                  background: "var(--surface-purple)",
-                  color: "var(--primary-deep)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Cpu size={16} />
-              </div>
-              <span style={{ color: "var(--ink)" }} className="font-semibold tracking-tight text-[13px]">
-                Client-Side Execution Flow
-              </span>
-              <span
-                style={{
-                  background: "var(--surface-purple)",
-                  color: "var(--primary-deep)",
-                  border: "1px solid var(--outline)",
-                  padding: "2px 8px",
-                  borderRadius: "999px",
-                  fontSize: "10px",
-                  fontWeight: 600,
-                }}
-              >
-                In-Browser Engine
-              </span>
-            </div>
-            <div style={{ color: "var(--muted)" }} className="flex items-center gap-3 text-[11px]">
-              <span className="flex items-center gap-1.5">
-                ⚡ Cache Hits: <strong style={{ color: "var(--green)" }}>{cacheHitCount}</strong> (0ms)
-                {cacheHitCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await clearJobEvaluationCache(jobId);
-                      setCacheHitCount(0);
-                      setLiveScreeningFeed([]);
-                      toast.success("Cache cleared for this role.");
-                    }}
-                    style={{
-                      padding: "1px 6px",
-                      borderRadius: "999px",
-                      background: "var(--surface-peach)",
-                      color: "#8c4a0e",
-                      border: "1px solid var(--outline)",
-                      fontSize: "10px",
-                      cursor: "pointer",
-                    }}
-                    title="Clear browser IndexedDB evaluation cache for this job"
-                  >
-                    Clear
-                  </button>
-                )}
-              </span>
-              <span>
-                ⏱ Latency: <strong style={{ color: "var(--primary)" }}>{avgLatency ? `${avgLatency}ms` : "-"}</strong>
-              </span>
-              {/* Concurrency / Dispatch Mode Selector */}
-              <div
-                style={{ borderLeft: "1px solid var(--outline)" }}
-                className="flex items-center gap-1.5 pl-3"
-              >
-                <span>Dispatch:</span>
-                {[
-                  { val: 1, label: "1x (Sequential)" },
-                  { val: 2, label: "2x" },
-                  { val: 3, label: "3x" },
-                ].map((opt) => (
-                  <button
-                    key={opt.val}
-                    type="button"
-                    onClick={() => setConcurrency(opt.val)}
-                    disabled={isScreening}
-                    style={{
-                      borderRadius: "999px",
-                      padding: "2px 8px",
-                      fontSize: "10px",
-                      fontWeight: concurrency === opt.val ? 600 : 500,
-                      background: concurrency === opt.val ? "var(--primary)" : "var(--surface-high)",
-                      color: concurrency === opt.val ? "var(--on-primary)" : "var(--muted)",
-                      border: concurrency === opt.val ? "none" : "1px solid var(--outline)",
-                      cursor: "pointer",
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Pipeline Nodes DAG */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-1 text-[11px]">
-            {/* Stage 1: Text Ingestion */}
-            {(() => {
-              const isComplete = stagedCandidates.length > 0 || liveScreeningFeed.length > 0;
-              return (
-                <div
-                  style={{
-                    background: isComplete ? "#eaf6ee" : "var(--surface-high)",
-                    border: isComplete ? "1px solid #b8dec5" : "1px solid var(--outline)",
-                    borderRadius: "14px",
-                    padding: "10px 12px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "30px",
-                      height: "30px",
-                      borderRadius: "8px",
-                      background: isComplete ? "#d2ebd9" : "var(--surface)",
-                      color: isComplete ? "var(--green)" : "var(--muted)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <FileText size={15} />
-                  </div>
-                  <div className="truncate">
-                    <div style={{ color: isComplete ? "#1e4632" : "var(--ink)", fontWeight: 600 }}>1. In-Browser Parse</div>
-                    <div style={{ color: isComplete ? "#386a51" : "var(--muted)", fontSize: "10px" }}>PDF.js &amp; SheetJS</div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Stage 2: Cache Hash Lookup */}
-            {(() => {
-              const isActive = activeStage === "caching";
-              const isComplete = cacheHitCount > 0 || liveScreeningFeed.length > 0;
-              return (
-                <div
-                  style={{
-                    background: isActive ? "var(--surface-peach)" : isComplete ? "#eaf6ee" : "var(--surface-high)",
-                    border: isActive ? "1px solid #c87a2a" : isComplete ? "1px solid #b8dec5" : "1px solid var(--outline)",
-                    borderRadius: "14px",
-                    padding: "10px 12px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    transition: "all 0.2s",
-                  }}
-                  className={isActive ? "animate-pulse" : ""}
-                >
-                  <div
-                    style={{
-                      width: "30px",
-                      height: "30px",
-                      borderRadius: "8px",
-                      background: isActive ? "#fed7aa" : isComplete ? "#d2ebd9" : "var(--surface)",
-                      color: isActive ? "#8c4a0e" : isComplete ? "var(--green)" : "var(--muted)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Lightning size={15} />
-                  </div>
-                  <div className="truncate">
-                    <div style={{ color: isActive ? "#8c4a0e" : isComplete ? "#1e4632" : "var(--ink)", fontWeight: 600 }}>2. Cache Check</div>
-                    <div style={{ color: isActive ? "#8c4a0e" : isComplete ? "#386a51" : "var(--muted)", fontSize: "10px" }}>SHA-256 IndexedDB</div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Stage 3: AI Screening Calibration */}
-            {(() => {
-              const isActive = activeStage === "evaluating";
-              const isComplete = liveScreeningStats.processed > 0 && !isActive;
-              return (
-                <div
-                  style={{
-                    background: isActive ? "var(--surface-purple)" : isComplete ? "#eaf6ee" : "var(--surface-high)",
-                    border: isActive ? "1px solid var(--primary)" : isComplete ? "1px solid #b8dec5" : "1px solid var(--outline)",
-                    borderRadius: "14px",
-                    padding: "10px 12px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    transition: "all 0.2s",
-                  }}
-                  className={isActive ? "animate-pulse" : ""}
-                >
-                  <div
-                    style={{
-                      width: "30px",
-                      height: "30px",
-                      borderRadius: "8px",
-                      background: isActive ? "var(--surface-purple)" : isComplete ? "#d2ebd9" : "var(--surface)",
-                      color: isActive ? "var(--primary-deep)" : isComplete ? "var(--green)" : "var(--muted)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Sparkle size={15} />
-                  </div>
-                  <div className="truncate">
-                    <div style={{ color: isActive ? "var(--primary-deep)" : isComplete ? "#1e4632" : "var(--ink)", fontWeight: 600 }}>3. 30% Rule AI</div>
-                    <div style={{ color: isActive ? "var(--primary-deep)" : isComplete ? "#386a51" : "var(--muted)", fontSize: "10px" }}>
-                      {concurrency === 1 ? "1x Sequential" : `${concurrency}x Parallel Pool`}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Stage 4: Tournament Benchmark */}
-            {(() => {
-              const isActive = activeStage === "tournament";
-              const isComplete = (activeStage === "complete" || activeStage === "syncing" || poolBenchmark !== null) && !isActive;
-              return (
-                <div
-                  onClick={() => poolBenchmark && setShowBenchmarkModal(true)}
-                  style={{
-                    background: isActive ? "var(--surface-purple)" : isComplete ? "#eaf6ee" : "var(--surface-high)",
-                    border: isActive ? "1px solid var(--primary)" : isComplete ? "1px solid #b8dec5" : "1px solid var(--outline)",
-                    borderRadius: "14px",
-                    padding: "10px 12px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    cursor: poolBenchmark ? "pointer" : "default",
-                    transition: "all 0.2s",
-                  }}
-                  className={isActive ? "animate-pulse" : ""}
-                  title={poolBenchmark ? "Click to inspect the Pool Benchmark" : undefined}
-                >
-                  <div
-                    style={{
-                      width: "30px",
-                      height: "30px",
-                      borderRadius: "8px",
-                      background: isActive ? "var(--surface-purple)" : isComplete ? "#d2ebd9" : "var(--surface)",
-                      color: isActive ? "var(--primary-deep)" : isComplete ? "var(--green)" : "var(--muted)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <UsersThree size={15} />
-                  </div>
-                  <div className="truncate">
-                    <div style={{ color: isActive ? "var(--primary-deep)" : isComplete ? "#1e4632" : "var(--ink)", fontWeight: 600 }} className="flex items-center gap-1.5">
-                      4. Tournament
-                      {poolBenchmark && (
-                        <span style={{ fontSize: "9px", background: "var(--surface-purple)", color: "var(--primary-deep)", padding: "1px 5px", borderRadius: "999px", fontWeight: 600 }}>
-                          Benchmark
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ color: isActive ? "var(--primary-deep)" : isComplete ? "#386a51" : "var(--muted)", fontSize: "10px" }}>
-                      {poolBenchmark
-                        ? `${poolBenchmark.topProjects.length} Projs · ${poolBenchmark.topExperiences.length} Exps`
-                        : "Top 10 Benchmark"}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Stage 5: Async Sync */}
-            {(() => {
-              const isActive = activeStage === "syncing";
-              const isComplete = activeStage === "complete";
-              return (
-                <div
-                  style={{
-                    background: isActive ? "var(--surface-blue)" : isComplete ? "#eaf6ee" : "var(--surface-high)",
-                    border: isActive ? "1px solid #2979ff" : isComplete ? "1px solid #b8dec5" : "1px solid var(--outline)",
-                    borderRadius: "14px",
-                    padding: "10px 12px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    transition: "all 0.2s",
-                  }}
-                  className={`col-span-2 md:col-span-1 ${isActive ? "animate-pulse" : ""}`}
-                >
-                  <div
-                    style={{
-                      width: "30px",
-                      height: "30px",
-                      borderRadius: "8px",
-                      background: isActive ? "#dbeafe" : isComplete ? "#d2ebd9" : "var(--surface)",
-                      color: isActive ? "#1e40af" : isComplete ? "var(--green)" : "var(--muted)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <CheckFat size={15} />
-                  </div>
-                  <div className="truncate">
-                    <div style={{ color: isActive ? "#1e40af" : isComplete ? "#1e4632" : "var(--ink)", fontWeight: 600 }}>5. Async Sync</div>
-                    <div style={{ color: isActive ? "#1e40af" : isComplete ? "#386a51" : "var(--muted)", fontSize: "10px" }}>Prisma SQLite</div>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Pause / Resume / Cancel Controls */}
-          {isScreening && (
-            <div
-              style={{ borderTop: "1px solid var(--outline)" }}
-              className="flex items-center justify-between pt-2.5"
-            >
-              <span style={{ color: "#a0440d" }} className="text-[11px] font-medium flex items-center gap-1.5 animate-pulse">
-                <span style={{ width: "8px", height: "8px", borderRadius: "999px", background: "#f59e0b" }} />
-                Execution in progress ({liveScreeningStats.processed}/{liveScreeningStats.total})
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handlePauseResume}
-                  style={{
-                    background: "var(--surface-high)",
-                    border: "1px solid var(--outline)",
-                    color: "var(--ink)",
-                    borderRadius: "999px",
-                    padding: "4px 12px",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                  }}
-                  className="transition-colors cursor-pointer"
-                >
-                  {isPaused ? "▶ Resume" : "⏸ Pause"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCancelScreening}
-                  style={{
-                    background: "#fde8e8",
-                    color: "#c0392b",
-                    border: "1px solid #f5b7b1",
-                    borderRadius: "999px",
-                    padding: "4px 12px",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                  }}
-                  className="transition-colors cursor-pointer"
-                >
-                  ✕ Cancel
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
           {/* ── LIVE AI SCREENING INTELLIGENCE & TRANSPARENCY CONSOLE ─────── */}
           {(isScreening || liveScreeningFeed.length > 0) && (
             <div
@@ -1689,6 +1311,42 @@ export function ResumeScreeningConsole({
                     >
                       <Warning size={14} className="shrink-0" />
                       <span>Failed (3x): {failedResumes.length}</span>
+                    </div>
+                  )}
+                  {isScreening && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handlePauseResume}
+                        style={{
+                          background: "var(--surface)",
+                          border: "1px solid var(--outline)",
+                          color: "var(--ink)",
+                          borderRadius: "999px",
+                          padding: "5px 12px",
+                          fontSize: "11px",
+                          fontWeight: 500,
+                        }}
+                        className="transition-colors cursor-pointer"
+                      >
+                        {isPaused ? "▶ Resume" : "⏸ Pause"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelScreening}
+                        style={{
+                          background: "#fde8e8",
+                          color: "#c0392b",
+                          border: "1px solid #f5b7b1",
+                          borderRadius: "999px",
+                          padding: "5px 12px",
+                          fontSize: "11px",
+                          fontWeight: 500,
+                        }}
+                        className="transition-colors cursor-pointer"
+                      >
+                        ✕ Cancel
+                      </button>
                     </div>
                   )}
                   <button

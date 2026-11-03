@@ -5,7 +5,7 @@ WORKDIR /app
 RUN corepack enable
 
 # Install dependencies
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
 RUN pnpm install --frozen-lockfile
 
 # Copy source code and ensure public directory exists
@@ -27,6 +27,9 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-lock.yaml ./
+COPY --from=builder /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/.npmrc* ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
@@ -36,4 +39,4 @@ RUN corepack enable
 
 EXPOSE 3000
 
-CMD ["pnpm", "run", "start"]
+CMD ["./node_modules/.bin/next", "start"]

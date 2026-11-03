@@ -1,5 +1,13 @@
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true
+  bcryptjs: true
   prisma: true
   sharp: true
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - bcryptjs
+  - prisma
+  - sharp
+
